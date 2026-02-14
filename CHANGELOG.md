@@ -33,6 +33,10 @@ This is a rolling release - changes are deployed continuously to `main`.
   - Fixed references: CHANGES.md → CHANGELOG.md
   - Updated to rolling release model
 - **CHANGELOG.md**: Renamed from CHANGES.md, switched to rolling release format
+- **release-go.yml**:
+  - Added `extra-env` input for additional environment variables (multiline KEY=VALUE format)
+  - Security improvement: Environment variables now passed via `env:` block to prevent command injection
+  - Enables custom environment variables for GoReleaser builds (e.g., CGO_ENABLED, GOOS)
 
 ### Repository Status
 

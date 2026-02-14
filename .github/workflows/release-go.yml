@@ -29,6 +29,11 @@ on:
         required: false
         default: ''
         description: 'Commands to run before GoReleaser (e.g. code generation)'
+      extra-env:
+        type: string
+        required: false
+        default: ''
+        description: 'Additional environment variables (multiline, KEY=VALUE format)'
 
 permissions:
   contents: write
@@ -53,6 +58,13 @@ jobs:
       - name: Run pre-build commands
         if: inputs.pre-build-commands != ''
         run: ${{ inputs.pre-build-commands }}
+
+      - name: Parse extra environment variables
+        if: inputs.extra-env != ''
+        env:
+          EXTRA_ENV: ${{ inputs.extra-env }}
+        run: |
+          echo "$EXTRA_ENV" >> "$GITHUB_ENV"
 
       - name: Create release with GoReleaser
         uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6
