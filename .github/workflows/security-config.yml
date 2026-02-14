@@ -115,34 +115,37 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Run TFSec
-        uses: aquasecurity/tfsec-action@b466648d6e39e7c75324f25d83891162a721f2d6 # v1.0.3
+      - name: Run Trivy (Terraform Security)
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
         with:
-          working_directory: ${{ inputs.terraform-path }}
+          scan-type: 'config'
+          scan-ref: ${{ inputs.terraform-path }}
           format: 'sarif'
-          soft_fail: ${{ !inputs.fail-on-findings }}
-          additional_args: '--minimum-severity ${{ inputs.severity-threshold }}'
+          output: 'trivy-results.sarif'
+          scanners: 'config'
+          exit-code: ${{ inputs.fail-on-findings && '1' || '0' }}
+          severity: ${{ inputs.severity-threshold }}
 
       - name: Check if SARIF file exists
         id: sarif_check
         if: always()
         run: |
-          if [ -f "results.sarif" ]; then
+          if [ -f "trivy-results.sarif" ]; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::TFSec did not generate a SARIF file (no findings or execution issue)"
+            echo "::warning::Trivy did not generate a SARIF file (no findings or execution issue)"
           fi
 
-      - name: Upload TFSec results
+      - name: Upload Trivy results
         if: |
           inputs.enable-sarif && always() &&
           steps.sarif_check.outputs.exists == 'true' &&
           github.event.repository.visibility == 'public'
         uses: github/codeql-action/upload-sarif@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
         with:
-          sarif_file: 'results.sarif'
-          category: 'tfsec'
+          sarif_file: 'trivy-results.sarif'
+          category: 'trivy-terraform'
         continue-on-error: true
 
       - name: Skip SARIF upload for private repo
@@ -154,12 +157,12 @@ jobs:
           echo "::notice::Skipping SARIF upload - Code Scanning requires GitHub Advanced Security for private repos"
           echo "::notice::Security results are available as workflow artifacts"
 
-      - name: Upload TFSec artifacts
+      - name: Upload Trivy artifacts
         if: always() && steps.sarif_check.outputs.exists == 'true'
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: tfsec-results
-          path: results.sarif
+          name: trivy-terraform-results
+          path: trivy-results.sarif
           retention-days: 30
 
       - name: Custom Terraform validators

@@ -169,31 +169,30 @@ jobs:
           category: 'trivy'
 
   tfsec:
-    name: Scan Security
+    name: Terraform Security Scan
     if: ${{ inputs.enable-tfsec }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: TFSec Scan
-        uses: aquasecurity/tfsec-action@b466648d6e39e7c75324f25d83891162a721f2d6 # v1.0.3
+      - name: Run Trivy (Terraform Security)
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
         with:
-          working_directory: ${{ inputs.working-directory }}
-          soft_fail: true
-          format: lovely
+          scan-type: 'config'
+          scan-ref: ${{ inputs.working-directory }}
+          format: 'json'
+          output: 'trivy-terraform-results.json'
+          scanners: 'config'
+          exit-code: 0
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
 
-      - name: TFSec JSON Results
-        if: always()
-        run: |
-          docker run --rm -v "$(pwd)/${{ inputs.working-directory }}:/src" aquasec/tfsec /src --format json > tfsec-results.json 2>/dev/null || true
-
-      - name: Upload TFSec Results (Artifact)
+      - name: Upload Trivy Results (Artifact)
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: tfsec-results
-          path: tfsec-results.json
+          name: trivy-terraform-results
+          path: trivy-terraform-results.json
           retention-days: 30
           if-no-files-found: ignore
 

@@ -37,6 +37,12 @@ This is a rolling release - changes are deployed continuously to `main`.
   - Added `extra-env` input for additional environment variables (multiline KEY=VALUE format)
   - Security improvement: Environment variables now passed via `env:` block to prevent command injection
   - Enables custom environment variables for GoReleaser builds (e.g., CGO_ENABLED, GOOS)
+- **ci-terraform.yml** & **security-config.yml**:
+  - Migrated from abandoned `aquasecurity/tfsec-action` to `aquasecurity/trivy-action@0.33.1`
+  - TFSec was deprecated and integrated into Trivy by Aqua Security
+  - Updated artifact names: `tfsec-results` → `trivy-terraform-results`
+  - Updated SARIF category: `tfsec` → `trivy-terraform`
+  - Improved Terraform security scanning with latest tooling
 
 ### Repository Status
 
