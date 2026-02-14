@@ -1,0 +1,152 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "GitOps Renovate configuration for Fleet, Helm, Kubernetes and Kustomize",
+  "extends": ["github>sbaerlocher/.github:renovate-base#main"],
+  "enabledManagers": [
+    "kubernetes",
+    "helm-values",
+    "helmfile",
+    "kustomize",
+    "custom.regex",
+    "github-actions"
+  ],
+  "kubernetes": {
+    "fileMatch": [
+      "\\.ya?ml$",
+      "^kustomization\\.ya?ml$"
+    ]
+  },
+  "helm-values": {
+    "fileMatch": [
+      "values\\.ya?ml$",
+      "values-.+\\.ya?ml$"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Group Helm chart updates",
+      "matchManagers": ["helm-values", "helmfile"],
+      "matchDatasources": ["helm"],
+      "groupName": "Helm charts",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "helm",
+      "stabilityDays": 5,
+      "prPriority": 5
+    },
+    {
+      "description": "Container images - pin digests for production",
+      "matchManagers": ["kubernetes"],
+      "matchDatasources": ["docker"],
+      "pinDigests": true,
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "images",
+      "versioning": "docker",
+      "stabilityDays": 3
+    },
+    {
+      "description": "Kustomize base updates",
+      "matchManagers": ["kustomize"],
+      "groupName": "Kustomize bases",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "kustomize"
+    },
+    {
+      "description": "Major Helm chart updates - manual approval",
+      "matchManagers": ["helm-values", "helmfile"],
+      "matchDatasources": ["helm"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+      "automerge": false,
+      "stabilityDays": 7,
+      "labels": ["helm", "major-update"]
+    },
+    {
+      "description": "Critical platform charts - extra stability",
+      "matchManagers": ["helm-values", "helmfile"],
+      "matchPackageNames": [
+        "cert-manager",
+        "external-secrets",
+        "ingress-nginx",
+        "metallb",
+        "longhorn",
+        "prometheus-stack",
+        "loki",
+        "grafana",
+        "vault"
+      ],
+      "stabilityDays": 7,
+      "automerge": false,
+      "dependencyDashboardApproval": true,
+      "labels": ["platform", "critical"]
+    },
+    {
+      "description": "Container image major versions - manual review",
+      "matchManagers": ["kubernetes"],
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+      "automerge": false,
+      "labels": ["docker", "major-update"]
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Fleet Helm Charts in fleet.yaml",
+      "fileMatch": ["(^|/)fleet\\.ya?ml$"],
+      "matchStrings": [
+        "chart:\\s+(?<depName>[^\\s]+?)\\s+version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?",
+        "repo:\\s+(?<registryUrl>https?://[^\\s]+)\\s+chart:\\s+(?<depName>[^\\s]+)\\s+version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?"
+      ],
+      "datasourceTemplate": "helm"
+    },
+    {
+      "customType": "regex",
+      "description": "Helm charts in fleet.yaml with OCI registries",
+      "fileMatch": ["(^|/)fleet\\.ya?ml$"],
+      "matchStrings": [
+        "chart:\\s+oci://(?<registryUrl>[^/]+)/(?<depName>[^\\s]+)\\s+version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?"
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Container image tags in YAML (image: repo:tag format)",
+      "fileMatch": ["\\.ya?ml$"],
+      "matchStrings": [
+        "image:\\s+['\"]?(?<depName>[^:\"'\\s]+):(?<currentValue>[^\"'\\s]+)['\"]?"
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Docker images in comments (for GitOps references)",
+      "fileMatch": ["\\.ya?ml$"],
+      "matchStrings": [
+        "#\\s*renovate:\\s*image=(?<depName>[^:]+):(?<currentValue>[^\\s]+)"
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Kubernetes tool versions in comments",
+      "fileMatch": ["\\.ya?ml$", "Makefile$"],
+      "matchStrings": [
+        "#\\s*renovate:\\s*k8s-(?<depName>kubectl|helm|kustomize)\\s+(?<currentValue>[^\\s]+)"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "kubernetes/{{depName}}",
+      "versioningTemplate": "semver"
+    }
+  ],
+  "regexManagers": [
+    {
+      "fileMatch": ["(^|/)fleet\\.ya?ml$"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)( versioning=(?<versioning>\\S+))?(\\s+registryUrl=(?<registryUrl>\\S+))?\\s+.+?:\\s*['\"]?(?<currentValue>[^'\"\\s]+)['\"]?"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+# Default owner for everything
+* @sbaerlocher
+
+# Workflows are critical - require explicit review
+/.github/workflows/ @sbaerlocher
+
+# Renovate presets affect all repos - require review
+/renovate-*.json @sbaerlocher
+
+# Standards affect all repos - require review
+/STANDARDS.md @sbaerlocher

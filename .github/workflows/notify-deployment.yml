@@ -1,0 +1,230 @@
+---
+name: Notify - Deployment
+
+on:
+  workflow_call:
+    inputs:
+      deployment-status:
+        type: string
+        required: true
+        description: 'Deployment status (success, failure, started)'
+      environment:
+        type: string
+        required: true
+        description: 'Deployment environment (production, staging, development)'
+      project-name:
+        type: string
+        required: true
+        description: 'Project name'
+      deployment-url:
+        type: string
+        default: ''
+        description: 'Deployment URL (optional)'
+      slack-enabled:
+        type: boolean
+        default: false
+        description: 'Send Slack notification'
+      discord-enabled:
+        type: boolean
+        default: false
+        description: 'Send Discord notification'
+      summary-only:
+        type: boolean
+        default: false
+        description: 'Only create GitHub summary (no external notifications)'
+    secrets:
+      SLACK_WEBHOOK_URL:
+        required: false
+      DISCORD_WEBHOOK_URL:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  notify-slack:
+    name: Notify Slack
+    if: inputs.slack-enabled && !inputs.summary-only
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Determine message color
+        id: color
+        run: |
+          case "${{ inputs.deployment-status }}" in
+            success) echo "color=#2eb886" >> $GITHUB_OUTPUT ;;  # Green
+            failure) echo "color=#a30200" >> $GITHUB_OUTPUT ;;  # Red
+            started) echo "color=#0099ff" >> $GITHUB_OUTPUT ;;  # Blue
+            *) echo "color=#808080" >> $GITHUB_OUTPUT ;;        # Gray
+          esac
+
+      - name: Determine emoji
+        id: emoji
+        run: |
+          case "${{ inputs.deployment-status }}" in
+            success) echo "emoji=✅" >> $GITHUB_OUTPUT ;;
+            failure) echo "emoji=❌" >> $GITHUB_OUTPUT ;;
+            started) echo "emoji=🚀" >> $GITHUB_OUTPUT ;;
+            *) echo "emoji=ℹ️" >> $GITHUB_OUTPUT ;;
+          esac
+
+      - name: Send Slack notification
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "attachments": [
+                {
+                  "color": "${{ steps.color.outputs.color }}",
+                  "blocks": [
+                    {
+                      "type": "header",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "${{ steps.emoji.outputs.emoji }} Deployment ${{ inputs.deployment-status }}: ${{ inputs.project-name }}"
+                      }
+                    },
+                    {
+                      "type": "section",
+                      "fields": [
+                        {
+                          "type": "mrkdwn",
+                          "text": "*Environment:*\n${{ inputs.environment }}"
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": "*Status:*\n${{ inputs.deployment-status }}"
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": "*Branch:*\n${{ github.ref_name }}"
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": "*Commit:*\n<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                        }
+                      ]
+                    },
+                    ${{ inputs.deployment-url != '' && format('{{ "type": "section", "text": {{ "type": "mrkdwn", "text": "*Deployment URL:* <{0}|{0}>" }} }},', inputs.deployment-url) || '' }}
+                    {
+                      "type": "context",
+                      "elements": [
+                        {
+                          "type": "mrkdwn",
+                          "text": "Triggered by <${{ github.server_url }}/${{ github.actor }}|@${{ github.actor }}> • <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Workflow>"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+
+  notify-discord:
+    name: Notify Discord
+    if: inputs.discord-enabled && !inputs.summary-only
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Determine embed color
+        id: color
+        run: |
+          case "${{ inputs.deployment-status }}" in
+            success) echo "color=3066993" >> $GITHUB_OUTPUT ;;   # Green
+            failure) echo "color=15158332" >> $GITHUB_OUTPUT ;;  # Red
+            started) echo "color=3447003" >> $GITHUB_OUTPUT ;;   # Blue
+            *) echo "color=10070709" >> $GITHUB_OUTPUT ;;        # Gray
+          esac
+
+      - name: Send Discord notification
+        run: |
+          STATUS_EMOJI=""
+          case "${{ inputs.deployment-status }}" in
+            success) STATUS_EMOJI="✅" ;;
+            failure) STATUS_EMOJI="❌" ;;
+            started) STATUS_EMOJI="🚀" ;;
+            *) STATUS_EMOJI="ℹ️" ;;
+          esac
+
+          DESCRIPTION="**Environment:** ${{ inputs.environment }}\n"
+          DESCRIPTION+="**Branch:** \`${{ github.ref_name }}\`\n"
+          DESCRIPTION+="**Commit:** [\`${GITHUB_SHA:0:7}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})\n"
+          ${{ inputs.deployment-url != '' && format('DESCRIPTION+="**URL:** [{0}]({0})\\n"', inputs.deployment-url) || '' }}
+          DESCRIPTION+="**Triggered by:** @${{ github.actor }}"
+
+          curl -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "embeds": [{
+                "title": "'"$STATUS_EMOJI"' Deployment '"${{ inputs.deployment-status }}"': ${{ inputs.project-name }}",
+                "description": "'"$DESCRIPTION"'",
+                "color": ${{ steps.color.outputs.color }},
+                "footer": {
+                  "text": "GitHub Actions"
+                },
+                "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+              }]
+            }'
+
+  github-summary:
+    name: GitHub Summary
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Generate Deployment Summary
+        run: |
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+          STATUS_EMOJI=""
+          STATUS_BADGE=""
+          case "${{ inputs.deployment-status }}" in
+            success)
+              STATUS_EMOJI="✅"
+              STATUS_BADGE="![Success](https://img.shields.io/badge/Status-Success-success)"
+              ;;
+            failure)
+              STATUS_EMOJI="❌"
+              STATUS_BADGE="![Failure](https://img.shields.io/badge/Status-Failure-critical)"
+              ;;
+            started)
+              STATUS_EMOJI="🚀"
+              STATUS_BADGE="![Started](https://img.shields.io/badge/Status-Started-blue)"
+              ;;
+            *)
+              STATUS_EMOJI="ℹ️"
+              STATUS_BADGE="![Unknown](https://img.shields.io/badge/Status-Unknown-lightgrey)"
+              ;;
+          esac
+
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          # $STATUS_EMOJI Deployment Notification
+
+          $STATUS_BADGE
+
+          **Timestamp:** $TIMESTAMP
+
+          ## Deployment Details
+
+          | Field | Value |
+          |-------|-------|
+          | **Project** | ${{ inputs.project-name }} |
+          | **Environment** | ${{ inputs.environment }} |
+          | **Status** | ${{ inputs.deployment-status }} |
+          | **Branch** | \`${{ github.ref_name }}\` |
+          | **Commit** | [\`${GITHUB_SHA:0:7}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}) |
+          | **Triggered by** | @${{ github.actor }} |
+          | **Workflow Run** | [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |
+          ${{ inputs.deployment-url != '' && format('| **Deployment URL** | [{0}]({0}) |', inputs.deployment-url) || '' }}
+
+          ## Notification Status
+
+          | Channel | Enabled | Status |
+          |---------|---------|--------|
+          | Slack | ${{ inputs.slack-enabled }} | ${{ inputs.slack-enabled && 'Sent' || 'Disabled' }} |
+          | Discord | ${{ inputs.discord-enabled }} | ${{ inputs.discord-enabled && 'Sent' || 'Disabled' }} |
+
+          ---
+          *Deployment notification completed*
+          EOF

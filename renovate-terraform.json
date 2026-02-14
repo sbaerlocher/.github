@@ -1,0 +1,211 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Terraform/IaC Renovate configuration for providers, modules, and tools",
+  "extends": [
+    "github>sbaerlocher/.github:renovate-base#main",
+    ":semanticCommitTypeAll(chore)"
+  ],
+  "enabledManagers": [
+    "terraform",
+    "terraform-version",
+    "tflint-plugin",
+    "terragrunt",
+    "terragrunt-version",
+    "github-actions",
+    "custom.regex"
+  ],
+  "terraform": {
+    "fileMatch": [
+      "\\.tf$",
+      "(^|/)\\.terraform\\.lock\\.hcl$"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Terraform Core version updates - manual review",
+      "matchManagers": ["terraform-version"],
+      "matchPackageNames": ["hashicorp/terraform"],
+      "groupName": "Terraform Core",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "terraform",
+      "stabilityDays": 14,
+      "automerge": false,
+      "dependencyDashboardApproval": true,
+      "labels": ["terraform-core", "manual-review"],
+      "prPriority": 20
+    },
+    {
+      "description": "Group Terraform Providers by patch/minor",
+      "matchManagers": ["terraform"],
+      "matchDatasources": ["terraform-provider"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "Terraform Providers (non-major)",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "providers",
+      "stabilityDays": 5,
+      "labels": ["terraform", "providers"]
+    },
+    {
+      "description": "Terraform Provider major updates - individual PRs",
+      "matchManagers": ["terraform"],
+      "matchDatasources": ["terraform-provider"],
+      "matchUpdateTypes": ["major"],
+      "groupName": null,
+      "dependencyDashboardApproval": true,
+      "automerge": false,
+      "stabilityDays": 14,
+      "labels": ["terraform", "providers", "major-update"],
+      "semanticCommitType": "feat",
+      "semanticCommitScope": "providers"
+    },
+    {
+      "description": "Critical providers - extra stability",
+      "matchManagers": ["terraform"],
+      "matchDatasources": ["terraform-provider"],
+      "matchPackageNames": [
+        "hashicorp/aws",
+        "hashicorp/azurerm",
+        "hashicorp/google",
+        "hetznercloud/hcloud",
+        "cloudflare/cloudflare",
+        "integrations/github"
+      ],
+      "stabilityDays": 7,
+      "automerge": false,
+      "labels": ["terraform", "critical-provider"]
+    },
+    {
+      "description": "Terraform Modules updates",
+      "matchManagers": ["terraform"],
+      "matchDatasources": ["terraform-module", "github-tags", "git-tags"],
+      "groupName": "Terraform Modules",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "modules",
+      "stabilityDays": 7,
+      "labels": ["terraform", "modules"]
+    },
+    {
+      "description": "Terraform Module major updates - manual review",
+      "matchManagers": ["terraform"],
+      "matchDatasources": ["terraform-module", "github-tags", "git-tags"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+      "automerge": false,
+      "stabilityDays": 14,
+      "labels": ["terraform", "modules", "major-update"]
+    },
+    {
+      "description": "tflint and plugins",
+      "matchManagers": ["tflint-plugin"],
+      "groupName": "tflint",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "lint",
+      "automerge": true,
+      "labels": ["terraform", "tflint"]
+    },
+    {
+      "description": "Terragrunt version updates",
+      "matchManagers": ["terragrunt", "terragrunt-version"],
+      "matchPackageNames": ["gruntwork-io/terragrunt"],
+      "groupName": "Terragrunt",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "terragrunt",
+      "stabilityDays": 7,
+      "automerge": false,
+      "labels": ["terragrunt"]
+    },
+    {
+      "description": "Lock file maintenance for Terraform",
+      "matchManagers": ["terraform"],
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "schedule": ["before 6am on the first day of the month"],
+      "automerge": true,
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "lock"
+    },
+    {
+      "description": "Pre-commit terraform hooks",
+      "matchPackageNames": [
+        "antonbabenko/pre-commit-terraform",
+        "terraform-docs/terraform-docs"
+      ],
+      "groupName": "Terraform pre-commit tools",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "tools",
+      "automerge": true
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Terraform version in .terraform-version files",
+      "fileMatch": ["(^|/)\\.terraform-version$"],
+      "matchStrings": ["^(?<currentValue>\\S+)$"],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "hashicorp/terraform",
+      "versioningTemplate": "hashicorp"
+    },
+    {
+      "customType": "regex",
+      "description": "Terragrunt version in .terragrunt-version files",
+      "fileMatch": ["(^|/)\\.terragrunt-version$"],
+      "matchStrings": ["^(?<currentValue>\\S+)$"],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "gruntwork-io/terragrunt",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Terraform/Terragrunt versions in Makefiles",
+      "fileMatch": ["^Makefile$", "\\.mk$"],
+      "matchStrings": [
+        "TERRAFORM_VERSION\\s*[:?]?=\\s*(?<currentValue>[^\\s]+)",
+        "TERRAGRUNT_VERSION\\s*[:?]?=\\s*(?<currentValue>[^\\s]+)"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "hashicorp/terraform",
+      "versioningTemplate": "hashicorp"
+    },
+    {
+      "customType": "regex",
+      "description": "Terraform provider versions in comments",
+      "fileMatch": ["\\.tf$"],
+      "matchStrings": [
+        "#\\s*renovate:\\s*terraform-provider\\s+(?<depName>[^\\s]+)\\s+(?<currentValue>[^\\s]+)"
+      ],
+      "datasourceTemplate": "terraform-provider",
+      "versioningTemplate": "hashicorp"
+    },
+    {
+      "customType": "regex",
+      "description": "Ansible versions in requirements files",
+      "fileMatch": ["^ansible/requirements\\.ya?ml$", "requirements\\.ya?ml$"],
+      "matchStrings": [
+        "version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?\\s+#\\s*renovate:\\s*(?<depName>[^\\s]+)"
+      ],
+      "datasourceTemplate": "galaxy-collection",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Packer version in .packer-version files",
+      "fileMatch": ["(^|/)\\.packer-version$"],
+      "matchStrings": ["^(?<currentValue>\\S+)$"],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "hashicorp/packer",
+      "versioningTemplate": "hashicorp"
+    }
+  ],
+  "hostRules": [
+    {
+      "description": "Terraform Registry",
+      "hostType": "terraform-provider",
+      "timeout": 30000
+    },
+    {
+      "description": "Terraform Module Registry",
+      "hostType": "terraform-module",
+      "timeout": 30000
+    }
+  ]
+}

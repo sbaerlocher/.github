@@ -1,0 +1,368 @@
+---
+name: Security - Config
+
+on:
+  workflow_call:
+    inputs:
+      # Scan targets
+      scan-terraform:
+        type: boolean
+        default: false
+        description: 'Scan Terraform files'
+      scan-kubernetes:
+        type: boolean
+        default: false
+        description: 'Scan Kubernetes manifests'
+      scan-ansible:
+        type: boolean
+        default: false
+        description: 'Scan Ansible playbooks'
+      # Paths
+      terraform-path:
+        type: string
+        default: '.'
+        description: 'Path to Terraform files'
+      kubernetes-path:
+        type: string
+        default: '.'
+        description: 'Path to Kubernetes manifests'
+      ansible-path:
+        type: string
+        default: '.'
+        description: 'Path to Ansible playbooks'
+      # Severity
+      severity-threshold:
+        type: string
+        default: 'MEDIUM'
+        description: 'Minimum severity (LOW, MEDIUM, HIGH, CRITICAL)'
+      fail-on-findings:
+        type: boolean
+        default: false
+        description: 'Fail workflow on security findings'
+      # SARIF upload
+      enable-sarif:
+        type: boolean
+        default: true
+        description: 'Upload SARIF results to GitHub Security'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  trivy-config-scan:
+    name: Trivy Config Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run Trivy config scan
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          severity: ${{ inputs.severity-threshold }},HIGH,CRITICAL
+          format: 'sarif'
+          output: 'trivy-config-results.sarif'
+          exit-code: ${{ inputs.fail-on-findings && '1' || '0' }}
+
+      - name: Upload Trivy results to GitHub Security
+        if: |
+          inputs.enable-sarif && always() &&
+          github.event.repository.visibility == 'public'
+        uses: github/codeql-action/upload-sarif@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
+        with:
+          sarif_file: 'trivy-config-results.sarif'
+          category: 'trivy-config'
+        continue-on-error: true
+
+      - name: Skip SARIF upload for private repo
+        if: |
+          inputs.enable-sarif && always() &&
+          github.event.repository.visibility != 'public'
+        run: |
+          echo "::notice::Skipping SARIF upload - Code Scanning requires GitHub Advanced Security for private repos"
+          echo "::notice::Security results are available as workflow artifacts"
+
+      - name: Generate Trivy report
+        if: always()
+        run: |
+          echo "Generating detailed Trivy report..."
+          docker run --rm -v "$(pwd):/workspace" \
+            aquasec/trivy:latest config /workspace \
+            --severity ${{ inputs.severity-threshold }},HIGH,CRITICAL \
+            --format table \
+            | tee trivy-config-report.txt
+
+      - name: Upload Trivy artifacts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: trivy-config-results
+          path: |
+            trivy-config-results.sarif
+            trivy-config-report.txt
+          retention-days: 30
+
+  terraform-security:
+    name: Terraform Security
+    if: inputs.scan-terraform
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run TFSec
+        uses: aquasecurity/tfsec-action@b466648d6e39e7c75324f25d83891162a721f2d6 # v1.0.3
+        with:
+          working_directory: ${{ inputs.terraform-path }}
+          format: 'sarif'
+          soft_fail: ${{ !inputs.fail-on-findings }}
+          additional_args: '--minimum-severity ${{ inputs.severity-threshold }}'
+
+      - name: Check if SARIF file exists
+        id: sarif_check
+        if: always()
+        run: |
+          if [ -f "results.sarif" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::TFSec did not generate a SARIF file (no findings or execution issue)"
+          fi
+
+      - name: Upload TFSec results
+        if: |
+          inputs.enable-sarif && always() &&
+          steps.sarif_check.outputs.exists == 'true' &&
+          github.event.repository.visibility == 'public'
+        uses: github/codeql-action/upload-sarif@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
+        with:
+          sarif_file: 'results.sarif'
+          category: 'tfsec'
+        continue-on-error: true
+
+      - name: Skip SARIF upload for private repo
+        if: |
+          inputs.enable-sarif && always() &&
+          steps.sarif_check.outputs.exists == 'true' &&
+          github.event.repository.visibility != 'public'
+        run: |
+          echo "::notice::Skipping SARIF upload - Code Scanning requires GitHub Advanced Security for private repos"
+          echo "::notice::Security results are available as workflow artifacts"
+
+      - name: Upload TFSec artifacts
+        if: always() && steps.sarif_check.outputs.exists == 'true'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: tfsec-results
+          path: results.sarif
+          retention-days: 30
+
+      - name: Custom Terraform validators
+        working-directory: ${{ inputs.terraform-path }}
+        run: |
+          echo "Running custom Terraform validators..."
+
+          # Check for overly permissive CIDR blocks
+          echo "Checking for 0.0.0.0/0 CIDR blocks..."
+          if grep -r "0\.0\.0\.0/0" --include="*.tf" .; then
+            echo "::warning::Found overly permissive CIDR block 0.0.0.0/0"
+          fi
+
+          # Check for hardcoded IPs
+          echo "Checking for hardcoded IP addresses..."
+          grep -rE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b' --include="*.tf" . \
+            | grep -v "0.0.0.0" \
+            | grep -v "127.0.0.1" \
+            | grep -v "variable" \
+            | grep -v "data\." \
+            | grep -v "local\." \
+            | tee hardcoded-ips.txt || true
+
+          if [ -s hardcoded-ips.txt ]; then
+            echo "::warning::Found hardcoded IP addresses in Terraform files"
+          fi
+
+  kubernetes-security:
+    name: Scan Kubernetes
+    if: inputs.scan-kubernetes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Find Kubernetes manifests
+        id: find-manifests
+        working-directory: ${{ inputs.kubernetes-path }}
+        run: |
+          echo "Searching for Kubernetes manifests..."
+          MANIFESTS=$(find . -type f \( -name "*.yaml" -o -name "*.yml" \) -path "*/templates/*" 2>/dev/null || true)
+
+          if [ -z "$MANIFESTS" ]; then
+            echo "No Kubernetes manifests found in templates/"
+            echo "found=false" >> $GITHUB_OUTPUT
+          else
+            echo "Found manifests:"
+            echo "$MANIFESTS"
+            echo "found=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run Kubesec
+        if: steps.find-manifests.outputs.found == 'true'
+        working-directory: ${{ inputs.kubernetes-path }}
+        run: |
+          docker run --rm -v "$(pwd):/workspace" \
+            kubesec/kubesec:v2 scan /workspace/**/*.yaml \
+            | tee kubesec-results.json
+
+          # Check for critical issues
+          CRITICAL=$(jq '[.[] | select(.scoring.critical > 0)] | length' kubesec-results.json 2>/dev/null || echo "0")
+
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "::warning::Found $CRITICAL Kubernetes manifests with critical security issues"
+          fi
+
+      - name: Check for hardcoded credentials
+        if: steps.find-manifests.outputs.found == 'true'
+        working-directory: ${{ inputs.kubernetes-path }}
+        run: |
+          echo "Checking for hardcoded credentials in Kubernetes manifests..."
+
+          # Skip External Secrets Operator manifests
+          CREDENTIAL_PATTERNS="password:|apiKey:|token:|secret:"
+
+          grep -rn "$CREDENTIAL_PATTERNS" --include="*.yaml" --include="*.yml" . \
+            | grep -v "kind: ExternalSecret" \
+            | grep -v "kind: SecretStore" \
+            | grep -v "kind: ClusterSecretStore" \
+            | tee credential-check.txt || true
+
+          if [ -s credential-check.txt ]; then
+            echo "::warning::Potential hardcoded credentials found in Kubernetes manifests"
+          else
+            echo "::notice::No hardcoded credentials detected"
+          fi
+
+      - name: Upload Kubernetes scan results
+        if: steps.find-manifests.outputs.found == 'true' && always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: kubernetes-security-results
+          path: |
+            ${{ inputs.kubernetes-path }}/kubesec-results.json
+            ${{ inputs.kubernetes-path }}/credential-check.txt
+          retention-days: 30
+          if-no-files-found: ignore
+
+  ansible-security:
+    name: Scan Ansible
+    if: inputs.scan-ansible
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Install Ansible and ansible-lint
+        run: |
+          pip install ansible ansible-lint yamllint
+
+      - name: Run ansible-lint
+        working-directory: ${{ inputs.ansible-path }}
+        run: |
+          echo "Running ansible-lint..."
+          ansible-lint -f pep8 . | tee ansible-lint-results.txt || true
+
+      - name: Run yamllint
+        working-directory: ${{ inputs.ansible-path }}
+        run: |
+          echo "Running yamllint on playbooks..."
+          yamllint -f parsable . | tee yamllint-results.txt || true
+
+      - name: Upload Ansible scan results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ansible-security-results
+          path: |
+            ${{ inputs.ansible-path }}/ansible-lint-results.txt
+            ${{ inputs.ansible-path }}/yamllint-results.txt
+          retention-days: 30
+          if-no-files-found: ignore
+
+  security-report:
+    name: Create Report
+    runs-on: ubuntu-latest
+    needs: [trivy-config-scan, terraform-security, kubernetes-security, ansible-security]
+    if: always() && !cancelled()
+    steps:
+      - name: Generate Security Report
+        run: |
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          # 🏗️ Infrastructure Configuration Security Report
+
+          **Timestamp:** $TIMESTAMP
+          **Severity Threshold:** ${{ inputs.severity-threshold }}+
+
+          ## Scan Results
+
+          | Component | Enabled | Status |
+          |-----------|---------|--------|
+          | Trivy Config Scan | ✓ | ${{ needs.trivy-config-scan.result }} |
+          | Terraform (TFSec) | ${{ inputs.scan-terraform && '✓' || '–' }} | ${{ needs.terraform-security.result }} |
+          | Kubernetes (Kubesec) | ${{ inputs.scan-kubernetes && '✓' || '–' }} | ${{ needs.kubernetes-security.result }} |
+          | Ansible (ansible-lint) | ${{ inputs.scan-ansible && '✓' || '–' }} | ${{ needs.ansible-security.result }} |
+
+          ## Tools Used
+
+          **Universal:**
+          - Trivy: Multi-purpose configuration scanner
+
+          **Terraform:**
+          - TFSec: Terraform static analysis
+          - Custom validators: CIDR blocks, hardcoded IPs
+
+          **Kubernetes:**
+          - Kubesec: Kubernetes manifest security scoring
+          - Pattern detection: Hardcoded credentials
+
+          **Ansible:**
+          - ansible-lint: Ansible best practices checker
+          - yamllint: YAML syntax and style validator
+
+          ## Security Coverage
+
+          This workflow scans infrastructure-as-code for:
+
+          - 🔒 Security misconfigurations
+          - 🌐 Overly permissive network rules
+          - 🔑 Hardcoded credentials and secrets
+          - 📋 Best practice violations
+          - ⚙️  Configuration vulnerabilities
+
+          ## Best Practices
+
+          - ✓ Use variables/parameters instead of hardcoded values
+          - ✓ Apply principle of least privilege
+          - ✓ Use External Secrets Operator for Kubernetes secrets
+          - ✓ Enable encryption at rest and in transit
+          - ✓ Regularly update IaC tools and modules
+          - ✓ Use module registries (Terraform Registry, Ansible Galaxy)
+
+          ---
+          *Infrastructure configuration security scan completed*
+
+          **Note:** Secret detection is handled by \`security-secrets.yml\` workflow
+          EOF

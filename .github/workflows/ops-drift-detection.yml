@@ -1,0 +1,145 @@
+---
+name: Ops - Drift Detection
+
+on:
+  workflow_call:
+    inputs:
+      terraform-version:
+        type: string
+        default: '1.14.3'
+        description: 'Terraform version to use'
+      environment:
+        type: string
+        required: true
+        description: 'Environment to check for drift'
+      project-name:
+        type: string
+        required: true
+        description: 'Project name for identification'
+      working-directory:
+        type: string
+        default: '.'
+        description: 'Working directory for Terraform'
+      parallelism:
+        type: number
+        default: 3
+        description: 'Terraform parallelism setting'
+      timeout-minutes:
+        type: number
+        default: 20
+        description: 'Job timeout in minutes'
+      create-drift-issue:
+        type: boolean
+        default: true
+        description: 'Create GitHub issue if drift detected'
+      bw-secrets:
+        type: string
+        required: true
+        description: 'Bitwarden secrets mapping (one per line: <uuid> > ENV_VAR)'
+      env-mapping:
+        type: string
+        default: ''
+        description: 'Environment variable mapping (one per line: SOURCE > TARGET)'
+    secrets:
+      BW_ACCESS_TOKEN:
+        required: true
+        description: 'Bitwarden access token'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  drift-detection:
+    name: Detect Drift (${{ inputs.environment }})
+    uses: ./.github/workflows/terraform-deploy.yml
+    with:
+      terraform-version: ${{ inputs.terraform-version }}
+      mode: 'drift'
+      environment: ${{ inputs.environment }}
+      project-name: ${{ inputs.project-name }}
+      working-directory: ${{ inputs.working-directory }}
+      parallelism: ${{ inputs.parallelism }}
+      timeout-minutes: ${{ inputs.timeout-minutes }}
+      create-drift-issue: ${{ inputs.create-drift-issue }}
+      bw-secrets: ${{ inputs.bw-secrets }}
+      env-mapping: ${{ inputs.env-mapping }}
+    secrets:
+      BW_ACCESS_TOKEN: ${{ secrets.BW_ACCESS_TOKEN }}
+
+  drift-report:
+    name: Create Report
+    runs-on: ubuntu-latest
+    needs: [drift-detection]
+    if: always()
+    steps:
+      - name: Generate Drift Report
+        run: |
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          # Terraform Drift Detection Report
+
+          **Project**: ${{ inputs.project-name }}
+          **Environment**: ${{ inputs.environment }}
+          **Status**: ${{ needs.drift-detection.result }}
+          **Timestamp**: $TIMESTAMP
+
+          ## What is Drift Detection?
+
+          Drift detection identifies differences between:
+          - **Desired State**: Infrastructure defined in Terraform code
+          - **Actual State**: Current state of infrastructure in cloud provider
+
+          ## Common Causes of Drift
+
+          - Manual changes via cloud console
+          - External automation or scripts
+          - Emergency fixes applied directly
+          - Resource modifications by other tools
+
+          ## Remediation
+
+          1. **Review Drift**: Check the Terraform plan output above
+          2. **Update Code**: If drift is acceptable, update Terraform code
+          3. **Revert Changes**: If drift is unintended, apply Terraform to restore
+          4. **Prevent Drift**: Use policy-as-code to prevent manual changes
+
+          ---
+          ${{ needs.drift-detection.result == 'success' && '✓ No drift detected' || '⚠️ Drift detected - review required' }}
+          EOF
+
+      - name: Create Drift Issue
+        if: inputs.create-drift-issue && needs.drift-detection.result != 'success'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[Drift Detected] ${context.payload.inputs.project-name} - ${context.payload.inputs.environment}`,
+              body: `## Infrastructure Drift Detected
+
+            **Project**: ${context.payload.inputs.project-name}
+            **Environment**: ${context.payload.inputs.environment}
+            **Workflow Run**: [#${context.runNumber}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+            **Detected At**: ${new Date().toUTCString()}
+
+            ## Action Required
+
+            Infrastructure drift has been detected. Please review the workflow run logs and take appropriate action:
+
+            1. Review the Terraform plan output
+            2. Determine if drift is acceptable
+            3. Update Terraform code or revert manual changes
+            4. Re-run drift detection to confirm resolution
+
+            ## Workflow Run
+
+            ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}
+
+            ---
+            *This issue was automatically created by drift detection*`,
+              labels: ['infrastructure', 'drift-detection', 'needs-review']
+            });
+
+            console.log(`Created issue #${issue.data.number}`);

@@ -1,0 +1,161 @@
+---
+name: Continuous Integration - Ansible
+
+on:
+  workflow_call:
+    inputs:
+      ansible-version:
+        type: string
+        default: '8.5.0'
+        description: 'Ansible version to install'
+      python-version:
+        type: string
+        default: '3.12'
+        description: 'Python version to use'
+      working-directory:
+        type: string
+        default: '.'
+        description: 'Directory containing Ansible playbooks'
+      playbook-file:
+        type: string
+        default: 'site.yml'
+        description: 'Main playbook file for syntax check'
+      requirements-file:
+        type: string
+        default: 'requirements.yml'
+        description: 'Ansible Galaxy requirements file'
+      enable-ansible-lint:
+        type: boolean
+        default: true
+        description: 'Run ansible-lint on playbooks'
+      enable-yamllint:
+        type: boolean
+        default: false
+        description: 'Run yamllint on YAML files'
+      ansible-lint-strict:
+        type: boolean
+        default: false
+        description: 'Fail on ansible-lint warnings'
+
+permissions:
+  contents: read
+
+jobs:
+  validation:
+    name: Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Repository Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ inputs.python-version }}
+          # Note: cache disabled because not all projects have requirements.txt
+
+      - name: Cache Ansible Collections
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v6.2.0
+        with:
+          path: |
+            ~/.ansible/collections
+            ~/.ansible/roles
+          key: ansible-collections-${{ runner.os }}-${{ hashFiles(format('{0}/{1}', inputs.working-directory, inputs.requirements-file)) }}
+          restore-keys: |
+            ansible-collections-${{ runner.os }}-
+
+      - name: Install Ansible
+        run: |
+          echo "::group::Install Ansible ${{ inputs.ansible-version }}"
+          pip install ansible==${{ inputs.ansible-version }} requests
+          ansible --version
+          echo "::endgroup::"
+
+      - name: Install Ansible Collections
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          echo "::group::Install Ansible Collections"
+          if [ -f "${{ inputs.requirements-file }}" ]; then
+            echo "Installing collections from ${{ inputs.requirements-file }}..."
+            ansible-galaxy collection install -r ${{ inputs.requirements-file }}
+          else
+            echo "::warning::No requirements file found at ${{ inputs.requirements-file }}"
+          fi
+          echo "::endgroup::"
+
+      - name: Ansible Syntax Check
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          echo "::group::Ansible Syntax Check"
+          echo "Checking syntax of ${{ inputs.playbook-file }}..."
+          ansible-playbook --syntax-check ${{ inputs.playbook-file }}
+          echo "::notice::Ansible syntax check passed ✅"
+          echo "::endgroup::"
+
+  lint:
+    name: Lint
+    if: ${{ inputs.enable-ansible-lint }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Repository Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ inputs.python-version }}
+          # Note: cache disabled because not all projects have requirements.txt
+
+      - name: Install ansible-lint
+        run: |
+          echo "::group::Install ansible-lint"
+          pip install ansible==${{ inputs.ansible-version }} ansible-lint
+          ansible-lint --version
+          echo "::endgroup::"
+
+      - name: Run ansible-lint
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          echo "::group::Run ansible-lint"
+          echo "Linting ${{ inputs.playbook-file }}..."
+          if [ "${{ inputs.ansible-lint-strict }}" = "true" ]; then
+            ansible-lint ${{ inputs.playbook-file }}
+          else
+            ansible-lint ${{ inputs.playbook-file }} || true
+          fi
+          echo "::endgroup::"
+
+  yamllint:
+    name: YAML Lint
+    if: ${{ inputs.enable-yamllint }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Repository Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ inputs.python-version }}
+          # Note: cache disabled because not all projects have requirements.txt
+
+      - name: Install yamllint
+        run: |
+          pip install yamllint
+          yamllint --version
+
+      - name: Run yamllint
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          echo "::group::Run yamllint"
+          echo "Linting YAML files in ${{ inputs.working-directory }}..."
+          yamllint -f parsable . || true
+          echo "::endgroup::"

@@ -1,0 +1,161 @@
+---
+name: Ops - Terraform Orchestration
+
+on:
+  workflow_call:
+    inputs:
+      project-name:
+        type: string
+        required: true
+        description: 'Project identifier for deployment ID prefix'
+      default-environment:
+        type: string
+        required: false
+        default: 'nuvulus'
+        description: 'Default environment for production deployments'
+      terraform-patterns:
+        type: string
+        required: false
+        default: '\.(tf|tfvars|hcl)$'
+        description: 'Regex pattern for Terraform file detection'
+      config-patterns:
+        type: string
+        required: false
+        default: '^configs/.*\.(alloy|json|yml|yaml)$'
+        description: 'Regex pattern for configuration file detection'
+    outputs:
+      environment:
+        description: 'Target deployment environment'
+        value: ${{ jobs.orchestration.outputs.environment }}
+      deployment_mode:
+        description: 'Deployment mode (production/manual/validation)'
+        value: ${{ jobs.orchestration.outputs.deployment_mode }}
+      deployment_id:
+        description: 'Unique deployment identifier'
+        value: ${{ jobs.orchestration.outputs.deployment_id }}
+      terraform_changed:
+        description: 'Whether Terraform files changed'
+        value: ${{ jobs.orchestration.outputs.terraform_changed }}
+      configuration_changed:
+        description: 'Whether configuration files changed'
+        value: ${{ jobs.orchestration.outputs.configuration_changed }}
+      should_deploy:
+        description: 'Whether deployment should proceed'
+        value: ${{ jobs.orchestration.outputs.should_deploy }}
+      workspace:
+        description: 'Terraform workspace name'
+        value: ${{ jobs.orchestration.outputs.workspace }}
+
+jobs:
+  orchestration:
+    name: Orchestrate Pipeline
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      environment: ${{ steps.config.outputs.environment }}
+      deployment_mode: ${{ steps.config.outputs.deployment_mode }}
+      deployment_id: ${{ steps.config.outputs.deployment_id }}
+      terraform_changed: ${{ steps.enhanced_changes.outputs.terraform }}
+      configuration_changed: ${{ steps.enhanced_changes.outputs.configuration }}
+      should_deploy: ${{ steps.config.outputs.should_deploy }}
+      workspace: ${{ steps.config.outputs.workspace }}
+
+    steps:
+      - name: 'Repository Checkout'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: 'Detect Infrastructure Changes'
+        id: enhanced_changes
+        shell: bash
+        run: |
+          set -e
+
+          # Initialize outputs
+          terraform_changed="false"
+          configuration_changed="false"
+
+          # Handle different event types
+          case "${{ github.event_name }}" in
+            "workflow_dispatch")
+              # For manual dispatch, assume changes if force_deploy is true
+              if [ "${{ github.event.inputs.force_deploy }}" = "true" ]; then
+                terraform_changed="true"
+                configuration_changed="true"
+              else
+                # Check against HEAD~1 for manual dispatch
+                if git diff --name-only HEAD~1 HEAD | grep -E '${{ inputs.terraform-patterns }}' > /dev/null; then
+                  terraform_changed="true"
+                fi
+                if git diff --name-only HEAD~1 HEAD | grep -E '${{ inputs.config-patterns }}' > /dev/null; then
+                  configuration_changed="true"
+                fi
+              fi
+              ;;
+            "push")
+              # For push events, check if we can diff against the previous commit
+              if [ "${{ github.event.forced }}" = "true" ] || ! git rev-parse HEAD~1 >/dev/null 2>&1; then
+                # Force push or no previous commit - assume everything changed
+                echo "Force push detected or no previous commit available, assuming all changes"
+                terraform_changed="true"
+                configuration_changed="true"
+              else
+                # Normal push - check changes against previous commit
+                if git diff --name-only HEAD~1 HEAD | grep -E '${{ inputs.terraform-patterns }}' > /dev/null; then
+                  terraform_changed="true"
+                fi
+                if git diff --name-only HEAD~1 HEAD | grep -E '${{ inputs.config-patterns }}' > /dev/null; then
+                  configuration_changed="true"
+                fi
+              fi
+              ;;
+          esac
+
+          echo "terraform=$terraform_changed" >> "$GITHUB_OUTPUT"
+          echo "configuration=$configuration_changed" >> "$GITHUB_OUTPUT"
+
+          echo "Infrastructure change detection results:"
+          echo "  Terraform: $terraform_changed"
+          echo "  Configuration: $configuration_changed"
+
+      - name: 'Pipeline Configuration'
+        id: config
+        run: |
+          case "${{ github.event_name }}" in
+            "push")
+              if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+                ENVIRONMENT="${{ inputs.default-environment }}"
+                DEPLOYMENT_MODE="production"
+              else
+                exit 1
+              fi
+              ;;
+            "workflow_dispatch")
+              ENVIRONMENT="${{ github.event.inputs.environment || inputs.default-environment }}"
+              DEPLOYMENT_MODE="manual"
+              ;;
+            *)
+              exit 1
+              ;;
+          esac
+
+          WORKSPACE="${ENVIRONMENT}"
+          SHOULD_DEPLOY="false"
+
+          if [ "$DEPLOYMENT_MODE" = "validation" ]; then
+            SHOULD_DEPLOY="false"
+          elif [ "${{ steps.enhanced_changes.outputs.terraform }}" = "true" ] || [ "${{ steps.enhanced_changes.outputs.configuration }}" = "true" ] || [ "$DEPLOYMENT_MODE" = "production" ] || [ "$DEPLOYMENT_MODE" = "manual" ]; then
+            SHOULD_DEPLOY="true"
+          fi
+
+          DEPLOYMENT_ID="${{ inputs.project-name }}-deploy-$(date +%Y%m%d-%H%M%S)-$(echo '${{ github.sha }}' | cut -c1-8)"
+
+          {
+            echo "environment=$ENVIRONMENT"
+            echo "deployment_mode=$DEPLOYMENT_MODE"
+            echo "deployment_id=$DEPLOYMENT_ID"
+            echo "should_deploy=$SHOULD_DEPLOY"
+            echo "workspace=$WORKSPACE"
+          } >> "$GITHUB_OUTPUT"

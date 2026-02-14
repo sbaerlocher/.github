@@ -1,0 +1,307 @@
+---
+name: Security - Dependencies
+
+on:
+  workflow_call:
+    inputs:
+      language:
+        type: string
+        required: true
+        description: 'Project language (go, javascript, python, multi)'
+      working-directory:
+        type: string
+        default: '.'
+        description: 'Working directory for scans'
+      # Dependency scanning options
+      fail-on-severity:
+        type: string
+        default: 'moderate'
+        description: 'Minimum severity to fail (low, moderate, high, critical)'
+      # License checking options
+      enable-license-check:
+        type: boolean
+        default: true
+        description: 'Enable license compliance checking'
+      allowed-licenses:
+        type: string
+        default: 'Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MIT,0BSD,CC0-1.0'
+        description: 'Comma-separated list of allowed licenses'
+      denied-licenses:
+        type: string
+        default: 'GPL-2.0,GPL-3.0,AGPL-3.0'
+        description: 'Comma-separated list of denied licenses'
+      fail-on-license-violation:
+        type: boolean
+        default: false
+        description: 'Fail workflow on license violations'
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  dependency-review:
+    name: Dependency Review (GitHub)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.repository.visibility == 'public'
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261 # v4.8.2
+        with:
+          fail-on-severity: ${{ inputs.fail-on-severity }}
+          allow-licenses: ${{ inputs.allowed-licenses }}
+          license-check: ${{ inputs.enable-license-check }}
+          vulnerability-check: true
+          comment-summary-in-pr: true
+
+  go-audit:
+    name: Audit Go
+    if: inputs.language == 'go' || inputs.language == 'multi'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Go
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      # Vulnerability scanning
+      - name: Run govulncheck
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck -json ./... | tee govulncheck.json
+
+          if [ -s govulncheck.json ]; then
+            echo "::warning::Vulnerabilities detected by govulncheck"
+            jq -r '.message // empty' govulncheck.json | head -10
+          else
+            echo "::notice::No vulnerabilities found"
+          fi
+
+      # License checking
+      - name: Check Go licenses
+        if: inputs.enable-license-check
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          go install github.com/google/go-licenses@latest
+          echo "Checking Go dependency licenses..."
+          go-licenses check ./... --allowed_licenses=${{ inputs.allowed-licenses }} 2>&1 | tee go-licenses.txt || true
+          go-licenses csv ./... > go-licenses.csv 2>&1 || true
+
+      - name: Upload audit results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: go-audit-results
+          path: |
+            ${{ inputs.working-directory }}/govulncheck.json
+            ${{ inputs.working-directory }}/go-licenses.txt
+            ${{ inputs.working-directory }}/go-licenses.csv
+          retention-days: 30
+          if-no-files-found: ignore
+
+  javascript-audit:
+    name: Audit JavaScript
+    if: inputs.language == 'javascript' || inputs.language == 'multi'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Detect package manager
+        id: detect-pm
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          if [ -f "pnpm-lock.yaml" ]; then
+            echo "pm=pnpm" >> $GITHUB_OUTPUT
+          elif [ -f "yarn.lock" ]; then
+            echo "pm=yarn" >> $GITHUB_OUTPUT
+          elif [ -f "bun.lockb" ]; then
+            echo "pm=bun" >> $GITHUB_OUTPUT
+          else
+            echo "pm=npm" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup pnpm
+        if: steps.detect-pm.outputs.pm == 'pnpm'
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+
+      - name: Install dependencies
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          case "${{ steps.detect-pm.outputs.pm }}" in
+            pnpm) pnpm install --frozen-lockfile ;;
+            yarn) yarn install --frozen-lockfile ;;
+            bun) bun install --frozen-lockfile ;;
+            npm) npm ci ;;
+          esac
+
+      # Vulnerability scanning
+      - name: Run npm audit
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          case "${{ steps.detect-pm.outputs.pm }}" in
+            pnpm) pnpm audit --json > npm-audit.json || true ;;
+            yarn) yarn audit --json > npm-audit.json || true ;;
+            npm) npm audit --json > npm-audit.json || true ;;
+            bun) echo "Bun audit not yet supported" > npm-audit.json ;;
+          esac
+
+      # License checking
+      - name: Check JavaScript licenses
+        if: inputs.enable-license-check
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          npm install -g license-checker
+          echo "Checking JavaScript dependency licenses..."
+          license-checker --json > js-licenses.json 2>&1 || true
+          license-checker --summary > js-licenses-summary.txt 2>&1 || true
+
+          DENIED="${{ inputs.denied-licenses }}"
+          if [ -n "$DENIED" ]; then
+            license-checker --failOn "$DENIED" 2>&1 | tee js-licenses-violations.txt || true
+          fi
+
+      - name: Upload audit results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: javascript-audit-results
+          path: |
+            ${{ inputs.working-directory }}/npm-audit.json
+            ${{ inputs.working-directory }}/js-licenses.json
+            ${{ inputs.working-directory }}/js-licenses-summary.txt
+            ${{ inputs.working-directory }}/js-licenses-violations.txt
+          retention-days: 30
+          if-no-files-found: ignore
+
+  python-audit:
+    name: Audit Python
+    if: inputs.language == 'python' || inputs.language == 'multi'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
+      # Vulnerability scanning
+      - name: Install and run safety
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          pip install safety
+          if [ -f requirements.txt ]; then
+            safety check --file requirements.txt --json > safety-results.json || true
+          fi
+
+      # License checking
+      - name: Check Python licenses
+        if: inputs.enable-license-check
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          pip install pip-licenses
+          echo "Checking Python dependency licenses..."
+          pip-licenses --format=json > python-licenses.json 2>&1 || true
+          pip-licenses --format=markdown > python-licenses.md 2>&1 || true
+
+      - name: Upload audit results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: python-audit-results
+          path: |
+            ${{ inputs.working-directory }}/safety-results.json
+            ${{ inputs.working-directory }}/python-licenses.json
+            ${{ inputs.working-directory }}/python-licenses.md
+          retention-days: 30
+          if-no-files-found: ignore
+
+  security-report:
+    name: Create Report
+    runs-on: ubuntu-latest
+    needs: [dependency-review, go-audit, javascript-audit, python-audit]
+    if: always() && !cancelled()
+    steps:
+      - name: Generate Security Report
+        run: |
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          # 🔒 Dependencies & License Compliance Report
+
+          **Timestamp:** $TIMESTAMP
+          **Language:** ${{ inputs.language }}
+          **License Check:** ${{ inputs.enable-license-check && 'Enabled ✓' || 'Disabled' }}
+
+          ## Scan Results
+
+          | Component | Status |
+          |-----------|--------|
+          | Dependency Review | ${{ needs.dependency-review.result }} |
+          | Go Audit | ${{ needs.go-audit.result }} |
+          | JavaScript Audit | ${{ needs.javascript-audit.result }} |
+          | Python Audit | ${{ needs.python-audit.result }} |
+
+          ## Tools Used by Language
+
+          **Go:**
+          - govulncheck: Official Go vulnerability scanner
+          - go-licenses: Google license compliance tool
+
+          **JavaScript/TypeScript:**
+          - npm/pnpm/yarn/bun audit: Package vulnerability scanning
+          - license-checker: License compliance checker
+
+          **Python:**
+          - safety: Python dependency security scanner
+          - pip-licenses: Python license extractor
+
+          **All Languages:**
+          - GitHub Dependency Review: Native GitHub PR dependency analysis
+
+          ## Security Best Practices
+
+          - ✓ Keep dependencies up to date
+          - ✓ Use lock files (go.sum, package-lock.json, requirements.txt)
+          - ✓ Review dependency licenses before adoption
+          - ✓ Monitor security advisories
+          - ✓ Use Renovate/Dependabot for automated updates
+          - ✓ Avoid copyleft licenses in proprietary projects
+
+          ## License Configuration
+
+          **Allowed Licenses:** \`${{ inputs.allowed-licenses }}\`
+          **Denied Licenses:** \`${{ inputs.denied-licenses }}\`
+          **Fail on Violation:** ${{ inputs.fail-on-license-violation }}
+
+          ---
+          *Dependency security and license compliance analysis completed*
+          EOF

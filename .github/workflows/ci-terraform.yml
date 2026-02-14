@@ -1,0 +1,210 @@
+name: Continuous Integration - Terraform
+
+on:
+  workflow_call:
+    inputs:
+      terraform-version:
+        type: string
+        default: '1.14.3'
+      working-directory:
+        type: string
+        default: '.'
+        description: 'Directory containing Terraform configuration'
+      enable-tflint:
+        type: boolean
+        default: false
+      enable-tfsec:
+        type: boolean
+        default: true
+      enable-sarif-upload:
+        type: boolean
+        default: false
+        description: 'Upload SARIF results to GitHub Security tab (requires public repo or GitHub Advanced Security)'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  TF_IN_AUTOMATION: 'true'
+  TF_INPUT: 'false'
+  TF_CLI_ARGS: '-no-color'
+
+jobs:
+  validation:
+    name: Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      validation_result: ${{ steps.validation.outputs.result }}
+
+    steps:
+      - name: Repository Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Terraform Toolchain Setup
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: ${{ inputs.terraform-version }}
+          terraform_wrapper: false
+
+      - name: Terraform Validation
+        id: validation
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          echo "::group::Terraform Validation"
+          echo "Validating Terraform configuration in: ${{ inputs.working-directory }}"
+
+          # Initialize Terraform without backend for validation
+          terraform init -backend=false
+
+          # Validate configuration
+          if terraform validate; then
+            echo "result=success" >> "$GITHUB_OUTPUT"
+            echo "::notice::Terraform configuration is valid"
+          else
+            echo "result=failed" >> "$GITHUB_OUTPUT"
+            echo "::error::Terraform validation failed"
+            exit 1
+          fi
+
+          # Check formatting
+          if ! terraform fmt -check=true -diff=true; then
+            echo "::error::Terraform formatting issues detected - run 'terraform fmt' to fix"
+            exit 1
+          fi
+
+          echo "::endgroup::"
+
+  lint:
+    name: Lint
+    if: ${{ inputs.enable-tflint }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Repository Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@4cb9feea73331a35b422df102992a03a44a3bb33 # v6.2.1
+        with:
+          tflint_version: latest
+
+      - name: TFLint Init
+        working-directory: ${{ inputs.working-directory }}
+        run: tflint --init
+
+      - name: TFLint Run
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          echo "Running TFLint in: ${{ inputs.working-directory }}"
+          tflint --format compact
+          echo "TFLint passed"
+
+  gitleaks:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  trivy:
+    name: Vulnerability Scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run Trivy Scanner
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
+        with:
+          scan-type: 'config'
+          scan-ref: ${{ inputs.working-directory }}
+          format: 'table'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          exit-code: '0'
+
+      - name: Trivy JSON Results
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
+        with:
+          scan-type: 'config'
+          scan-ref: ${{ inputs.working-directory }}
+          format: 'json'
+          output: 'trivy-results.json'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          exit-code: '0'
+
+      - name: Upload Trivy Results (Artifact)
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: trivy-results
+          path: trivy-results.json
+          retention-days: 30
+
+      - name: Trivy SARIF Results
+        if: ${{ inputs.enable-sarif-upload }}
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
+        with:
+          scan-type: 'config'
+          scan-ref: ${{ inputs.working-directory }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Upload Trivy SARIF to GitHub Security
+        if: ${{ inputs.enable-sarif-upload }}
+        uses: github/codeql-action/upload-sarif@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: 'trivy'
+
+  tfsec:
+    name: Scan Security
+    if: ${{ inputs.enable-tfsec }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: TFSec Scan
+        uses: aquasecurity/tfsec-action@b466648d6e39e7c75324f25d83891162a721f2d6 # v1.0.3
+        with:
+          working_directory: ${{ inputs.working-directory }}
+          soft_fail: true
+          format: lovely
+
+      - name: TFSec JSON Results
+        if: always()
+        run: |
+          docker run --rm -v "$(pwd)/${{ inputs.working-directory }}:/src" aquasec/tfsec /src --format json > tfsec-results.json 2>/dev/null || true
+
+      - name: Upload TFSec Results (Artifact)
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: tfsec-results
+          path: tfsec-results.json
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: TFSec SARIF Results
+        if: ${{ inputs.enable-sarif-upload }}
+        run: |
+          docker run --rm -v "$(pwd)/${{ inputs.working-directory }}:/src" aquasec/tfsec /src --format sarif > tfsec-results.sarif 2>/dev/null || true
+
+      - name: Upload TFSec SARIF to GitHub Security
+        if: ${{ inputs.enable-sarif-upload }}
+        uses: github/codeql-action/upload-sarif@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
+        with:
+          sarif_file: 'tfsec-results.sarif'
+          category: 'tfsec'

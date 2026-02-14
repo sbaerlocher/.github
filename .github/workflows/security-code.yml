@@ -1,0 +1,147 @@
+---
+name: Security - Code
+
+on:
+  workflow_call:
+    inputs:
+      languages:
+        type: string
+        default: '["javascript-typescript"]'
+        description: 'Languages to analyze (JSON array: javascript-typescript, go, python, java, etc.)'
+      queries:
+        type: string
+        default: 'security-extended,security-and-quality'
+        description: 'Query suites to run'
+      node-version-file:
+        type: string
+        default: '.nvmrc'
+        description: 'Node version file (for JS/TS projects)'
+      go-version:
+        type: string
+        default: '1.25'
+        description: 'Go version (for Go projects)'
+      python-version:
+        type: string
+        default: '3.12'
+        description: 'Python version (for Python projects)'
+      build-command:
+        type: string
+        default: ''
+        description: 'Custom build command (optional, autobuild if empty)'
+      paths-ignore:
+        type: string
+        default: 'node_modules,dist,coverage,**/*.spec.ts,**/*.test.ts'
+        description: 'Comma-separated list of paths to ignore'
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze Code (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ${{ fromJSON(inputs.languages) }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
+        with:
+          languages: ${{ matrix.language }}
+          queries: ${{ inputs.queries }}
+          config: |
+            paths-ignore:
+              ${{ inputs.paths-ignore }}
+
+      # Setup language-specific environments
+      - name: Setup Node.js
+        if: matrix.language == 'javascript-typescript'
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version-file: ${{ inputs.node-version-file }}
+          cache: npm
+
+      - name: Setup Go
+        if: matrix.language == 'go'
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: true
+
+      - name: Setup Python
+        if: matrix.language == 'python'
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: 'pip'
+
+      # Build steps
+      - name: Install dependencies (JavaScript/TypeScript)
+        if: matrix.language == 'javascript-typescript' && inputs.build-command == ''
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Build project (JavaScript/TypeScript)
+        if: matrix.language == 'javascript-typescript' && inputs.build-command == ''
+        run: npm run build
+
+      - name: Install dependencies (Python)
+        if: matrix.language == 'python' && inputs.build-command == ''
+        run: |
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
+      - name: Custom build command
+        if: inputs.build-command != ''
+        run: ${{ inputs.build-command }}
+
+      - name: Autobuild
+        if: inputs.build-command == '' && matrix.language != 'javascript-typescript' && matrix.language != 'python'
+        uses: github/codeql-action/autobuild@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
+        with:
+          category: '/language:${{ matrix.language }}'
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          # 🔒 Code Security Analysis (SAST)
+
+          **Language:** ${{ matrix.language }}
+          **Status:** ${{ job.status }}
+          **Timestamp:** $TIMESTAMP
+
+          ## Analysis Details
+
+          - **Query Suites**: ${{ inputs.queries }}
+          - **Paths Ignored**: ${{ inputs.paths-ignore }}
+
+          ## Security Coverage
+
+          CodeQL performs static application security testing (SAST) to identify:
+
+          - 🔍 Security vulnerabilities (SQL injection, XSS, etc.)
+          - 📊 Code quality issues
+          - 🐛 Common coding mistakes
+          - ⚠️  Potential bugs and anti-patterns
+
+          ---
+          *Results are available in the GitHub Security tab*
+          EOF

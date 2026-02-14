@@ -1,0 +1,68 @@
+---
+name: Release - Go
+
+on:
+  workflow_call:
+    inputs:
+      go-version:
+        type: string
+        required: false
+        default: '1.25'
+        description: 'Go version to use'
+      goreleaser-version:
+        type: string
+        required: false
+        default: '~> v2'
+        description: 'GoReleaser version'
+      goreleaser-args:
+        type: string
+        required: false
+        default: 'release --clean'
+        description: 'GoReleaser arguments'
+      working-directory:
+        type: string
+        required: false
+        default: '.'
+        description: 'Working directory'
+      pre-build-commands:
+        type: string
+        required: false
+        default: ''
+        description: 'Commands to run before GoReleaser (e.g. code generation)'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  goreleaser:
+    name: Build & Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: Run pre-build commands
+        if: inputs.pre-build-commands != ''
+        run: ${{ inputs.pre-build-commands }}
+
+      - name: Create release with GoReleaser
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6
+        with:
+          distribution: goreleaser
+          version: ${{ inputs.goreleaser-version }}
+          args: ${{ inputs.goreleaser-args }}
+          workdir: ${{ inputs.working-directory }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+        continue-on-error: false

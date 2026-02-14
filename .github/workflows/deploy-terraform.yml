@@ -1,0 +1,304 @@
+---
+name: Deploy - Terraform
+
+on:
+  workflow_call:
+    inputs:
+      mode:
+        type: string
+        required: false
+        default: 'deploy'
+        description: 'Operation mode: deploy (plan+apply) or drift (plan only)'
+      terraform-version:
+        type: string
+        required: false
+        default: '1.14.3'
+        description: 'Terraform version to use'
+      environment:
+        type: string
+        required: true
+        description: 'Terraform workspace and var-file name (e.g. nuvulus)'
+      project-name:
+        type: string
+        required: true
+        description: 'Project identifier for concurrency group and deployment ID'
+      parallelism:
+        type: number
+        required: false
+        default: 10
+        description: 'Terraform plan/apply parallelism'
+      working-directory:
+        type: string
+        required: false
+        default: '.'
+        description: 'Directory containing Terraform configuration'
+      bw-secrets:
+        type: string
+        required: true
+        description: |
+          Bitwarden secrets in sm-action format (one per line).
+          Must include R2_ACCESS_KEY and R2_SECRET_KEY for backend.
+          Example:
+            a283f534-bda6-4ac2-972a-b3c201812348 > R2_ACCESS_KEY
+            0bf3fadc-9d2f-4246-be0d-b3c201812711 > R2_SECRET_KEY
+      env-mapping:
+        type: string
+        required: false
+        default: ''
+        description: |
+          Maps Bitwarden env vars to Terraform/runtime variables.
+          Format: SOURCE_VAR > TARGET_VAR (one per line)
+          Example:
+            AUTHENTIK_TOKEN > TF_VAR_authentik_token
+            GRAFANA_TOKEN > TF_VAR_grafana_token
+      init-flag:
+        type: string
+        required: false
+        default: '-upgrade'
+        description: 'Terraform init migration flag: -upgrade or -reconfigure'
+      timeout-minutes:
+        type: number
+        required: false
+        default: 45
+        description: 'Job-level timeout in minutes'
+      apply-timeout-minutes:
+        type: number
+        required: false
+        default: 25
+        description: 'Timeout for terraform apply in minutes'
+      apply-retries:
+        type: number
+        required: false
+        default: 1
+        description: 'Number of attempts for init and apply'
+      should-apply:
+        type: string
+        required: false
+        default: 'true'
+        description: 'DEPRECATED: Use mode instead. Whether to run terraform apply (true/false)'
+      pre-script:
+        type: string
+        required: false
+        default: ''
+        description: |
+          Optional bash script to run before Terraform init.
+          Useful for generating dynamic credentials (e.g., Tailscale API key from OAuth).
+          Script has access to all env vars from bw-secrets and env-mapping.
+          Export vars as: echo "VAR_NAME=value" >> $GITHUB_ENV
+    outputs:
+      plan_outcome:
+        description: 'Plan result: no-changes, has-changes, or error'
+        value: ${{ jobs.deploy.outputs.plan_outcome }}
+      apply_outcome:
+        description: 'Apply result: success, failed, or skipped'
+        value: ${{ jobs.deploy.outputs.apply_outcome }}
+      drift_detected:
+        description: 'Whether drift was detected (drift mode only): true, false, or error'
+        value: ${{ jobs.deploy.outputs.drift_detected }}
+    secrets:
+      BW_ACCESS_TOKEN:
+        required: true
+
+jobs:
+  deploy:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    environment:
+      name: ${{ inputs.environment }}
+    concurrency:
+      group: ${{ inputs.project-name }}-terraform-${{ inputs.environment }}
+      cancel-in-progress: false
+    env:
+      TF_IN_AUTOMATION: 'true'
+      TF_INPUT: 'false'
+      TF_CLI_ARGS: '-no-color'
+      TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/${{ inputs.working-directory }}/.terraform
+    outputs:
+      plan_outcome: ${{ steps.plan.outputs.outcome }}
+      apply_outcome: ${{ steps.apply.outputs.outcome }}
+      drift_detected: ${{ steps.plan.outputs.drift_detected }}
+
+    steps:
+      - name: 'Repository Checkout'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: 'Terraform Toolchain Setup'
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: ${{ inputs.terraform-version }}
+          terraform_wrapper: false
+
+      - name: 'Terraform Cache Management'
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: |
+            ${{ inputs.working-directory }}/.terraform/
+          key: terraform-${{ runner.os }}-${{ inputs.terraform-version }}-${{ inputs.environment }}-${{ hashFiles('**/*.tf', '**/*.hcl', '.terraform.lock.hcl') }}
+          restore-keys: |
+            terraform-${{ runner.os }}-${{ inputs.terraform-version }}-${{ inputs.environment }}-
+            terraform-${{ runner.os }}-${{ inputs.terraform-version }}-
+
+      - name: 'Credential Retrieval'
+        uses: bitwarden/sm-action@f1de238fc00c738c56140796018be9084c2b5d21 # v2
+        with:
+          access_token: ${{ secrets.BW_ACCESS_TOKEN }}
+          secrets: ${{ inputs.bw-secrets }}
+
+      - name: 'Environment Configuration'
+        run: |
+          # R2 backend credentials (always required)
+          {
+            echo "AWS_ACCESS_KEY_ID=$R2_ACCESS_KEY"
+            echo "AWS_SECRET_ACCESS_KEY=$R2_SECRET_KEY"
+            echo "BW_ACCESS_TOKEN=${{ secrets.BW_ACCESS_TOKEN }}"
+          } >> "$GITHUB_ENV"
+
+          # Map Bitwarden secrets to Terraform/runtime variables
+          if [ -n "${{ inputs.env-mapping }}" ]; then
+            while IFS= read -r line; do
+              [ -z "$line" ] && continue
+              src=$(echo "$line" | awk -F'>' '{print $1}' | xargs)
+              dst=$(echo "$line" | awk -F'>' '{print $2}' | xargs)
+              value="${!src}"
+              [ -n "$value" ] && echo "$dst=$value" >> "$GITHUB_ENV"
+            done <<< "${{ inputs.env-mapping }}"
+            echo "Environment variable mapping complete"
+          fi
+
+      - name: 'Pre-Script Execution'
+        if: inputs.pre-script != ''
+        run: |
+          echo "Executing pre-script..."
+          ${{ inputs.pre-script }}
+          echo "Pre-script execution complete"
+
+      - name: 'Terraform Initialization'
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          # Clean up cached workspace selection to prevent stale workspace errors
+          if [ -f .terraform/environment ]; then
+            echo "Removing cached workspace selection: $(cat .terraform/environment)"
+            rm -f .terraform/environment
+          fi
+
+          max_attempts=${{ inputs.apply-retries }}
+          attempt=1
+
+          while [ $attempt -le $max_attempts ]; do
+            echo "Init attempt $attempt of $max_attempts..."
+
+            if terraform init \
+              -backend-config="access_key=$R2_ACCESS_KEY" \
+              -backend-config="secret_key=$R2_SECRET_KEY" \
+              ${{ inputs.init-flag }} \
+              -input=false; then
+              echo "Terraform initialization successful"
+              break
+            fi
+
+            if [ $attempt -eq $max_attempts ]; then
+              echo "All initialization attempts failed"
+              exit 1
+            fi
+            sleep 5
+            attempt=$((attempt + 1))
+          done
+
+      - name: 'Workspace Management'
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          WORKSPACE="${{ inputs.environment }}"
+          if terraform workspace list | grep -q "\b$WORKSPACE\b"; then
+            terraform workspace select "$WORKSPACE"
+          else
+            terraform workspace new "$WORKSPACE"
+          fi
+
+      - name: 'Infrastructure Planning'
+        id: plan
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          set +e
+
+          PLAN_FILE="${{ inputs.environment }}.tfplan"
+          PLAN_ARGS="-var-file=environments/${{ inputs.environment }}.tfvars"
+
+          terraform plan \
+            $PLAN_ARGS \
+            -out="$PLAN_FILE" \
+            -detailed-exitcode \
+            -input=false \
+            -parallelism=${{ inputs.parallelism }}
+
+          PLAN_EXIT_CODE=$?
+
+          case $PLAN_EXIT_CODE in
+            0) echo "outcome=no-changes" >> "$GITHUB_OUTPUT" ;;
+            2) echo "outcome=has-changes" >> "$GITHUB_OUTPUT" ;;
+            *) echo "outcome=error" >> "$GITHUB_OUTPUT"; exit $PLAN_EXIT_CODE ;;
+          esac
+
+          # Set drift_detected output for drift mode
+          if [ "${{ inputs.mode }}" = "drift" ]; then
+            case $PLAN_EXIT_CODE in
+              0) echo "drift_detected=false" >> "$GITHUB_OUTPUT" ;;
+              2) echo "drift_detected=true" >> "$GITHUB_OUTPUT" ;;
+              *) echo "drift_detected=error" >> "$GITHUB_OUTPUT" ;;
+            esac
+          fi
+
+      - name: 'Plan Artifact Storage'
+        if: steps.plan.outputs.outcome != 'error'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: terraform-plan-${{ inputs.project-name }}-${{ inputs.environment }}
+          path: '${{ inputs.working-directory }}/*.tfplan'
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: 'Configuration Deployment'
+        id: apply
+        if: |
+          (inputs.mode == 'deploy' || inputs.should-apply == 'true') &&
+          (steps.plan.outputs.outcome == 'has-changes' ||
+           steps.plan.outputs.outcome == 'no-changes')
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          PLAN_FILE="${{ inputs.environment }}.tfplan"
+          max_attempts=${{ inputs.apply-retries }}
+          attempt=1
+
+          while [ $attempt -le $max_attempts ]; do
+            echo "Apply attempt $attempt of $max_attempts..."
+
+            if timeout ${{ inputs.apply-timeout-minutes }}m terraform apply \
+              -auto-approve=true \
+              -input=false \
+              -parallelism=${{ inputs.parallelism }} \
+              "$PLAN_FILE"; then
+              echo "outcome=success" >> "$GITHUB_OUTPUT"
+              terraform state list > /dev/null
+              echo "Terraform apply completed successfully"
+              break
+            fi
+
+            if [ $attempt -eq $max_attempts ]; then
+              echo "outcome=failed" >> "$GITHUB_OUTPUT"
+              echo "All apply attempts failed"
+              terraform state list | head -10 || true
+              exit 1
+            fi
+            echo "Retrying in 10 seconds..."
+            sleep 10
+            attempt=$((attempt + 1))
+          done
+
+      - name: 'Security Cleanup'
+        if: always()
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          find . -name "*.tfplan" -type f -delete 2>/dev/null || true
+          find . -name "*.tfstate*" -type f -delete 2>/dev/null || true

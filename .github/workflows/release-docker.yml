@@ -1,0 +1,225 @@
+---
+name: Release - Docker
+
+on:
+  workflow_call:
+    inputs:
+      registry:
+        type: string
+        required: false
+        default: 'ghcr.io'
+        description: 'Container registry (e.g. ghcr.io, docker.io)'
+      image-name:
+        type: string
+        required: true
+        description: 'Image name (usually github.repository)'
+      platforms:
+        type: string
+        required: false
+        default: 'linux/amd64'
+        description: 'Target platforms (comma-separated, e.g. linux/amd64,linux/arm64)'
+      push:
+        type: boolean
+        required: false
+        default: false
+        description: 'Push image to registry'
+      enable-trivy-scan:
+        type: boolean
+        required: false
+        default: true
+        description: 'Run Trivy security scan'
+      enable-sarif-upload:
+        type: boolean
+        required: false
+        default: false
+        description: 'Upload SARIF to GitHub Security (requires public repo)'
+      enable-container-tests:
+        type: boolean
+        required: false
+        default: false
+        description: 'Run container structure tests'
+      context:
+        type: string
+        required: false
+        default: '.'
+        description: 'Build context directory'
+      dockerfile:
+        type: string
+        required: false
+        default: 'Dockerfile'
+        description: 'Path to Dockerfile'
+      build-args:
+        type: string
+        required: false
+        default: ''
+        description: 'Build arguments (one per line)'
+      version:
+        type: string
+        required: false
+        default: ''
+        description: 'Version tag for the image'
+      docker-metadata-tags:
+        type: string
+        required: false
+        default: ''
+        description: 'Custom tags for docker/metadata-action (one per line)'
+      docker-metadata-labels:
+        type: string
+        required: false
+        default: ''
+        description: 'Custom labels for docker/metadata-action (one per line)'
+      container-test-config:
+        type: string
+        required: false
+        default: ''
+        description: 'Path to container structure test config'
+    outputs:
+      image-digest:
+        description: 'Image digest'
+        value: ${{ jobs.docker-build.outputs.image-digest }}
+      image-tags:
+        description: 'Generated image tags'
+        value: ${{ jobs.docker-build.outputs.image-tags }}
+    secrets:
+      registry-username:
+        required: false
+      registry-password:
+        required: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  docker-build:
+    name: Build & Push
+    runs-on: ubuntu-latest
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-tags: ${{ steps.meta.outputs.tags }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+
+      - name: Log in to Container Registry
+        if: inputs.push
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ${{ inputs.registry }}
+          username: ${{ secrets.registry-username || github.actor }}
+          password: ${{ secrets.registry-password || secrets.GITHUB_TOKEN }}
+
+      - name: Generate build metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ${{ inputs.registry }}/${{ inputs.image-name }}
+          tags: |
+            ${{ inputs.docker-metadata-tags || 'type=sha,prefix=sha-,suffix=-{{date ''YYYYMMDD-HHmmss''}}' }}
+          labels: ${{ inputs.docker-metadata-labels }}
+
+      - name: Build Docker image
+        id: build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          platforms: ${{ inputs.platforms }}
+          push: ${{ inputs.push }}
+          load: ${{ !inputs.push && !contains(inputs.platforms, ',') }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: ${{ inputs.build-args }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Docker image functionality
+        if: ${{ !inputs.push }}
+        run: |
+          TEST_IMAGE="${{ fromJSON(steps.meta.outputs.json).tags[0] }}"
+          echo "Testing image: $TEST_IMAGE"
+
+          # Test help flag (non-critical)
+          if docker run --rm "$TEST_IMAGE" --help 2>/dev/null; then
+            echo "✅ --help flag works"
+          else
+            echo "⚠️  --help flag not supported or failed (non-critical)"
+          fi
+
+          # Test version flag (non-critical)
+          if docker run --rm "$TEST_IMAGE" --version 2>/dev/null; then
+            echo "✅ --version flag works"
+          else
+            echo "⚠️  --version flag not supported or failed (non-critical)"
+          fi
+
+      - name: Run container structure tests
+        if: inputs.enable-container-tests && inputs.container-test-config != '' && hashFiles(inputs.container-test-config) != ''
+        run: |
+          TEST_IMAGE="${{ fromJSON(steps.meta.outputs.json).tags[0] }}"
+          CONFIG_PATH="${{ inputs.container-test-config }}"
+          echo "Running structure tests on: $TEST_IMAGE"
+          echo "Using config: $CONFIG_PATH"
+          docker run --rm \
+            -v "$PWD/$CONFIG_PATH:/test-config.yaml:ro" \
+            -v /var/run/docker.sock:/var/run/docker.sock:ro \
+            gcr.io/gcp-runtimes/container-structure-test:latest \
+            test --image="$TEST_IMAGE" --config=/test-config.yaml
+
+      - name: Scan image for vulnerabilities
+        if: inputs.enable-trivy-scan
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
+        with:
+          image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+          format: "sarif"
+          output: "trivy-image.sarif"
+          severity: "HIGH,CRITICAL"
+        continue-on-error: true
+
+      - name: Upload Trivy SARIF
+        if: inputs.enable-trivy-scan && inputs.enable-sarif-upload
+        uses: github/codeql-action/upload-sarif@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
+        with:
+          sarif_file: "trivy-image.sarif"
+          category: "trivy-image"
+        continue-on-error: true
+
+      - name: Image build summary
+        if: always()
+        run: |
+          {
+            echo "## 🐳 Docker Build Summary"
+            echo ""
+            echo "- **Image:** ${{ inputs.registry }}/${{ inputs.image-name }}"
+            echo "- **Platforms:** ${{ inputs.platforms }}"
+            echo "- **Push:** ${{ inputs.push }}"
+            echo ""
+            if [[ "${{ steps.build.outcome }}" == "success" ]]; then
+              echo "### ✅ Build successful"
+              echo ""
+              echo "**Tags:**"
+              echo '```'
+              echo "${{ steps.meta.outputs.tags }}"
+              echo '```'
+              echo ""
+              if [[ "${{ inputs.push }}" == "true" ]]; then
+                echo "**Digest:** \`${{ steps.build.outputs.digest }}\`"
+              else
+                echo "**Note:** Image built locally for testing (not pushed)"
+              fi
+            else
+              echo "### ❌ Build failed"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

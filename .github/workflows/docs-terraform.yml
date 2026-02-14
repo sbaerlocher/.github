@@ -1,0 +1,179 @@
+---
+name: Docs - Terraform
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        type: string
+        required: false
+        default: '.'
+        description: 'Directory containing Terraform configuration'
+      output-file:
+        type: string
+        required: false
+        default: 'TERRAFORM.md'
+        description: 'Output file name for documentation'
+      config-file:
+        type: string
+        required: false
+        default: '.terraform-docs.yml'
+        description: 'terraform-docs configuration file'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: terraform-docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  terraform-docs:
+    name: 'Generate Terraform Documentation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 'Repository Checkout'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 'Render Terraform Documentation'
+        uses: terraform-docs/gh-actions@6de6da0cefcc6b4b7a5cbea4d79d97060733093c # v1.4.1
+        with:
+          working-dir: ${{ inputs.working-directory }}
+          output-file: ${{ inputs.output-file }}
+          output-method: inject
+          git-push: ${{ github.event_name != 'pull_request' }}
+          git-commit-message: 'docs(terraform): auto-generate terraform documentation'
+          config-file: ${{ inputs.config-file }}
+
+      - name: 'Comment PR with Documentation Changes'
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Check if TERRAFORM.md was modified
+            const { execSync } = require('child_process');
+            const gitDiff = execSync('git diff --name-only').toString();
+
+            if (gitDiff.includes('${{ inputs.output-file }}')) {
+              const docContent = fs.readFileSync('${{ inputs.output-file }}', 'utf8');
+              const maxLength = 60000; // GitHub comment size limit
+
+              let comment = '## Terraform Documentation Updated\n\n';
+              comment += 'The Terraform documentation has been automatically updated based on changes to `.tf` files.\n\n';
+
+              if (docContent.length < maxLength) {
+                comment += '<details>\n<summary>View Updated Documentation</summary>\n\n';
+                comment += docContent;
+                comment += '\n</details>';
+              } else {
+                comment += '⚠️ The documentation is too large to display in a comment. ';
+                comment += 'Please review the `${{ inputs.output-file }}` file in the repository.\n';
+              }
+
+              // Find existing comment
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              });
+
+              const botComment = comments.find(comment =>
+                comment.user.type === 'Bot' &&
+                comment.body.includes('Terraform Documentation Updated')
+              );
+
+              if (botComment) {
+                // Update existing comment
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: botComment.id,
+                  body: comment
+                });
+              } else {
+                // Create new comment
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: comment
+                });
+              }
+            } else {
+              console.log('No changes to ${{ inputs.output-file }} detected');
+            }
+
+      - name: 'Check for Documentation Changes'
+        id: check_changes
+        run: |
+          if git diff --quiet ${{ inputs.output-file }}; then
+            echo "changes_detected=false" >> "$GITHUB_OUTPUT"
+            echo "No documentation changes detected"
+          else
+            echo "changes_detected=true" >> "$GITHUB_OUTPUT"
+            echo "Documentation changes detected"
+          fi
+
+      - name: 'Commit and Push Documentation'
+        if: github.event_name != 'pull_request' && steps.check_changes.outputs.changes_detected == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add ${{ inputs.output-file }}
+          git commit -m "docs(terraform): auto-generate terraform documentation
+
+          Generated by terraform-docs workflow
+
+          Co-Authored-By: terraform-docs[bot] <terraform-docs[bot]@users.noreply.github.com>"
+          git push
+
+      - name: 'Summary'
+        if: always()
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          # Terraform Documentation Generation
+
+          **Status:** ${{ job.status }}
+          **Trigger:** ${{ github.event_name }}
+          **Changes Detected:** ${{ steps.check_changes.outputs.changes_detected || 'N/A' }}
+
+          ## Details
+
+          EOF
+
+          if [ "${{ steps.check_changes.outputs.changes_detected }}" = "true" ]; then
+            cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          ✅ Documentation has been updated based on Terraform configuration changes.
+
+          The \`${{ inputs.output-file }}\` file has been regenerated with:
+          - Updated variable descriptions
+          - Updated output descriptions
+          - Current module information
+          - Resource documentation
+
+          EOF
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          **Note:** For pull requests, the documentation is generated but not automatically committed.
+          The changes are available for review in the PR comments.
+          EOF
+            else
+              cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          **Note:** The documentation has been automatically committed to the repository.
+          EOF
+            fi
+          else
+            cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          ℹ️ No documentation changes were needed.
+
+          The Terraform configuration matches the existing documentation.
+          EOF
+          fi

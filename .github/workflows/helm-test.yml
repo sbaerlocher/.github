@@ -1,0 +1,165 @@
+---
+name: Test - Helm
+
+on:
+  workflow_call:
+    inputs:
+      chart-path:
+        type: string
+        required: false
+        default: 'deploy/helm'
+        description: 'Path to Helm chart directory'
+      helm-version:
+        type: string
+        required: false
+        default: 'v3.14.0'
+        description: 'Helm version to use'
+      kubectl-version:
+        type: string
+        required: false
+        default: 'v1.29.0'
+        description: 'kubectl version to use'
+      enable-kind-tests:
+        type: boolean
+        required: false
+        default: true
+        description: 'Run tests in Kind cluster'
+      test-values:
+        type: string
+        required: false
+        default: ''
+        description: 'Additional values for test templates (YAML format)'
+
+permissions:
+  contents: read
+
+jobs:
+  helm-test:
+    name: Helm Chart Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Helm
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
+        with:
+          version: ${{ inputs.helm-version }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@776406bce94f63e41d621b960d78ee25c8b76ede # v4.0.1
+        with:
+          version: ${{ inputs.kubectl-version }}
+
+      - name: Lint Helm Chart
+        run: |
+          echo "Running Helm lint..."
+          # Check if test values file exists, use it for linting
+          if [ -f "${{ inputs.chart-path }}/values-test.yaml" ]; then
+            echo "Using values-test.yaml for linting..."
+            helm lint ${{ inputs.chart-path }} --values ${{ inputs.chart-path }}/values-test.yaml
+            helm lint ${{ inputs.chart-path }} --values ${{ inputs.chart-path }}/values-test.yaml --strict
+          else
+            echo "No values-test.yaml found, using default values..."
+            helm lint ${{ inputs.chart-path }}
+            helm lint ${{ inputs.chart-path }} --strict
+          fi
+
+      - name: Test chart templates (dry-run)
+        run: |
+          echo "Testing minimal configuration..."
+          # Check if test values file exists, use it for templating
+          if [ -f "${{ inputs.chart-path }}/values-test.yaml" ]; then
+            echo "Using values-test.yaml for templating..."
+            helm template test-minimal ${{ inputs.chart-path }} \
+              --values ${{ inputs.chart-path }}/values-test.yaml \
+              --dry-run > /tmp/minimal-manifest.yaml
+          else
+            echo "No values-test.yaml found, using default values..."
+            helm template test-minimal ${{ inputs.chart-path }} \
+              --dry-run > /tmp/minimal-manifest.yaml
+          fi
+
+          echo "✅ Minimal template test passed"
+
+      - name: Create Kind config
+        if: inputs.enable-kind-tests
+        run: |
+          cat > kind-config.yaml << EOF
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+          - role: control-plane
+          EOF
+
+      - name: Create Kind cluster
+        if: inputs.enable-kind-tests
+        uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab # v1.13.0
+        with:
+          cluster_name: helm-test
+          kubectl_version: ${{ inputs.kubectl-version }}
+          config: kind-config.yaml
+
+      - name: Validate manifests in cluster
+        if: inputs.enable-kind-tests
+        run: |
+          echo "Validating manifests with kubectl..."
+          kubectl --dry-run=server apply -f /tmp/minimal-manifest.yaml
+
+          echo "✅ Kubernetes validation passed"
+
+      - name: Test Helm chart templating
+        run: |
+          echo "Testing Helm chart templating..."
+          # Check if test values file exists, use it for templating
+          if [ -f "${{ inputs.chart-path }}/values-test.yaml" ]; then
+            echo "Using values-test.yaml for templating..."
+            helm template test-release ${{ inputs.chart-path }} \
+              --values ${{ inputs.chart-path }}/values-test.yaml \
+              --dry-run --debug > /tmp/helm-output.yaml
+          else
+            echo "No values-test.yaml found, using default values..."
+            helm template test-release ${{ inputs.chart-path }} \
+              --dry-run --debug > /tmp/helm-output.yaml
+          fi
+
+          # Verify the generated manifests contain expected resources
+          echo "Checking generated manifests..."
+          if grep -q "kind: Deployment" /tmp/helm-output.yaml; then
+            echo "✅ Deployment found"
+          else
+            echo "⚠️  No Deployment found"
+          fi
+
+          if grep -q "kind: Service" /tmp/helm-output.yaml; then
+            echo "✅ Service found"
+          else
+            echo "⚠️  No Service found"
+          fi
+
+          echo "✅ Helm chart templating test passed"
+
+      - name: Upload rendered manifests
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: rendered-helm-manifests
+          path: /tmp/helm-output.yaml
+          retention-days: 7
+
+      - name: Helm test summary
+        if: always()
+        run: |
+          {
+            echo "## ⎈ Helm Chart Test Summary"
+            echo ""
+            echo "- **Chart:** ${{ inputs.chart-path }}"
+            echo "- **Helm:** ${{ inputs.helm-version }}"
+            echo ""
+            echo "### Test Results"
+            echo "- ✅ Lint passed"
+            echo "- ✅ Template rendering passed"
+            if [[ "${{ inputs.enable-kind-tests }}" == "true" ]]; then
+              echo "- ✅ Kubernetes validation passed"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

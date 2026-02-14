@@ -1,0 +1,172 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Go Renovate configuration for Go modules, tools, and dependencies",
+  "extends": [
+    "github>sbaerlocher/.github:renovate-base#main",
+    ":semanticCommitTypeAll(chore)"
+  ],
+  "postUpdateOptions": ["gomodTidy", "gomodUpdateImportPaths"],
+  "packageRules": [
+    {
+      "description": "Go version updates - manual review",
+      "matchManagers": ["gomod"],
+      "matchDepTypes": ["golang"],
+      "groupName": "Go version",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "go",
+      "stabilityDays": 14,
+      "automerge": false,
+      "dependencyDashboardApproval": true,
+      "labels": ["go", "golang-version"],
+      "prPriority": 20
+    },
+    {
+      "description": "Group golang.org/x packages",
+      "matchManagers": ["gomod"],
+      "matchPackagePrefixes": ["golang.org/x/"],
+      "groupName": "golang.org/x packages",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "deps",
+      "stabilityDays": 3
+    },
+    {
+      "description": "Group google.golang.org packages",
+      "matchManagers": ["gomod"],
+      "matchPackagePrefixes": ["google.golang.org/"],
+      "groupName": "google.golang.org packages",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "deps",
+      "stabilityDays": 3
+    },
+    {
+      "description": "Group go.uber.org packages",
+      "matchManagers": ["gomod"],
+      "matchPackagePrefixes": ["go.uber.org/"],
+      "groupName": "go.uber.org packages",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "deps"
+    },
+    {
+      "description": "Group gRPC related packages",
+      "matchManagers": ["gomod"],
+      "matchPackagePrefixes": ["google.golang.org/grpc", "github.com/grpc-ecosystem/"],
+      "groupName": "gRPC packages",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "grpc",
+      "stabilityDays": 5
+    },
+    {
+      "description": "Group Kubernetes packages",
+      "matchManagers": ["gomod"],
+      "matchPackagePrefixes": ["k8s.io/", "sigs.k8s.io/"],
+      "groupName": "Kubernetes packages",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "k8s",
+      "stabilityDays": 7,
+      "labels": ["kubernetes"]
+    },
+    {
+      "description": "Group Prometheus packages",
+      "matchManagers": ["gomod"],
+      "matchPackagePrefixes": ["github.com/prometheus/"],
+      "groupName": "Prometheus packages",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "prometheus"
+    },
+    {
+      "description": "Group testing packages",
+      "matchManagers": ["gomod"],
+      "matchPackagePatterns": ["testify", "gomock", "mockery", "ginkgo", "gomega"],
+      "groupName": "Go testing packages",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "test",
+      "automerge": true
+    },
+    {
+      "description": "Group linting and formatting tools",
+      "matchManagers": ["gomod"],
+      "matchPackagePatterns": ["golangci-lint", "gofumpt", "goimports", "staticcheck"],
+      "groupName": "Go linting tools",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "lint",
+      "automerge": true
+    },
+    {
+      "description": "Development tools",
+      "matchManagers": ["gomod"],
+      "matchPackagePatterns": ["air", "wire", "mockgen", "protoc-gen", "buf", "goreleaser"],
+      "groupName": "Go development tools",
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "tools",
+      "automerge": true,
+      "labels": ["dev-tools"]
+    },
+    {
+      "description": "Indirect dependencies - lower priority",
+      "matchManagers": ["gomod"],
+      "matchDepTypes": ["indirect"],
+      "groupName": "Go indirect dependencies",
+      "prPriority": -5,
+      "stabilityDays": 5
+    },
+    {
+      "description": "Major Go module updates - manual review",
+      "matchManagers": ["gomod"],
+      "matchUpdateTypes": ["major"],
+      "excludePackagePrefixes": ["golang.org/x/"],
+      "dependencyDashboardApproval": true,
+      "automerge": false,
+      "stabilityDays": 14,
+      "labels": ["go", "major-update"]
+    },
+    {
+      "description": "Major golang.org/x updates - auto-approve (pseudo-versioned)",
+      "matchManagers": ["gomod"],
+      "matchPackagePrefixes": ["golang.org/x/"],
+      "matchUpdateTypes": ["major"],
+      "automerge": true,
+      "stabilityDays": 5
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Go version in .go-version files",
+      "fileMatch": ["(^|/)\\.go-version$"],
+      "matchStrings": ["^(?<currentValue>\\d+\\.\\d+(?:\\.\\d+)?)$"],
+      "datasourceTemplate": "golang-version",
+      "depNameTemplate": "go"
+    },
+    {
+      "customType": "regex",
+      "description": "Go version in Makefiles",
+      "fileMatch": ["^Makefile$", "\\.mk$"],
+      "matchStrings": [
+        "GO_VERSION\\s*[:?]?=\\s*(?<currentValue>\\d+\\.\\d+(?:\\.\\d+)?)"
+      ],
+      "datasourceTemplate": "golang-version",
+      "depNameTemplate": "go"
+    },
+    {
+      "customType": "regex",
+      "description": "Go tools in Makefiles",
+      "fileMatch": ["^Makefile$", "\\.mk$"],
+      "matchStrings": [
+        "GOLANGCI_LINT_VERSION\\s*[:?]?=\\s*v?(?<currentValue>[^\\s]+)"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "golangci/golangci-lint",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Go tools versions in comments",
+      "fileMatch": ["\\.ya?ml$", "Dockerfile$"],
+      "matchStrings": [
+        "#\\s*renovate:\\s*go-tool\\s+(?<depName>[^\\s]+)\\s+(?<currentValue>[^\\s]+)"
+      ],
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver"
+    }
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Base Renovate configuration for sbaerlocher repositories",
+  "extends": [
+    "config:best-practices",
+    ":dependencyDashboard",
+    ":semanticCommitTypeAll(chore)",
+    "group:allNonMajor",
+    "schedule:weekdays"
+  ],
+  "schedule": ["before 6am on Monday"],
+  "timezone": "Europe/Zurich",
+  "labels": ["dependencies"],
+  "assignees": ["sbaerlocher"],
+  "reviewersFromCodeOwners": true,
+  "assigneesFromCodeOwners": true,
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 0,
+  "prCreation": "not-pending",
+  "platformAutomerge": true,
+  "automergeType": "pr",
+  "automergeStrategy": "squash",
+  "rebaseWhen": "behind-base-branch",
+  "semanticCommits": "enabled",
+  "separateMinorPatch": false,
+  "separateMajorMinor": true,
+  "separateMultipleMajor": true,
+  "rangeStrategy": "bump",
+  "stabilityDays": 3,
+  "internalChecksFilter": "strict",
+  "postUpdateOptions": ["gomodTidy", "npmDedupe", "pnpmDedupe"],
+  "commitMessageAction": "Update",
+  "commitMessagePrefix": "chore(deps): ",
+  "commitMessageTopic": "{{depName}}",
+  "commitMessageExtra": "to {{#if isPinDigest}}{{{newDigestShort}}}{{else}}{{#if isMajor}}{{prettyNewMajor}}{{else}}{{#if isSingleVersion}}{{prettyNewVersion}}{{else}}{{#if newValue}}{{{newValue}}}{{else}}{{{newDigestShort}}}{{/if}}{{/if}}{{/if}}{{/if}}",
+  "dependencyDashboard": true,
+  "dependencyDashboardTitle": "Dependency Dashboard",
+  "dependencyDashboardLabels": ["dependencies", "renovate"],
+  "dependencyDashboardFooter": "Managed by Renovate Bot - [Documentation](https://docs.renovatebot.com/)",
+  "packageRules": [
+    {
+      "description": "Automerge non-major updates",
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "automerge": true
+    },
+    {
+      "description": "Group all patch updates",
+      "matchUpdateTypes": ["patch"],
+      "groupName": "all patch dependencies",
+      "groupSlug": "all-patch"
+    },
+    {
+      "description": "Group all minor updates",
+      "matchUpdateTypes": ["minor"],
+      "groupName": "all minor dependencies",
+      "groupSlug": "all-minor"
+    },
+    {
+      "description": "Automerge devDependencies",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "description": "GitHub Actions - pin digests & automerge",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "pinDigests": true,
+      "automerge": true,
+      "semanticCommitType": "ci",
+      "semanticCommitScope": "actions"
+    },
+    {
+      "description": "Major updates require manual approval",
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "dependencyDashboardApproval": true,
+      "labels": ["dependencies", "major-update"],
+      "prPriority": 10,
+      "stabilityDays": 7
+    },
+    {
+      "description": "Pre-release versions manual approval",
+      "matchCurrentVersion": "/^0\\./",
+      "automerge": false,
+      "dependencyDashboardApproval": true
+    }
+  ],
+  "lockFileMaintenance": {
+    "enabled": false
+  },
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["dependencies", "security", "priority-high"],
+    "automerge": true,
+    "schedule": ["at any time"],
+    "minimumReleaseAge": null,
+    "semanticCommitType": "fix",
+    "semanticCommitScope": "security"
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update versions in comments (renovate: datasource=... depName=...)",
+      "fileMatch": ["\\.ya?ml$", "\\.json$", "\\.toml$", "Makefile$", "\\.mk$", "Dockerfile$"],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>[^\\s]+)\\s+depName=(?<depName>[^\\s]+)(\\s+versioning=(?<versioning>[^\\s]+))?(\\s+extractVersion=(?<extractVersion>[^\\s]+))?\\s*\\n[^:]*:\\s*['\"]?(?<currentValue>[^'\"\\s]+)['\"]?"
+      ],
+      "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
+    },
+    {
+      "customType": "regex",
+      "description": "Update _VERSION variables in Makefiles",
+      "fileMatch": ["^Makefile$", "\\.mk$"],
+      "matchStrings": [
+        "(?<depName>[A-Z_]+)_VERSION\\s*[:?]?=\\s*(?<currentValue>[^\\s]+)"
+      ],
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver"
+    }
+  ]
+}

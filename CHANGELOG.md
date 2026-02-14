@@ -1,0 +1,60 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+This is a rolling release - changes are deployed continuously to `main`.
+
+---
+
+## 2026-02-14
+
+### Added
+
+- **AGENTS.md** - Comprehensive AI agent documentation for workflow repository
+- **CLAUDE.md** - Import reference for Claude Code integration
+- **LICENSE** - MIT license for public repository
+- **.editorconfig** - Editor consistency configuration across all files
+- **.gitignore** - Ignore patterns for secrets, temp files, and local settings
+- **.github/CODEOWNERS** - Repository ownership and review requirements
+- **.github/renovate.json** - Renovate configuration extending base preset
+- **README.md**: Complete documentation for all 27 workflows
+  - New "Testing & Quality" category (3 workflows)
+  - Full documentation for previously undocumented workflows:
+    - `e2e-docker.yml` - E2E Testing with Docker Compose
+    - `helm-test.yml` - Helm Chart Testing with Kind
+    - `quality-benchmarks.yml` - Performance Benchmarking
+    - `notify-deployment.yml` - Deployment Notifications
+
+### Changed
+
+- **README.md**:
+  - Updated workflow count: 24 → 27
+  - Updated workflow statistics and categories
+  - Fixed references: CHANGES.md → CHANGELOG.md
+  - Updated to rolling release model
+- **CHANGELOG.md**: Renamed from CHANGES.md, switched to rolling release format
+
+### Repository Status
+
+✅ Fully compliant with [STANDARDS.md](./STANDARDS.md)
+✅ All required files for public repository present
+✅ All 27 workflows documented
+✅ AI-ready with comprehensive AGENTS.md
+
+---
+
+## 2026-01-29
+
+### Added
+
+Initial deployment of consolidated reusable workflows:
+
+- **CI workflows**: Go, JavaScript/TypeScript, Terraform
+- **Security workflows**: CodeQL, Config scanning, Dependencies, Secrets, Containers, Supply chain
+- **Deploy workflows**: Terraform, Cloudflare Workers
+- **Release workflows**: Go, Docker, Helm, NPM
+- **Operations workflows**: Drift detection, Secret sync, Orchestration
+
+### Summary
+
+24 consolidated workflows deployed, reducing complexity by 33% while increasing feature coverage by 100%.

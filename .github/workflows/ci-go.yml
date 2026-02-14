@@ -1,0 +1,366 @@
+---
+name: Continuous Integration - Go
+
+on:
+  workflow_call:
+    inputs:
+      go-version:
+        type: string
+        required: false
+        default: '1.25'
+        description: 'Go version to use'
+      enable-integration-tests:
+        type: boolean
+        required: false
+        default: false
+        description: 'Run integration tests if tests/integration exists'
+      enable-codecov:
+        type: boolean
+        required: false
+        default: false
+        description: 'Upload coverage to Codecov'
+      enable-codeql:
+        type: boolean
+        required: false
+        default: true
+        description: 'Run CodeQL analysis'
+      enable-dependency-review:
+        type: boolean
+        required: false
+        default: true
+        description: 'Run dependency review on PRs'
+      enable-security-scans:
+        type: boolean
+        required: false
+        default: true
+        description: 'Run security scans (gosec, govulncheck, trivy)'
+      enable-sarif-upload:
+        type: boolean
+        required: false
+        default: false
+        description: 'Upload SARIF results to GitHub Security tab (requires public repo)'
+      binary-path:
+        type: string
+        required: false
+        default: './cmd'
+        description: 'Path to main binary entrypoint (e.g. ./cmd/app)'
+      pre-build-commands:
+        type: string
+        required: false
+        default: ''
+        description: 'Commands to run before build (e.g. code generation)'
+      enable-postgres:
+        type: boolean
+        required: false
+        default: false
+        description: 'Enable PostgreSQL service for tests'
+      postgres-db:
+        type: string
+        required: false
+        default: 'test_db'
+        description: 'PostgreSQL database name'
+      postgres-user:
+        type: string
+        required: false
+        default: 'test_user'
+        description: 'PostgreSQL user'
+      postgres-password:
+        type: string
+        required: false
+        default: 'test_password'
+        description: 'PostgreSQL password'
+      test-env-vars:
+        type: string
+        required: false
+        default: ''
+        description: 'Additional environment variables for tests (JSON format)'
+      artifact-name-prefix:
+        type: string
+        required: false
+        default: ''
+        description: 'Prefix for artifact names to avoid conflicts'
+    outputs:
+      coverage:
+        description: 'Test coverage percentage'
+        value: ${{ jobs.test-and-lint.outputs.coverage }}
+      version:
+        description: 'Version extracted from git ref or sha'
+        value: ${{ jobs.setup.outputs.version }}
+    secrets:
+      CODECOV_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    name: Setup
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      should-run-tests: ${{ steps.should-run.outputs.tests }}
+      should-run-security: ${{ steps.should-run.outputs.security }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Determine what should run
+        id: should-run
+        run: |
+          # Always run on main, tags, or schedule
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]] || [[ "${{ github.ref }}" =~ ^refs/tags/v.* ]] || [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo "tests=true" >> "$GITHUB_OUTPUT"
+            echo "security=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "tests=true" >> "$GITHUB_OUTPUT"
+            echo "security=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Get version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" =~ ^refs/tags/v.* ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="${{ github.sha }}"
+            VERSION="${VERSION:0:8}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
+  test-and-lint:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.should-run-tests == 'true'
+    outputs:
+      coverage: ${{ steps.coverage.outputs.coverage }}
+
+    services:
+      postgres:
+        image: ${{ inputs.enable-postgres && 'postgres:17-alpine' || '' }}
+        env:
+          POSTGRES_DB: ${{ inputs.enable-postgres && inputs.postgres-db || '' }}
+          POSTGRES_USER: ${{ inputs.enable-postgres && inputs.postgres-user || '' }}
+          POSTGRES_PASSWORD: ${{ inputs.enable-postgres && inputs.postgres-password || '' }}
+        options: ${{ inputs.enable-postgres && '--health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5' || '' }}
+        ports:
+          - ${{ inputs.enable-postgres && '5432:5432' || '' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Run pre-build commands
+        if: inputs.pre-build-commands != ''
+        run: ${{ inputs.pre-build-commands }}
+
+      - name: Download and verify dependencies
+        run: |
+          go mod download
+          go mod verify
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Check formatting
+        run: |
+          if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+            echo "::error::The following files are not formatted:"
+            gofmt -s -l .
+            exit 1
+          fi
+
+      - name: Run staticcheck
+        uses: dominikh/staticcheck-action@024238d2898c874f26d723e7d0ff4308c35589a2 # v1.4.0
+        with:
+          version: "latest"
+          install-go: false
+
+      - name: Set test environment variables
+        id: test-env
+        if: inputs.enable-postgres || inputs.test-env-vars != ''
+        run: |
+          if [[ "${{ inputs.enable-postgres }}" == "true" ]]; then
+            echo "DATABASE_URL=postgres://${{ inputs.postgres-user }}:${{ inputs.postgres-password }}@localhost:5432/${{ inputs.postgres-db }}?sslmode=disable" >> $GITHUB_ENV
+          fi
+
+          # Parse additional env vars from JSON if provided
+          if [[ -n "${{ inputs.test-env-vars }}" ]]; then
+            echo '${{ inputs.test-env-vars }}' | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> $GITHUB_ENV
+          fi
+
+      - name: Run tests with coverage
+        env:
+          GO_ENV: test
+        run: |
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Run integration tests
+        if: inputs.enable-integration-tests && hashFiles('tests/integration/**') != ''
+        run: |
+          go test -v -tags=integration -timeout=10m ./tests/integration/...
+
+      - name: Generate coverage report
+        id: coverage
+        run: |
+          go tool cover -html=coverage.out -o coverage.html
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
+          echo "coverage=$COVERAGE" >> "$GITHUB_OUTPUT"
+          echo "Test coverage: $COVERAGE"
+
+      - name: Upload coverage to Codecov
+        if: inputs.enable-codecov
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: ./coverage.out
+          flags: unittests
+          token: ${{ secrets.CODECOV_TOKEN }}
+        continue-on-error: true
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ${{ inputs.artifact-name-prefix }}coverage-report
+          path: coverage.html
+          retention-days: 30
+
+      - name: Build and test binary
+        if: inputs.binary-path != ''
+        run: |
+          mkdir -p bin
+          BINARY_NAME=$(basename ${{ inputs.binary-path }})
+          go build -ldflags="-s -w -X main.version=${{ needs.setup.outputs.version }}" -o bin/${BINARY_NAME} ${{ inputs.binary-path }}
+
+          # Test that binary was created and is executable
+          if [ ! -f bin/${BINARY_NAME} ]; then
+            echo "::error::Binary was not created"
+            exit 1
+          fi
+
+          if [ ! -x bin/${BINARY_NAME} ]; then
+            echo "::error::Binary is not executable"
+            exit 1
+          fi
+
+          # Test version flag (should exit with code 0)
+          echo "Testing --version flag..."
+          if ! ./bin/${BINARY_NAME} --version; then
+            echo "::warning::Binary --version command failed (not critical)"
+          fi
+
+          # Test help flag (should exit with code 0)
+          echo "Testing --help flag..."
+          if ! ./bin/${BINARY_NAME} --help; then
+            echo "::warning::Binary --help command failed (not critical)"
+          fi
+
+          echo "✅ Binary tests passed successfully"
+
+  security-scan:
+    name: Scan Security (${{ matrix.scanner }})
+    runs-on: ubuntu-latest
+    needs: [setup, test-and-lint]
+    if: inputs.enable-security-scans && needs.setup.outputs.should-run-security == 'true' && (needs.test-and-lint.result == 'success' || needs.test-and-lint.result == 'skipped')
+    strategy:
+      matrix:
+        scanner: [gosec, govulncheck, trivy-fs]
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        if: matrix.scanner == 'gosec' || matrix.scanner == 'govulncheck'
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: true
+
+      - name: Run gosec Security Scanner
+        if: matrix.scanner == 'gosec'
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          gosec -no-fail -fmt sarif -out gosec.sarif ./...
+
+      - name: Run govulncheck
+        if: matrix.scanner == 'govulncheck'
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck -json ./... | tee govulncheck.json
+          # Show summary
+          if [ -s govulncheck.json ]; then
+            echo "::warning::Vulnerabilities detected by govulncheck"
+            jq -r '.message // empty' govulncheck.json | head -10
+          else
+            echo "::notice::No vulnerabilities found by govulncheck"
+          fi
+
+      - name: Run Trivy filesystem scanner
+        if: matrix.scanner == 'trivy-fs'
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          format: "sarif"
+          output: "trivy-fs.sarif"
+          severity: "MEDIUM,HIGH,CRITICAL"
+          ignore-unfixed: true
+
+      - name: Upload SARIF file
+        if: inputs.enable-sarif-upload && (matrix.scanner == 'gosec' || matrix.scanner == 'trivy-fs')
+        uses: github/codeql-action/upload-sarif@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
+        with:
+          sarif_file: ${{ matrix.scanner }}.sarif
+          category: ${{ matrix.scanner }}
+        continue-on-error: true
+
+  codeql-analysis:
+    name: Analyze Code
+    runs-on: ubuntu-latest
+    needs: [setup, test-and-lint]
+    if: inputs.enable-codeql && (github.event_name == 'push' || github.event_name == 'pull_request') && (needs.test-and-lint.result == 'success' || needs.test-and-lint.result == 'skipped')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
+        with:
+          languages: go
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
+        with:
+          category: "/language:go"
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: inputs.enable-dependency-review && github.event_name == 'pull_request' && github.event.repository.visibility == 'public'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261 # v4.8.2
+        with:
+          fail-on-severity: moderate
+          allow-licenses: Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MIT, LicenseRef-scancode-google-patent-license-golang

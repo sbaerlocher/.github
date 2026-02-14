@@ -1,0 +1,99 @@
+---
+name: Release - Helm
+
+on:
+  workflow_call:
+    inputs:
+      chart-path:
+        type: string
+        required: false
+        default: 'deploy/helm'
+        description: 'Path to Helm chart directory'
+      chart-name:
+        type: string
+        required: true
+        description: 'Helm chart name'
+      helm-version:
+        type: string
+        required: false
+        default: 'v3.14.0'
+        description: 'Helm version to use'
+      registry:
+        type: string
+        required: false
+        default: 'ghcr.io'
+        description: 'OCI registry for Helm charts'
+      registry-path:
+        type: string
+        required: true
+        description: 'Registry path (e.g. github.repository_owner/charts)'
+      version:
+        type: string
+        required: true
+        description: 'Version to release (will be stripped of v prefix)'
+      image-digest:
+        type: string
+        required: false
+        default: ''
+        description: 'Docker image digest (optional, e.g. sha256:abc123...)'
+    secrets:
+      registry-token:
+        required: true
+      registry-username:
+        required: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  helm-release:
+    name: Package & Publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Helm
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
+        with:
+          version: ${{ inputs.helm-version }}
+
+      - name: Update Chart version and appVersion
+        run: |
+          VERSION="${{ inputs.version }}"
+          VERSION="${VERSION#v}"  # Remove 'v' prefix if present
+
+          sed -i "s/^version:.*/version: $VERSION/" ${{ inputs.chart-path }}/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"$VERSION\"/" ${{ inputs.chart-path }}/Chart.yaml
+
+          echo "Updated Chart.yaml:"
+          grep -E "(version|appVersion):" ${{ inputs.chart-path }}/Chart.yaml
+
+      - name: Update values.yaml with image digest
+        if: inputs.image-digest != ''
+        run: |
+          DIGEST="${{ inputs.image-digest }}"
+
+          # Update values.yaml: clear tag and set digest
+          sed -i 's/^  tag:.*/  tag: ""/' ${{ inputs.chart-path }}/values.yaml
+          sed -i "s|^  digest:.*|  digest: \"$DIGEST\"|" ${{ inputs.chart-path }}/values.yaml
+
+          echo "Updated values.yaml:"
+          grep -A 3 "^image:" ${{ inputs.chart-path }}/values.yaml
+
+      - name: Package and publish Helm chart
+        run: |
+          # Package chart
+          helm package ${{ inputs.chart-path }} --destination .
+
+          # Login to registry
+          echo "${{ secrets.registry-token }}" | helm registry login "${{ inputs.registry }}" --username "${{ secrets.registry-username || github.actor }}" --password-stdin
+
+          # Push chart
+          VERSION="${{ inputs.version }}"
+          VERSION="${VERSION#v}"
+          helm push "${{ inputs.chart-name }}-$VERSION.tgz" "oci://${{ inputs.registry }}/${{ inputs.registry-path }}"
+
+          echo "✅ Helm chart published successfully"

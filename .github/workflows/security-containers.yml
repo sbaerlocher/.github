@@ -1,0 +1,191 @@
+---
+name: Security - Containers
+
+on:
+  workflow_call:
+    inputs:
+      image-ref:
+        type: string
+        required: true
+        description: 'Container image reference to scan (e.g., ghcr.io/user/repo:tag)'
+      enable-trivy-scan:
+        type: boolean
+        default: true
+        description: 'Enable Trivy vulnerability scanning'
+      enable-grype-scan:
+        type: boolean
+        default: false
+        description: 'Enable Grype vulnerability scanning (alternative)'
+      enable-sarif-upload:
+        type: boolean
+        default: false
+        description: 'Upload SARIF to GitHub Security tab (requires public repo)'
+      severity-level:
+        type: string
+        default: 'HIGH,CRITICAL'
+        description: 'Severity levels to report (UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL)'
+      scan-timeout:
+        type: number
+        default: 15
+        description: 'Scan timeout in minutes'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  trivy-image:
+    name: Scan with Trivy
+    if: inputs.enable-trivy-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.scan-timeout }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
+        with:
+          image-ref: ${{ inputs.image-ref }}
+          format: 'table'
+          severity: ${{ inputs.severity-level }}
+          exit-code: '0'
+
+      - name: Run Trivy SARIF scan
+        if: inputs.enable-sarif-upload
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
+        with:
+          image-ref: ${{ inputs.image-ref }}
+          format: 'sarif'
+          output: 'trivy-image.sarif'
+          severity: ${{ inputs.severity-level }}
+
+      - name: Upload Trivy SARIF
+        if: inputs.enable-sarif-upload
+        uses: github/codeql-action/upload-sarif@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
+        with:
+          sarif_file: 'trivy-image.sarif'
+          category: 'trivy-image'
+        continue-on-error: true
+
+      - name: Run Trivy JSON scan
+        if: always()
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
+        with:
+          image-ref: ${{ inputs.image-ref }}
+          format: 'json'
+          output: 'trivy-image.json'
+          severity: ${{ inputs.severity-level }}
+        continue-on-error: true
+
+      - name: Upload Trivy Results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: trivy-image-results
+          path: trivy-image.json
+          retention-days: 30
+          if-no-files-found: ignore
+
+  grype-image:
+    name: Scan with Grype
+    if: inputs.enable-grype-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.scan-timeout }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run Grype vulnerability scanner
+        uses: anchore/scan-action@7037fa011853d5a11690026fb85feee79f4c946c # v7.3.2
+        id: grype
+        with:
+          image: ${{ inputs.image-ref }}
+          fail-build: false
+          severity-cutoff: medium
+
+      - name: Upload Grype Results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: grype-image-results
+          path: ${{ steps.grype.outputs.sarif }}
+          retention-days: 30
+          if-no-files-found: ignore
+
+  image-analysis:
+    name: Analyze Images
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Analyze image layers
+        run: |
+          echo "Analyzing image: ${{ inputs.image-ref }}"
+
+          # Pull image (if accessible)
+          if docker pull "${{ inputs.image-ref }}" 2>/dev/null; then
+            echo "✓ Image pulled successfully"
+
+            # Show image size
+            SIZE=$(docker image inspect "${{ inputs.image-ref }}" --format='{{.Size}}' | numfmt --to=iec-i --suffix=B)
+            echo "Image size: $SIZE"
+
+            # Show layer count
+            LAYERS=$(docker image inspect "${{ inputs.image-ref }}" --format='{{len .RootFS.Layers}}')
+            echo "Layer count: $LAYERS"
+
+            # Show base image (if detectable)
+            BASE=$(docker image inspect "${{ inputs.image-ref }}" --format='{{index .Config.Labels "org.opencontainers.image.base.name"}}' 2>/dev/null || echo "Unknown")
+            echo "Base image: $BASE"
+          else
+            echo "::warning::Unable to pull image for analysis"
+          fi
+
+  security-report:
+    name: Create Report
+    runs-on: ubuntu-latest
+    needs: [trivy-image, grype-image, image-analysis]
+    if: always() && !cancelled()
+    steps:
+      - name: Generate Security Report
+        run: |
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          # Container Image Security Report
+
+          **Timestamp:** $TIMESTAMP
+          **Image:** \`${{ inputs.image-ref }}\`
+
+          ## Scan Results
+
+          | Scanner | Status |
+          |---------|--------|
+          | Trivy | ${{ needs.trivy-image.result }} |
+          | Grype | ${{ needs.grype-image.result }} |
+          | Image Analysis | ${{ needs.image-analysis.result }} |
+
+          ## Tools Used
+
+          - **Trivy**: Comprehensive vulnerability scanner
+          - **Grype**: Anchore vulnerability scanner (optional)
+          - **Docker Inspect**: Image layer analysis
+
+          ## Security Coverage
+
+          - OS package vulnerabilities
+          - Application dependency vulnerabilities
+          - Known CVEs and security advisories
+          - Image layer analysis
+          - Base image identification
+
+          ## Recommendations
+
+          - ✓ Use minimal base images (Alpine, Distroless)
+          - ✓ Scan images before deployment
+          - ✓ Keep base images and dependencies updated
+          - ✓ Remove unnecessary packages and files
+          - ✓ Use multi-stage builds to reduce image size
+
+          ---
+          *Container security scan completed*
+          EOF

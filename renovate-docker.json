@@ -1,0 +1,88 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Renovate preset for Docker images and Docker Compose",
+  "extends": [
+    "github>sbaerlocher/.github:renovate-base#main",
+    "docker:enableMajor",
+    "docker:pinDigests"
+  ],
+  "packageRules": [
+    {
+      "description": "Docker base images in Dockerfiles",
+      "matchDatasources": ["docker"],
+      "matchFileNames": ["**/Dockerfile*"],
+      "groupName": "Docker base images",
+      "pinDigests": true,
+      "separateMajorMinor": true,
+      "semanticCommitType": "build",
+      "semanticCommitScope": "docker"
+    },
+    {
+      "description": "Docker Compose service images",
+      "matchDatasources": ["docker"],
+      "matchFileNames": ["**/docker-compose*.yml", "**/docker-compose*.yaml"],
+      "groupName": "Docker Compose images",
+      "pinDigests": true,
+      "automerge": true,
+      "matchUpdateTypes": ["minor", "patch"],
+      "semanticCommitType": "build",
+      "semanticCommitScope": "compose"
+    },
+    {
+      "description": "Base OS images - automerge minor/patch",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["alpine", "debian", "ubuntu"],
+      "groupName": "Base OS images",
+      "automerge": true,
+      "matchUpdateTypes": ["minor", "patch"]
+    },
+    {
+      "description": "Language runtime images - group by language",
+      "matchDatasources": ["docker"],
+      "matchPackagePatterns": ["^golang", "^node", "^python", "^ruby", "^php", "^openjdk", "^rust"],
+      "groupName": "{{packageName}} runtime",
+      "automerge": true,
+      "matchUpdateTypes": ["minor", "patch"],
+      "stabilityDays": 3
+    },
+    {
+      "description": "Database images - group by database",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["postgres", "postgresql", "mysql", "mariadb", "mongo", "redis", "elasticsearch"],
+      "groupName": "{{packageName}} database",
+      "automerge": true,
+      "matchUpdateTypes": ["minor", "patch"],
+      "stabilityDays": 5
+    },
+    {
+      "description": "Web servers - group by server",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["nginx", "httpd", "caddy", "traefik"],
+      "groupName": "{{packageName}} web server",
+      "automerge": true,
+      "matchUpdateTypes": ["minor", "patch"]
+    },
+    {
+      "description": "Major updates for all Docker images - require approval",
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["major"],
+      "schedule": ["before 6am on monday"],
+      "automerge": false,
+      "dependencyDashboardApproval": true,
+      "stabilityDays": 7,
+      "labels": ["dependencies", "major-update"]
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update Docker images in GitHub Actions workflows",
+      "fileMatch": ["\\.github/workflows/.*\\.ya?ml$"],
+      "matchStrings": [
+        "image:\\s*(?<depName>[^:@\\s]+)(?::(?<currentValue>[^@\\s]+))?(?:@(?<currentDigest>sha256:[a-f0-9]+))?"
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    }
+  ]
+}

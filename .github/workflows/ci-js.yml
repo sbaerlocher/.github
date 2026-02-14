@@ -1,0 +1,536 @@
+---
+name: Continuous Integration - JavaScript
+
+on:
+  workflow_call:
+    inputs:
+      package-manager:
+        type: string
+        default: 'pnpm'
+        description: 'Package manager to use (npm, pnpm, yarn, bun)'
+      node-version-file:
+        type: string
+        default: '.nvmrc'
+        description: 'Node version file path'
+      working-directory:
+        type: string
+        default: '.'
+        description: 'Working directory'
+      enable-type-check:
+        type: boolean
+        default: true
+        description: 'Enable TypeScript type checking'
+      enable-format-check:
+        type: boolean
+        default: true
+        description: 'Enable format checking'
+      enable-lint:
+        type: boolean
+        default: true
+        description: 'Enable linting'
+      enable-build:
+        type: boolean
+        default: true
+        description: 'Enable build'
+      enable-tests:
+        type: boolean
+        default: true
+        description: 'Enable unit tests'
+      enable-coverage:
+        type: boolean
+        default: true
+        description: 'Enable test coverage'
+      enable-codecov:
+        type: boolean
+        default: false
+        description: 'Upload coverage to Codecov'
+      enable-bundle-size-check:
+        type: boolean
+        default: false
+        description: 'Enable bundle size checking'
+      enable-security-scans:
+        type: boolean
+        default: true
+        description: 'Enable security scans (audit, trivy)'
+      enable-dependency-review:
+        type: boolean
+        default: true
+        description: 'Run dependency review on PRs'
+      enable-sarif-upload:
+        type: boolean
+        default: false
+        description: 'Upload SARIF results to GitHub Security tab (requires public repo)'
+      max-bundle-size-kb:
+        type: number
+        default: 1024
+        description: 'Maximum bundle size in KB'
+      test-command:
+        type: string
+        default: 'test'
+        description: 'Test command to run (without package manager prefix)'
+      coverage-files:
+        type: string
+        default: './coverage/lcov.info'
+        description: 'Coverage files to upload'
+      audit-level:
+        type: string
+        default: 'moderate'
+        description: 'Audit severity level (low, moderate, high, critical)'
+      artifact-name-prefix:
+        type: string
+        required: false
+        default: ''
+        description: 'Prefix for artifact names to avoid conflicts'
+    outputs:
+      coverage:
+        description: 'Test coverage percentage'
+        value: ${{ jobs.test.outputs.coverage }}
+    secrets:
+      CODECOV_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    name: Setup
+    runs-on: ubuntu-latest
+    outputs:
+      should-run-tests: ${{ steps.should-run.outputs.tests }}
+      should-run-security: ${{ steps.should-run.outputs.security }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Determine what should run
+        id: should-run
+        run: |
+          # Always run on main, tags, or schedule
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]] || [[ "${{ github.ref }}" =~ ^refs/tags/v.* ]] || [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo "tests=true" >> "$GITHUB_OUTPUT"
+            echo "security=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "tests=true" >> "$GITHUB_OUTPUT"
+            echo "security=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  quality-and-test:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.should-run-tests == 'true'
+    timeout-minutes: 20
+    outputs:
+      coverage: ${{ steps.coverage.outputs.coverage }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version-file: ${{ inputs.node-version-file }}
+
+      - name: Setup pnpm
+        if: inputs.package-manager == 'pnpm'
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+
+      - name: Setup Bun
+        if: inputs.package-manager == 'bun'
+        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2.1.2
+
+      - name: Get cache directory
+        id: cache-dir
+        run: |
+          case "${{ inputs.package-manager }}" in
+            pnpm)
+              echo "dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+              ;;
+            bun)
+              echo "dir=$HOME/.bun/install/cache" >> $GITHUB_OUTPUT
+              ;;
+            yarn)
+              echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+              ;;
+            npm)
+              echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+      - name: Cache dependencies
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: ${{ steps.cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-${{ inputs.package-manager }}-${{ hashFiles('**/pnpm-lock.yaml', '**/package-lock.json', '**/yarn.lock', '**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ inputs.package-manager }}-
+
+      - name: Cache Turborepo
+        if: hashFiles('turbo.json') != ''
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'package-lock.json', 'yarn.lock', 'bun.lockb') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'package-lock.json', 'yarn.lock', 'bun.lockb') }}-
+            turbo-${{ runner.os }}-
+
+      - name: Install dependencies
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          case "${{ inputs.package-manager }}" in
+            pnpm)
+              pnpm install --frozen-lockfile
+              ;;
+            bun)
+              bun install --frozen-lockfile
+              ;;
+            yarn)
+              yarn install --frozen-lockfile
+              ;;
+            npm)
+              npm ci
+              ;;
+          esac
+
+      - name: Type check
+        if: inputs.enable-type-check
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          case "${{ inputs.package-manager }}" in
+            pnpm)
+              pnpm type-check
+              ;;
+            bun)
+              bun run type-check
+              ;;
+            yarn)
+              yarn type-check
+              ;;
+            npm)
+              npm run type-check
+              ;;
+          esac
+
+      - name: Format check
+        if: inputs.enable-format-check
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          case "${{ inputs.package-manager }}" in
+            pnpm)
+              pnpm format:check
+              ;;
+            bun)
+              bun run format:check
+              ;;
+            yarn)
+              yarn format:check
+              ;;
+            npm)
+              npm run format:check
+              ;;
+          esac
+
+      - name: Lint
+        if: inputs.enable-lint
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          case "${{ inputs.package-manager }}" in
+            pnpm)
+              pnpm lint
+              ;;
+            bun)
+              bun run lint
+              ;;
+            yarn)
+              yarn lint
+              ;;
+            npm)
+              npm run lint
+              ;;
+          esac
+
+      - name: Build
+        if: inputs.enable-build
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          case "${{ inputs.package-manager }}" in
+            pnpm)
+              pnpm build
+              ;;
+            bun)
+              bun run build
+              ;;
+            yarn)
+              yarn build
+              ;;
+            npm)
+              npm run build
+              ;;
+          esac
+
+      - name: Run tests without coverage
+        if: inputs.enable-tests && !inputs.enable-coverage
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          case "${{ inputs.package-manager }}" in
+            pnpm)
+              pnpm ${{ inputs.test-command }}
+              ;;
+            bun)
+              bun run ${{ inputs.test-command }}
+              ;;
+            yarn)
+              yarn ${{ inputs.test-command }}
+              ;;
+            npm)
+              npm run ${{ inputs.test-command }}
+              ;;
+          esac
+
+      - name: Run tests with coverage
+        if: inputs.enable-tests && inputs.enable-coverage
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          case "${{ inputs.package-manager }}" in
+            pnpm)
+              pnpm test:coverage
+              ;;
+            bun)
+              bun run test:coverage
+              ;;
+            yarn)
+              yarn test:coverage
+              ;;
+            npm)
+              npm run test:coverage
+              ;;
+          esac
+
+      - name: Extract coverage percentage
+        if: inputs.enable-coverage
+        id: coverage
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          if [ -f coverage/lcov.info ]; then
+            COVERAGE=$(cat coverage/lcov.info | grep -E '^LF:|^LH:' | \
+              awk '{sum+=$2} END {if (NR>0) printf "%.2f%%", (sum/NR)*100; else print "N/A"}')
+            echo "coverage=$COVERAGE" >> "$GITHUB_OUTPUT"
+            echo "Test coverage: $COVERAGE"
+          else
+            echo "coverage=N/A" >> "$GITHUB_OUTPUT"
+            echo "::warning::No coverage file found"
+          fi
+
+      - name: Upload coverage to Codecov
+        if: inputs.enable-codecov && inputs.enable-coverage
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ${{ inputs.coverage-files }}
+          fail_ci_if_error: false
+
+      - name: Upload coverage artifact
+        if: inputs.enable-coverage
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ${{ inputs.artifact-name-prefix }}coverage-report
+          path: ${{ inputs.working-directory }}/coverage
+          retention-days: 30
+
+      - name: Check bundle sizes
+        if: inputs.enable-bundle-size-check
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          MAX_SIZE_KB=${{ inputs.max-bundle-size-kb }}
+          FAILED=0
+
+          for dir in src/*/; do
+            if [[ -f "${dir}dist/index.js" ]]; then
+              SIZE=$(stat -c%s "${dir}dist/index.js" 2>/dev/null || stat -f%z "${dir}dist/index.js")
+              SIZE_KB=$((SIZE / 1024))
+              WORKER=$(basename "$dir")
+
+              if [[ $SIZE_KB -gt $MAX_SIZE_KB ]]; then
+                echo "::error::${WORKER}: ${SIZE_KB}KB exceeds ${MAX_SIZE_KB}KB limit"
+                FAILED=1
+              else
+                echo "✓ ${WORKER}: ${SIZE_KB}KB"
+              fi
+            fi
+          done
+
+          if [[ $FAILED -eq 1 ]]; then
+            exit 1
+          fi
+
+  security-scan:
+    name: Security (${{ matrix.scanner }})
+    runs-on: ubuntu-latest
+    needs: [setup, quality-and-test]
+    if: inputs.enable-security-scans && needs.setup.outputs.should-run-security == 'true' && (needs.quality-and-test.result == 'success' || needs.quality-and-test.result == 'skipped')
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        scanner: [dependency-audit, trivy-fs, trivy-deps]
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node.js
+        if: matrix.scanner == 'dependency-audit'
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version-file: ${{ inputs.node-version-file }}
+
+      - name: Setup pnpm
+        if: matrix.scanner == 'dependency-audit' && inputs.package-manager == 'pnpm'
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
+
+      - name: Get cache directory
+        if: matrix.scanner == 'dependency-audit'
+        id: cache-dir
+        run: |
+          case "${{ inputs.package-manager }}" in
+            pnpm)
+              echo "dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+              ;;
+            yarn)
+              echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+              ;;
+            npm)
+              echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+      - name: Cache dependencies
+        if: matrix.scanner == 'dependency-audit'
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: ${{ steps.cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-${{ inputs.package-manager }}-${{ hashFiles('**/pnpm-lock.yaml', '**/package-lock.json', '**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ inputs.package-manager }}-
+
+      - name: Install dependencies for audit
+        if: matrix.scanner == 'dependency-audit'
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          case "${{ inputs.package-manager }}" in
+            pnpm)
+              pnpm install --frozen-lockfile
+              ;;
+            yarn)
+              yarn install --frozen-lockfile
+              ;;
+            npm)
+              npm ci
+              ;;
+          esac
+
+      - name: Run dependency audit
+        if: matrix.scanner == 'dependency-audit'
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          echo "Running dependency audit..."
+          case "${{ inputs.package-manager }}" in
+            pnpm)
+              pnpm audit --audit-level=${{ inputs.audit-level }} || echo "::warning::Vulnerabilities found"
+              ;;
+            yarn)
+              yarn audit --level ${{ inputs.audit-level }} || echo "::warning::Vulnerabilities found"
+              ;;
+            npm)
+              npm audit --audit-level=${{ inputs.audit-level }} || echo "::warning::Vulnerabilities found"
+              ;;
+          esac
+
+      - name: Run Trivy Filesystem Scanner
+        if: matrix.scanner == 'trivy-fs'
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
+        with:
+          scan-type: 'fs'
+          scan-ref: ${{ inputs.working-directory }}
+          scanners: 'vuln,secret,misconfig'
+          format: 'sarif'
+          output: 'trivy-fs.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+          ignore-unfixed: true
+
+      - name: Run Trivy Dependency Scanner
+        if: matrix.scanner == 'trivy-deps'
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
+        with:
+          scan-type: 'fs'
+          scan-ref: ${{ inputs.working-directory }}
+          scanners: 'vuln'
+          format: 'table'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          exit-code: '0'
+
+      - name: Upload SARIF file
+        if: inputs.enable-sarif-upload && matrix.scanner == 'trivy-fs'
+        uses: github/codeql-action/upload-sarif@45cbd0c69e560cd9e7cd7f8c32362050c9b7ded2 # v4
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+        continue-on-error: true
+
+  dependency-review:
+    name: Review Dependencies
+    runs-on: ubuntu-latest
+    if: inputs.enable-dependency-review && github.event_name == 'pull_request' && github.event.repository.visibility == 'public'
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261 # v4.8.2
+        with:
+          fail-on-severity: moderate
+          allow-licenses: Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MIT, 0BSD, LGPL-2.1+, MPL-2.0, BlueOak-1.0.0, CC-BY-4.0, CC0-1.0
+
+  summary:
+    name: Create Summary
+    runs-on: ubuntu-latest
+    needs: [quality-and-test, security-scan, dependency-review]
+    if: always() && !cancelled()
+    steps:
+      - name: Generate Summary
+        run: |
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          # JavaScript/TypeScript CI Summary
+
+          **Timestamp:** $TIMESTAMP
+
+          ## Test & Quality Results
+
+          | Component | Status |
+          |-----------|--------|
+          | Quality & Tests | ${{ needs.quality-and-test.result }} |
+          | Security Scan | ${{ needs.security-scan.result }} |
+          | Dependency Review | ${{ needs.dependency-review.result }} |
+
+          ## Coverage
+
+          - **Test Coverage**: ${{ needs.quality-and-test.outputs.coverage }}
+
+          ## Configuration
+
+          - **Package Manager**: ${{ inputs.package-manager }}
+          - **Working Directory**: ${{ inputs.working-directory }}
+
+          ---
+          *CI completed for JavaScript/TypeScript project*
+          EOF
