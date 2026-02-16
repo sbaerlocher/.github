@@ -173,6 +173,25 @@ uses: actions/setup-node@v4.0.2
 }
 ```
 
+**Reusable Workflow References:**
+
+Reusable workflows SHOULD use version tags (date-based) for reproducibility and control:
+
+```yaml
+# ✅ CORRECT - Date tag (recommended)
+uses: sbaerlocher/.github/.github/workflows/ci-terraform.yml@2026-02-14
+
+# ⚠️ DISCOURAGED - Branch reference (automatic updates, less control)
+uses: sbaerlocher/.github/.github/workflows/ci-terraform.yml@2026-02-14
+```
+
+**Why version tags?**
+
+- **Reproducible builds**: Same workflow version produces same results
+- **Controlled updates**: Changes only when explicitly updated via tag
+- **Rollback capability**: Easy to revert to previous working version
+- **Clear versioning**: Date-based tags are human-readable
+
 **Standard Workflows:**
 
 All workflows are centralized as **Reusable Workflows** in `sbaerlocher/.github/.github/workflows/`:
@@ -228,7 +247,7 @@ on:
 
 jobs:
   terraform:
-    uses: sbaerlocher/.github/.github/workflows/ci-terraform.yml@main
+    uses: sbaerlocher/.github/.github/workflows/ci-terraform.yml@2026-02-14
     with:
       terraform-version: '1.14.3'
 ```
@@ -244,7 +263,7 @@ on:
 
 jobs:
   terraform:
-    uses: sbaerlocher/.github/.github/workflows/ci-terraform.yml@main
+    uses: sbaerlocher/.github/.github/workflows/ci-terraform.yml@2026-02-14
     with:
       terraform-version: '1.14.3'
 
@@ -260,7 +279,7 @@ jobs:
 
   deploy:
     needs: ci
-    uses: sbaerlocher/.github/.github/workflows/deploy-terraform.yml@main
+    uses: sbaerlocher/.github/.github/workflows/deploy-terraform.yml@2026-02-14
     with:
       terraform-version: '1.14.3'
       environment: 'production'
@@ -276,15 +295,15 @@ on:
 
 jobs:
   config-scan:
-    uses: sbaerlocher/.github/.github/workflows/security-config.yml@main
+    uses: sbaerlocher/.github/.github/workflows/security-config.yml@2026-02-14
     with:
       scan-terraform: true
 
   secret-scan:
-    uses: sbaerlocher/.github/.github/workflows/security-secrets.yml@main
+    uses: sbaerlocher/.github/.github/workflows/security-secrets.yml@2026-02-14
 
   dependency-scan:
-    uses: sbaerlocher/.github/.github/workflows/security-deps.yml@main
+    uses: sbaerlocher/.github/.github/workflows/security-deps.yml@2026-02-14
     with:
       language: 'go'
 ```
