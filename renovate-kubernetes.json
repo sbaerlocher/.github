@@ -87,6 +87,12 @@
       "dependencyDashboardApproval": true,
       "automerge": false,
       "labels": ["docker", "major-update"]
+    },
+    {
+      "description": "Disable digest pinning for custom regex manager (Fleet/Helm values)",
+      "matchManagers": ["custom.regex"],
+      "matchDatasources": ["docker"],
+      "pinDigests": false
     }
   ],
   "customManagers": [

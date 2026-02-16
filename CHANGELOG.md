@@ -18,6 +18,8 @@ This is a rolling release - changes are deployed continuously to `main`.
   - Fixes registry URL resolution for custom OCI chart repositories
 - **ai-claude-review.yml**: Remove concurrency group from Claude code review workflow
   - Prevents cancellation of in-progress reviews when new commits are pushed
+- **renovate-kubernetes.json**: Disable digest pinning for Fleet/Helm values custom regex manager
+  - Prevents SHA pinning for OCI Helm charts detected via custom regex
 
 ---
 
