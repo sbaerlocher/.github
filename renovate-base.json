@@ -73,7 +73,7 @@
     {
       "description": "Reusable workflows & Renovate presets - use tags, no digest pinning",
       "matchManagers": ["github-actions"],
-      "matchPackagePatterns": ["^sbaerlocher/\\.github/.github/workflows/"],
+      "matchPackageNames": ["sbaerlocher/.github"],
       "pinDigests": false
     },
     {
