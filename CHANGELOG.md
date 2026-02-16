@@ -14,6 +14,8 @@ This is a rolling release - changes are deployed continuously to `main`.
   - Reusable workflows now use version tags (e.g., `@v1`) instead of SHA pinning
   - Third-party actions remain SHA-pinned for supply-chain security
   - New `packageRule` matching `sbaerlocher/.github` with `pinDigests: false`
+- **renovate-kubernetes.json**: Add `registryUrlTemplate` for OCI Helm chart detection
+  - Fixes registry URL resolution for custom OCI chart repositories
 
 ---
 

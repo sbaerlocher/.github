@@ -106,7 +106,8 @@
       "matchStrings": [
         "chart:\\s+['\"]?oci://(?<registryUrl>[^/\\s'\"]+)/(?<depName>[^\\s'\"]+)['\"]?[\\s\\S]*?version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?"
       ],
-      "datasourceTemplate": "docker"
+      "datasourceTemplate": "docker",
+      "registryUrlTemplate": "https://{{registryUrl}}"
     },
     {
       "customType": "regex",
