@@ -71,6 +71,12 @@
       "semanticCommitScope": "actions"
     },
     {
+      "description": "Reusable workflows & Renovate presets - use tags, no digest pinning",
+      "matchManagers": ["github-actions"],
+      "matchPackagePatterns": ["^sbaerlocher/\\.github/.github/workflows/"],
+      "pinDigests": false
+    },
+    {
       "description": "Major updates require manual approval",
       "matchUpdateTypes": ["major"],
       "automerge": false,
