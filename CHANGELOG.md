@@ -16,6 +16,8 @@ This is a rolling release - changes are deployed continuously to `main`.
   - New `packageRule` matching `sbaerlocher/.github` with `pinDigests: false`
 - **renovate-kubernetes.json**: Add `registryUrlTemplate` for OCI Helm chart detection
   - Fixes registry URL resolution for custom OCI chart repositories
+- **ai-claude-review.yml**: Remove concurrency group from Claude code review workflow
+  - Prevents cancellation of in-progress reviews when new commits are pushed
 
 ---
 
