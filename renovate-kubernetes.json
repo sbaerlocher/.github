@@ -92,20 +92,19 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Fleet Helm Charts in fleet.yaml",
+      "description": "Fleet Helm Charts in fleet.yaml (standard HTTP repos)",
       "fileMatch": ["(^|/)fleet\\.ya?ml$"],
       "matchStrings": [
-        "chart:\\s+(?<depName>[^\\s]+?)\\s+version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?",
-        "repo:\\s+(?<registryUrl>https?://[^\\s]+)\\s+chart:\\s+(?<depName>[^\\s]+)\\s+version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?"
+        "repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?[\\s\\S]*?chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?[\\s\\S]*?version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?"
       ],
       "datasourceTemplate": "helm"
     },
     {
       "customType": "regex",
-      "description": "Helm charts in fleet.yaml with OCI registries",
+      "description": "Fleet Helm Charts in fleet.yaml (OCI registries)",
       "fileMatch": ["(^|/)fleet\\.ya?ml$"],
       "matchStrings": [
-        "chart:\\s+oci://(?<registryUrl>[^/]+)/(?<depName>[^\\s]+)\\s+version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?"
+        "chart:\\s+['\"]?oci://(?<registryUrl>[^/\\s'\"]+)/(?<depName>[^\\s'\"]+)['\"]?[\\s\\S]*?version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?"
       ],
       "datasourceTemplate": "docker"
     },

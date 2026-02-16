@@ -6,6 +6,17 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-02-16
+
+### Changed
+
+- **renovate-base.json**: Disable digest pinning for reusable workflows from `sbaerlocher/.github`
+  - Reusable workflows now use version tags (e.g., `@v1`) instead of SHA pinning
+  - Third-party actions remain SHA-pinned for supply-chain security
+  - New `packageRule` matching `sbaerlocher/.github` with `pinDigests: false`
+
+---
+
 ## 2026-02-14
 
 ### Added
