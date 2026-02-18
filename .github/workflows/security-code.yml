@@ -56,14 +56,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Prepare CodeQL config
+        id: codeql-config
+        run: |
+          {
+            echo "yaml<<CODEQL_CONFIG_EOF"
+            echo "paths-ignore:"
+            IFS=',' read -ra PATHS <<< "${{ inputs.paths-ignore }}"
+            for path in "${PATHS[@]}"; do
+              echo "  - '$path'"
+            done
+            echo "CODEQL_CONFIG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@9e907b5e64f6b83e7804b09294d44122997950d6 # v4
         with:
           languages: ${{ matrix.language }}
           queries: ${{ inputs.queries }}
-          config: |
-            paths-ignore:
-              ${{ inputs.paths-ignore }}
+          config: ${{ steps.codeql-config.outputs.yaml }}
 
       # Setup language-specific environments
       - name: Setup Node.js
