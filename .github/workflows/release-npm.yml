@@ -271,10 +271,11 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          CUSTOM_PUBLISH_CMD: ${{ inputs.publish-command }}
         run: |
           echo "🧪 Dry-run mode - not actually publishing"
 
-          if [ -z "${{ inputs.publish-command }}" ]; then
+          if [ -z "$CUSTOM_PUBLISH_CMD" ]; then
             # Use default publish command based on package manager
             case "${{ inputs.package-manager }}" in
               pnpm)
@@ -292,8 +293,8 @@ jobs:
             esac
           else
             # Use custom publish command
-            echo "Would run: ${{ inputs.publish-command }} --dry-run"
-            ${{ inputs.publish-command }} --dry-run
+            echo "Would run: $CUSTOM_PUBLISH_CMD --dry-run"
+            $CUSTOM_PUBLISH_CMD --dry-run
           fi
 
       - name: Publish to NPM
@@ -301,6 +302,7 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          CUSTOM_PUBLISH_CMD: ${{ inputs.publish-command }}
         run: |
           echo "Publishing to NPM registry: ${{ inputs.registry-url }}"
 
@@ -309,7 +311,7 @@ jobs:
             PUBLISH_ARGS="--provenance"
           fi
 
-          if [ -z "${{ inputs.publish-command }}" ]; then
+          if [ -z "$CUSTOM_PUBLISH_CMD" ]; then
             # Use default publish command based on package manager
             case "${{ inputs.package-manager }}" in
               pnpm)
@@ -327,7 +329,7 @@ jobs:
             esac
           else
             # Use custom publish command
-            ${{ inputs.publish-command }}
+            $CUSTOM_PUBLISH_CMD
           fi
 
           echo "✓ Package published successfully"
