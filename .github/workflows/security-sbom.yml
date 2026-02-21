@@ -1,0 +1,169 @@
+---
+name: Security - SBOM Generation
+
+on:
+  workflow_call:
+    inputs:
+      artifact-type:
+        type: string
+        required: true
+        description: 'Artifact type (container, filesystem, go-binary, npm-package)'
+      artifact-ref:
+        type: string
+        required: true
+        description: 'Artifact reference (image name, directory path, or binary path)'
+      working-directory:
+        type: string
+        default: '.'
+        description: 'Working directory'
+      sbom-format:
+        type: string
+        default: 'cyclonedx-json'
+        description: 'SBOM format (cyclonedx-json, spdx-json, syft-json)'
+
+permissions:
+  contents: write
+
+jobs:
+  generate-sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      sbom-file: ${{ steps.sbom-output.outputs.file }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Container Image SBOM
+      - name: Generate SBOM for container image
+        if: inputs.artifact-type == 'container'
+        uses: anchore/sbom-action@28d71544de8eaf1b958d335707167c5f783590ad # v0.22.2
+        with:
+          image: ${{ inputs.artifact-ref }}
+          format: ${{ inputs.sbom-format }}
+          output-file: sbom-${{ inputs.artifact-type }}.json
+
+      # Filesystem SBOM
+      - name: Generate SBOM for filesystem
+        if: inputs.artifact-type == 'filesystem'
+        uses: anchore/sbom-action@28d71544de8eaf1b958d335707167c5f783590ad # v0.22.2
+        with:
+          path: ${{ inputs.artifact-ref }}
+          format: ${{ inputs.sbom-format }}
+          output-file: sbom-${{ inputs.artifact-type }}.json
+
+      # Go Binary SBOM
+      - name: Setup Go
+        if: inputs.artifact-type == 'go-binary'
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Generate SBOM for Go binary
+        if: inputs.artifact-type == 'go-binary'
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest
+          cyclonedx-gomod mod -json -output ../sbom-${{ inputs.artifact-type }}.json
+
+      # NPM Package SBOM
+      - name: Setup Node.js
+        if: inputs.artifact-type == 'npm-package'
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Generate SBOM for NPM package
+        if: inputs.artifact-type == 'npm-package'
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          npm install -g @cyclonedx/cyclonedx-npm
+          cyclonedx-npm --output-file ../sbom-${{ inputs.artifact-type }}.json
+
+      # Validate and upload SBOM
+      - name: Validate SBOM
+        id: sbom-output
+        run: |
+          SBOM_FILE="sbom-${{ inputs.artifact-type }}.json"
+          echo "file=$SBOM_FILE" >> $GITHUB_OUTPUT
+
+          if [ -f "$SBOM_FILE" ]; then
+            echo "✓ SBOM generated successfully: $SBOM_FILE"
+
+            # Show component count
+            COMPONENTS=$(jq '[.components[] // .packages[]] | length' "$SBOM_FILE" 2>/dev/null || echo "unknown")
+            echo "Components/Packages: $COMPONENTS"
+          else
+            echo "::error::SBOM file not found: $SBOM_FILE"
+            exit 1
+          fi
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: sbom-${{ inputs.artifact-type }}
+          path: sbom-${{ inputs.artifact-type }}.json
+          retention-days: 90
+
+  sbom-report:
+    name: Create Report
+    runs-on: ubuntu-latest
+    needs: [generate-sbom]
+    if: always() && !cancelled()
+    steps:
+      - name: Download SBOM
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: sbom-${{ inputs.artifact-type }}
+          path: ./sbom
+        continue-on-error: true
+
+      - name: Generate SBOM Report
+        run: |
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+          # Count SBOM components
+          if [ -f "./sbom/sbom-${{ inputs.artifact-type }}.json" ]; then
+            COMPONENT_COUNT=$(jq '[.components[] // .packages[]] | length' "./sbom/sbom-${{ inputs.artifact-type }}.json" 2>/dev/null || echo "unknown")
+          else
+            COMPONENT_COUNT="N/A"
+          fi
+
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          # 📋 SBOM Generation Report
+
+          **Timestamp:** $TIMESTAMP
+          **Artifact Type:** ${{ inputs.artifact-type }}
+          **Artifact Reference:** \`${{ inputs.artifact-ref }}\`
+
+          ## SBOM Details
+
+          | Property | Value |
+          |----------|-------|
+          | Format | ${{ inputs.sbom-format }} |
+          | Components/Packages | $COMPONENT_COUNT |
+          | Status | ${{ needs.generate-sbom.result }} |
+
+          ## What is an SBOM?
+
+          A Software Bill of Materials (SBOM) is a complete inventory of all components,
+          libraries, and dependencies in your software artifact. It provides:
+
+          - 🔍 **Transparency**: Know exactly what's in your software
+          - 🛡️ **Security**: Identify vulnerable dependencies quickly
+          - 📜 **Compliance**: Meet regulatory requirements
+          - 🔗 **Supply Chain**: Track software provenance
+
+          ## Usage
+
+          The SBOM artifact is available for download and can be:
+          - Uploaded to vulnerability scanners
+          - Stored in artifact repositories
+          - Attached to GitHub releases
+          - Used for compliance documentation
+
+          ---
+          *SBOM generation completed*
+          EOF

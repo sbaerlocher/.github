@@ -8,17 +8,25 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ## 2026-02-21
 
+### Added
+
+- **security-sbom.yml**: New dedicated workflow for SBOM generation without signing capabilities
+  - Supports all artifact types: container, filesystem, go-binary, npm-package
+  - Minimal permissions: only `contents: write` required
+  - Lightweight alternative to `security-supply-chain.yml` for non-container artifacts
+  - Includes SBOM validation and artifact upload
+  - Generates summary report with component count and usage instructions
+
 ### Fixed
 
-- **release-npm.yml**: Corrected workflow reference from non-existent `security-sbom.yml` to `security-supply-chain.yml`
-  - The SBOM generation job was referencing the wrong workflow file name
-  - Now correctly uses `./.github/workflows/security-supply-chain.yml` for SBOM generation
-  - Fixes workflow validation error: "failed to fetch workflow: workflow was not found"
+- **release-npm.yml**: Use dedicated `security-sbom.yml` workflow instead of `security-supply-chain.yml`
+  - Resolves permission conflict where `security-supply-chain.yml` required `packages: write` for container signing
+  - Now uses SBOM-only workflow that doesn't require container registry permissions
+  - Fixes workflow validation error: "The nested job 'sign-container' is requesting 'packages: write'"
 - **security-supply-chain.yml**: Moved `packages: write` permission from workflow-level to job-level
   - `packages: write` is now only granted to the `sign-container` job
   - Workflow-level permissions reduced to `contents: write` and `id-token: write`
-  - Allows NPM package releases to use SBOM generation without unnecessary container registry permissions
-  - Fixes permission error when called from `release-npm.yml`
+  - Maintains full functionality for container image signing and SBOM attachment
 
 ---
 
