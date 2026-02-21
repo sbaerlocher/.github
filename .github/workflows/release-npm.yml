@@ -343,15 +343,34 @@ jobs:
           PACKAGE_NAME=$(node -p "require('./package.json').name")
           VERSION="${{ needs.pre-release-checks.outputs.version }}"
 
-          echo "Verifying publication..."
-          sleep 5  # Give NPM registry time to update
+          echo "Verifying publication of $PACKAGE_NAME@$VERSION..."
 
-          if npm view "$PACKAGE_NAME@$VERSION" version; then
-            echo "✓ Package verified on NPM registry"
-          else
-            echo "::error::Package verification failed"
-            exit 1
-          fi
+          # Retry verification with exponential backoff
+          MAX_ATTEMPTS=6
+          ATTEMPT=1
+          WAIT_TIME=5
+
+          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+            echo "Verification attempt $ATTEMPT/$MAX_ATTEMPTS (waiting ${WAIT_TIME}s)..."
+            sleep $WAIT_TIME
+
+            if npm view "$PACKAGE_NAME@$VERSION" version >/dev/null 2>&1; then
+              echo "✓ Package verified on NPM registry"
+              npm view "$PACKAGE_NAME@$VERSION" version
+              exit 0
+            fi
+
+            if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+              echo "Package not yet available, retrying..."
+              WAIT_TIME=$((WAIT_TIME * 2))  # Exponential backoff
+              ATTEMPT=$((ATTEMPT + 1))
+            else
+              echo "::error::Package verification failed after $MAX_ATTEMPTS attempts"
+              echo "::error::Package $PACKAGE_NAME@$VERSION not found on NPM registry"
+              echo "::notice::The package may have been published but NPM registry is slow to update"
+              exit 1
+            fi
+          done
 
   generate-sbom:
     name: Generate SBOM

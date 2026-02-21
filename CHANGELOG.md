@@ -17,6 +17,15 @@ This is a rolling release - changes are deployed continuously to `main`.
   - Includes SBOM validation and artifact upload
   - Generates summary report with component count and usage instructions
 
+### Changed
+
+- **release-npm.yml**: Improved package verification with retry logic
+  - Added exponential backoff retry mechanism (6 attempts, max ~3 minutes)
+  - Starts with 5s wait, doubles each attempt (5s, 10s, 20s, 40s, 80s, 160s)
+  - Prevents false failures when NPM registry is slow to update
+  - Better error messages indicating registry propagation delay
+  - Resolves intermittent verification failures after successful publish
+
 ### Fixed
 
 - **release-npm.yml**: Fixed bash syntax errors in publish steps
