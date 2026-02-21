@@ -274,10 +274,8 @@ jobs:
         run: |
           echo "🧪 Dry-run mode - not actually publishing"
 
-          if [ -n "${{ inputs.publish-command }}" ]; then
-            echo "Would run: ${{ inputs.publish-command }} --dry-run"
-            ${{ inputs.publish-command }} --dry-run
-          else
+          if [ -z "${{ inputs.publish-command }}" ]; then
+            # Use default publish command based on package manager
             case "${{ inputs.package-manager }}" in
               pnpm)
                 pnpm publish --dry-run --no-git-checks
@@ -292,6 +290,10 @@ jobs:
                 npm publish --dry-run
                 ;;
             esac
+          else
+            # Use custom publish command
+            echo "Would run: ${{ inputs.publish-command }} --dry-run"
+            ${{ inputs.publish-command }} --dry-run
           fi
 
       - name: Publish to NPM
@@ -307,9 +309,8 @@ jobs:
             PUBLISH_ARGS="--provenance"
           fi
 
-          if [ -n "${{ inputs.publish-command }}" ]; then
-            ${{ inputs.publish-command }}
-          else
+          if [ -z "${{ inputs.publish-command }}" ]; then
+            # Use default publish command based on package manager
             case "${{ inputs.package-manager }}" in
               pnpm)
                 pnpm publish --no-git-checks --access public $PUBLISH_ARGS
@@ -324,6 +325,9 @@ jobs:
                 npm publish --access public $PUBLISH_ARGS
                 ;;
             esac
+          else
+            # Use custom publish command
+            ${{ inputs.publish-command }}
           fi
 
           echo "✓ Package published successfully"

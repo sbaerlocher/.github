@@ -19,6 +19,11 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ### Fixed
 
+- **release-npm.yml**: Fixed bash syntax error in publish steps
+  - Inverted if-else logic to prevent empty command block when `publish-command` is not provided
+  - Changed from `if [ -n "$publish-command" ]` to `if [ -z "$publish-command" ]`
+  - Applies to both "Publish to NPM" and "Publish to NPM (Dry Run)" steps
+  - Fixes: "syntax error near unexpected token 'else'" on line 10
 - **release-npm.yml**: Use dedicated `security-sbom.yml` workflow instead of `security-supply-chain.yml`
   - Resolves permission conflict where `security-supply-chain.yml` required `packages: write` for container signing
   - Now uses SBOM-only workflow that doesn't require container registry permissions
