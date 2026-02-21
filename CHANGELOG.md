@@ -6,6 +6,17 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-02-21
+
+### Fixed
+
+- **release-npm.yml**: Corrected workflow reference from non-existent `security-sbom.yml` to `security-supply-chain.yml`
+  - The SBOM generation job was referencing the wrong workflow file name
+  - Now correctly uses `./.github/workflows/security-supply-chain.yml` for SBOM generation
+  - Fixes workflow validation error: "failed to fetch workflow: workflow was not found"
+
+---
+
 ## 2026-02-16
 
 ### Changed

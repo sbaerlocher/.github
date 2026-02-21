@@ -351,7 +351,7 @@ jobs:
     name: Generate SBOM
     needs: [pre-release-checks, publish]
     if: inputs.enable-sbom && needs.pre-release-checks.outputs.should-publish == 'true' && !inputs.dry-run
-    uses: ./.github/workflows/security-sbom.yml
+    uses: ./.github/workflows/security-supply-chain.yml
     with:
       artifact-type: npm-package
       artifact-ref: ${{ inputs.working-directory }}
