@@ -14,6 +14,11 @@ This is a rolling release - changes are deployed continuously to `main`.
   - The SBOM generation job was referencing the wrong workflow file name
   - Now correctly uses `./.github/workflows/security-supply-chain.yml` for SBOM generation
   - Fixes workflow validation error: "failed to fetch workflow: workflow was not found"
+- **security-supply-chain.yml**: Moved `packages: write` permission from workflow-level to job-level
+  - `packages: write` is now only granted to the `sign-container` job
+  - Workflow-level permissions reduced to `contents: write` and `id-token: write`
+  - Allows NPM package releases to use SBOM generation without unnecessary container registry permissions
+  - Fixes permission error when called from `release-npm.yml`
 
 ---
 

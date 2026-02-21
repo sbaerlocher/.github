@@ -38,7 +38,6 @@ on:
 
 permissions:
   contents: write
-  packages: write
   id-token: write  # Required for keyless signing
 
 jobs:
@@ -131,6 +130,10 @@ jobs:
     needs: [generate-sbom]
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
     steps:
       - name: Install Cosign
         uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
