@@ -6,6 +6,21 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-02-23
+
+### Changed
+
+- **security-code.yml**: Add multi-package-manager support for JavaScript/TypeScript CodeQL analysis
+  - New `package-manager` input to override auto-detection (npm, pnpm, yarn)
+  - Auto-detects package manager from lock files (`pnpm-lock.yaml`, `yarn.lock`, fallback to npm)
+  - Installs pnpm via `pnpm/action-setup` when needed
+  - Separate install steps per package manager with proper frozen lockfile flags
+  - Build step uses detected package manager instead of hardcoded `npm`
+  - Node.js setup caches correct package manager dependencies
+  - Summary report includes detected package manager
+
+---
+
 ## 2026-02-21
 
 ### Added

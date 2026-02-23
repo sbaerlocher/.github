@@ -24,6 +24,10 @@ on:
         type: string
         default: '3.12'
         description: 'Python version (for Python projects)'
+      package-manager:
+        type: string
+        default: ''
+        description: 'Package manager override (npm, pnpm, yarn). Auto-detected from lock files if empty.'
       build-command:
         type: string
         default: ''
@@ -76,13 +80,32 @@ jobs:
           queries: ${{ inputs.queries }}
           config: ${{ steps.codeql-config.outputs.yaml }}
 
+      # Detect package manager (explicit input takes precedence over lock file detection)
+      - name: Detect package manager
+        if: matrix.language == 'javascript-typescript'
+        id: detect-pm
+        run: |
+          if [ -n "${{ inputs.package-manager }}" ]; then
+            echo "manager=${{ inputs.package-manager }}" >> "$GITHUB_OUTPUT"
+          elif [ -f "pnpm-lock.yaml" ]; then
+            echo "manager=pnpm" >> "$GITHUB_OUTPUT"
+          elif [ -f "yarn.lock" ]; then
+            echo "manager=yarn" >> "$GITHUB_OUTPUT"
+          else
+            echo "manager=npm" >> "$GITHUB_OUTPUT"
+          fi
+
       # Setup language-specific environments
+      - name: Install pnpm
+        if: matrix.language == 'javascript-typescript' && steps.detect-pm.outputs.manager == 'pnpm'
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4
+
       - name: Setup Node.js
         if: matrix.language == 'javascript-typescript'
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version-file: ${{ inputs.node-version-file }}
-          cache: npm
+          cache: ${{ steps.detect-pm.outputs.manager }}
 
       - name: Setup Go
         if: matrix.language == 'go'
@@ -98,15 +121,24 @@ jobs:
           python-version: ${{ inputs.python-version }}
           cache: 'pip'
 
-      # Build steps
-      - name: Install dependencies (JavaScript/TypeScript)
-        if: matrix.language == 'javascript-typescript' && inputs.build-command == ''
+      # Build steps - JavaScript/TypeScript
+      - name: Install dependencies (npm)
+        if: matrix.language == 'javascript-typescript' && inputs.build-command == '' && steps.detect-pm.outputs.manager == 'npm'
         run: npm ci --prefer-offline --no-audit
+
+      - name: Install dependencies (pnpm)
+        if: matrix.language == 'javascript-typescript' && inputs.build-command == '' && steps.detect-pm.outputs.manager == 'pnpm'
+        run: pnpm install --frozen-lockfile
+
+      - name: Install dependencies (yarn)
+        if: matrix.language == 'javascript-typescript' && inputs.build-command == '' && steps.detect-pm.outputs.manager == 'yarn'
+        run: yarn install --frozen-lockfile
 
       - name: Build project (JavaScript/TypeScript)
         if: matrix.language == 'javascript-typescript' && inputs.build-command == ''
-        run: npm run build
+        run: ${{ steps.detect-pm.outputs.manager }} run build
 
+      # Build steps - Python
       - name: Install dependencies (Python)
         if: matrix.language == 'python' && inputs.build-command == ''
         run: |
@@ -142,6 +174,7 @@ jobs:
           ## Analysis Details
 
           - **Query Suites**: ${{ inputs.queries }}
+          - **Package Manager**: ${{ steps.detect-pm.outputs.manager || 'N/A' }}
           - **Paths Ignored**: ${{ inputs.paths-ignore }}
 
           ## Security Coverage
