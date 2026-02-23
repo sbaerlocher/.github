@@ -71,10 +71,12 @@
       "semanticCommitScope": "actions"
     },
     {
-      "description": "Reusable workflows & Renovate presets - use tags, no digest pinning",
+      "description": "Reusable workflows & Renovate presets - use date tags, no digest pinning",
       "matchManagers": ["github-actions"],
       "matchPackageNames": ["sbaerlocher/.github"],
-      "pinDigests": false
+      "pinDigests": false,
+      "versioning": "regex:^(?<major>\\d{4})-(?<minor>\\d{2})-(?<patch>\\d{2})$",
+      "allowedVersions": "/^\\d{4}-\\d{2}-\\d{2}$/"
     },
     {
       "description": "Major updates require manual approval",
@@ -123,6 +125,17 @@
       ],
       "datasourceTemplate": "github-releases",
       "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Update pinned Renovate preset versions from sbaerlocher/.github",
+      "fileMatch": ["(^|/)renovate[^/]*\\.json$", "(^|/)\\.renovaterc\\.json$", "(^|/)\\.renovaterc$"],
+      "matchStrings": [
+        "github>sbaerlocher/\\.github[^\"]*#(?<currentValue>\\d{4}-\\d{2}-\\d{2})"
+      ],
+      "depNameTemplate": "sbaerlocher/.github",
+      "datasourceTemplate": "github-tags",
+      "versioningTemplate": "regex:^(?<major>\\d{4})-(?<minor>\\d{2})-(?<patch>\\d{2})$"
     }
   ]
 }

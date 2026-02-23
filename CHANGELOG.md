@@ -24,6 +24,15 @@ This is a rolling release - changes are deployed continuously to `main`.
   - Single CodeQL analyze step with conditional `upload` parameter
   - Enables CodeQL analysis for private repos without GitHub Advanced Security
   - Summary report reflects the chosen upload mode
+- **renovate-base.json**: Add date-based versioning for reusable workflow references
+  - Regex versioning maps `YYYY-MM-DD` tags to semver comparison (`major.minor.patch`)
+  - `allowedVersions` filter excludes non-date tags (e.g. `latest`)
+  - Enables Renovate to detect and update `@2026-02-14` → `@2026-02-23` workflow references
+- **renovate-base.json**: Add custom regex manager for pinned Renovate preset versions
+  - Detects `github>sbaerlocher/.github:preset#YYYY-MM-DD` references in Renovate configs
+  - Uses `github-tags` datasource to look up available date tags
+  - Enables automatic PRs when new preset versions are tagged
+  - Matches `renovate*.json`, `.renovaterc.json`, and `.renovaterc` files
 
 ---
 
