@@ -36,6 +36,10 @@ on:
         type: string
         default: 'node_modules,dist,coverage,**/*.spec.ts,**/*.test.ts'
         description: 'Comma-separated list of paths to ignore'
+      enable-sarif-upload:
+        type: boolean
+        default: true
+        description: 'Upload SARIF results to GitHub Security tab (requires public repo or GHAS)'
 
 permissions:
   actions: read
@@ -158,11 +162,27 @@ jobs:
         uses: github/codeql-action/analyze@9e907b5e64f6b83e7804b09294d44122997950d6 # v4
         with:
           category: '/language:${{ matrix.language }}'
+          upload: ${{ inputs.enable-sarif-upload && 'always' || 'never' }}
+          output: codeql-results
+
+      - name: Upload SARIF as artifact
+        if: ${{ !inputs.enable-sarif-upload }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: codeql-results/*.sarif
+          retention-days: 30
 
       - name: Generate Summary
         if: always()
         run: |
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+          if [ "${{ inputs.enable-sarif-upload }}" = "true" ]; then
+            RESULTS_INFO="Results available in the GitHub Security tab"
+          else
+            RESULTS_INFO="Results uploaded as workflow artifact (SARIF)"
+          fi
 
           cat >> "$GITHUB_STEP_SUMMARY" << EOF
           # 🔒 Code Security Analysis (SAST)
@@ -176,6 +196,7 @@ jobs:
           - **Query Suites**: ${{ inputs.queries }}
           - **Package Manager**: ${{ steps.detect-pm.outputs.manager || 'N/A' }}
           - **Paths Ignored**: ${{ inputs.paths-ignore }}
+          - **Results**: ${RESULTS_INFO}
 
           ## Security Coverage
 
@@ -187,5 +208,5 @@ jobs:
           - ⚠️  Potential bugs and anti-patterns
 
           ---
-          *Results are available in the GitHub Security tab*
+          *${RESULTS_INFO}*
           EOF

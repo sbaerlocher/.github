@@ -18,6 +18,12 @@ This is a rolling release - changes are deployed continuously to `main`.
   - Build step uses detected package manager instead of hardcoded `npm`
   - Node.js setup caches correct package manager dependencies
   - Summary report includes detected package manager
+- **security-code.yml**: Add configurable SARIF upload toggle
+  - New `enable-sarif-upload` boolean input (default: `true`)
+  - When disabled, SARIF results are uploaded as workflow artifacts (30-day retention)
+  - Single CodeQL analyze step with conditional `upload` parameter
+  - Enables CodeQL analysis for private repos without GitHub Advanced Security
+  - Summary report reflects the chosen upload mode
 
 ---
 
