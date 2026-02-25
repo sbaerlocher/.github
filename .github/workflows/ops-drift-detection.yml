@@ -52,7 +52,7 @@ permissions:
 jobs:
   drift-detection:
     name: Detect Drift (${{ inputs.environment }})
-    uses: ./.github/workflows/terraform-deploy.yml
+    uses: ./.github/workflows/deploy-terraform.yml
     with:
       terraform-version: ${{ inputs.terraform-version }}
       mode: 'drift'

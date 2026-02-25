@@ -6,6 +6,21 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-02-24
+
+### Changed
+
+- **renovate-base.json**: Skip stability days for own workflow tags
+  - Set `minimumReleaseAge: 0 days` for `sbaerlocher/.github` package rule
+  - Prevents Renovate from holding back new date tags due to global `stabilityDays: 3`
+
+### Fixed
+
+- **ops-drift-detection.yml**: Fix incorrect workflow reference
+  - Changed `terraform-deploy.yml` → `deploy-terraform.yml` to match actual file name
+
+---
+
 ## 2026-02-23
 
 ### Changed

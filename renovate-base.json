@@ -76,7 +76,8 @@
       "matchPackageNames": ["sbaerlocher/.github"],
       "pinDigests": false,
       "versioning": "regex:^(?<major>\\d{4})-(?<minor>\\d{2})-(?<patch>\\d{2})$",
-      "allowedVersions": "/^\\d{4}-\\d{2}-\\d{2}$/"
+      "allowedVersions": "/^\\d{4}-\\d{2}-\\d{2}$/",
+      "minimumReleaseAge": "0 days"
     },
     {
       "description": "Major updates require manual approval",
