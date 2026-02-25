@@ -6,6 +6,19 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-02-25
+
+### Fixed
+
+- **ops-drift-detection.yml**: Align inputs with deploy-terraform workflow
+  - Add `should-apply: false` to explicitly prevent apply during drift detection
+  - Remove unsupported `create-drift-issue` input
+- **deploy-terraform.yml**: Fix apply condition to require both deploy mode and approval
+  - Changed from `OR` (`||`) to `AND` (`&&`) for `mode == 'deploy'` and `should-apply == 'true'`
+  - Prevents unintended applies when `should-apply` is not explicitly set
+
+---
+
 ## 2026-02-24
 
 ### Changed

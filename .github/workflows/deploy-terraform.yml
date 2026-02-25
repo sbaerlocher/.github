@@ -262,7 +262,8 @@ jobs:
       - name: 'Configuration Deployment'
         id: apply
         if: |
-          (inputs.mode == 'deploy' || inputs.should-apply == 'true') &&
+          inputs.mode == 'deploy' &&
+          inputs.should-apply == 'true' &&
           (steps.plan.outputs.outcome == 'has-changes' ||
            steps.plan.outputs.outcome == 'no-changes')
         working-directory: ${{ inputs.working-directory }}

@@ -56,12 +56,12 @@ jobs:
     with:
       terraform-version: ${{ inputs.terraform-version }}
       mode: 'drift'
+      should-apply: 'false'
       environment: ${{ inputs.environment }}
       project-name: ${{ inputs.project-name }}
       working-directory: ${{ inputs.working-directory }}
       parallelism: ${{ inputs.parallelism }}
       timeout-minutes: ${{ inputs.timeout-minutes }}
-      create-drift-issue: ${{ inputs.create-drift-issue }}
       bw-secrets: ${{ inputs.bw-secrets }}
       env-mapping: ${{ inputs.env-mapping }}
     secrets:
