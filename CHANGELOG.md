@@ -6,6 +6,22 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-03-05
+
+### Changed
+
+- **GitHub Actions**: Update SHA-pinned action references across 15 workflows (#4)
+  - `actions/setup-go` v6.2.0 → v6.3.0
+  - `actions/dependency-review-action` v4.8.2 → v4.8.3
+  - `aquasecurity/trivy-action` 0.34.0 → 0.34.2
+  - `github/codeql-action` updated to latest SHA (v4)
+  - `anthropics/claude-code-action` updated to latest SHA (v1)
+  - `actions/setup-node` updated to latest SHA (v4)
+  - `sigstore/cosign-installer` updated to latest SHA (v3)
+  - `anchore/sbom-action` updated to latest SHA (v0)
+
+---
+
 ## 2026-02-25
 
 ### Fixed
