@@ -6,6 +6,33 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-03-06
+
+### Changed
+
+- **GitHub Actions**: Update SHA-pinned action references across 18 workflows (#5, #6, #7, #8, #9, #10, #11, #12)
+  - `actions/upload-artifact` v6.0.0 → v7.0.0
+  - `actions/download-artifact` v7 → v8
+  - `actions/setup-node` v6.2.0 → v6.3.0
+  - `actions/dependency-review-action` v4.8.3 → v4.9.0
+  - `hashicorp/setup-terraform` v3.1.2 → v4.0.0
+  - `docker/build-push-action` v6 → v7
+  - `docker/metadata-action` v5 → v6
+  - `docker/login-action` v3 → v4
+  - `docker/setup-buildx-action` v3 → v4
+  - `docker/setup-qemu-action` v3 → v4
+  - `oven-sh/setup-bun` v2.1.2 → v2.1.3
+  - `dominikh/staticcheck-action` v1.4.0 → v1.4.1
+  - `github/codeql-action` updated to latest SHA (v4)
+  - `anthropics/claude-code-action` updated to latest SHA (v1)
+  - `bitwarden/sm-action` updated to latest SHA (v2)
+  - `aquasecurity/trivy-action` updated to latest SHA
+  - `trufflesecurity/trufflehog` updated to latest SHA (v3)
+  - `sigstore/cosign-installer` updated to latest SHA (v3)
+  - `anchore/sbom-action` updated to latest SHA (v0)
+
+---
+
 ## 2026-03-05
 
 ### Changed
