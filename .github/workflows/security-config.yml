@@ -98,7 +98,7 @@ jobs:
 
       - name: Upload Trivy artifacts
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: trivy-config-results
           path: |
@@ -159,7 +159,7 @@ jobs:
 
       - name: Upload Trivy artifacts
         if: always() && steps.sarif_check.outputs.exists == 'true'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: trivy-terraform-results
           path: trivy-results.sarif
@@ -253,7 +253,7 @@ jobs:
 
       - name: Upload Kubernetes scan results
         if: steps.find-manifests.outputs.found == 'true' && always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: kubernetes-security-results
           path: |
@@ -294,7 +294,7 @@ jobs:
 
       - name: Upload Ansible scan results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ansible-security-results
           path: |
