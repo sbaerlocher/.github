@@ -9,7 +9,8 @@ Steps:
 6. Update CHANGELOG.md with the new entry at the top (after the header)
 7. Commit with message: `docs(changelog): add <today's date> entry for <brief summary>`
 8. Create a new date tag: `<today's date>` (format: YYYY-MM-DD)
-9. Push commit and tag: `git push origin main --tags`
+9. Move the `latest` tag to the new commit: `git tag -f latest HEAD`
+10. Push commit and tags: `git push origin main --tags && git push origin --force latest`
 
 Important:
 - Follow the existing CHANGELOG.md format exactly
