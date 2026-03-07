@@ -10,6 +10,12 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ### Changed
 
+- **ci-go.yml**: Split `test-and-lint` job into separate postgres and non-postgres variants
+  - New `test-and-lint` job runs when `enable-postgres` is `false` (default)
+  - New `test-and-lint-postgres` job runs when `enable-postgres` is `true`, with dedicated PostgreSQL service container
+  - Removes conditional service container pattern (empty strings for disabled services)
+  - Coverage output merges both job variants via `||` fallback
+  - `security-scan` and `codeql-analysis` jobs now depend on both variants with `always()` and failure/cancellation guards
 - **renovate-base.json**: Enable automerge for own workflow and preset updates
   - Add `automerge: true` and `stabilityDays: 0` to `sbaerlocher/.github` workflow package rule
   - New package rule for `sbaerlocher/.github` Renovate preset references with automerge enabled

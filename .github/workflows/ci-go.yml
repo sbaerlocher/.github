@@ -82,7 +82,7 @@ on:
     outputs:
       coverage:
         description: 'Test coverage percentage'
-        value: ${{ jobs.test-and-lint.outputs.coverage }}
+        value: ${{ jobs.test-and-lint.outputs.coverage || jobs.test-and-lint-postgres.outputs.coverage }}
       version:
         description: 'Version extracted from git ref or sha'
         value: ${{ jobs.setup.outputs.version }}
@@ -136,20 +136,9 @@ jobs:
     name: Test & Lint
     runs-on: ubuntu-latest
     needs: setup
-    if: needs.setup.outputs.should-run-tests == 'true'
+    if: needs.setup.outputs.should-run-tests == 'true' && !inputs.enable-postgres
     outputs:
       coverage: ${{ steps.coverage.outputs.coverage }}
-
-    services:
-      postgres:
-        image: ${{ inputs.enable-postgres && 'postgres:17-alpine' || '' }}
-        env:
-          POSTGRES_DB: ${{ inputs.enable-postgres && inputs.postgres-db || '' }}
-          POSTGRES_USER: ${{ inputs.enable-postgres && inputs.postgres-user || '' }}
-          POSTGRES_PASSWORD: ${{ inputs.enable-postgres && inputs.postgres-password || '' }}
-        options: ${{ inputs.enable-postgres && '--health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5' || '' }}
-        ports:
-          - ${{ inputs.enable-postgres && '5432:5432' || '' }}
 
     steps:
       - name: Checkout code
@@ -189,14 +178,134 @@ jobs:
           install-go: false
 
       - name: Set test environment variables
-        id: test-env
-        if: inputs.enable-postgres || inputs.test-env-vars != ''
+        if: inputs.test-env-vars != ''
         run: |
-          if [[ "${{ inputs.enable-postgres }}" == "true" ]]; then
-            echo "DATABASE_URL=postgres://${{ inputs.postgres-user }}:${{ inputs.postgres-password }}@localhost:5432/${{ inputs.postgres-db }}?sslmode=disable" >> $GITHUB_ENV
+          echo '${{ inputs.test-env-vars }}' | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> $GITHUB_ENV
+
+      - name: Run tests with coverage
+        env:
+          GO_ENV: test
+        run: |
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Run integration tests
+        if: inputs.enable-integration-tests && hashFiles('tests/integration/**') != ''
+        run: |
+          go test -v -tags=integration -timeout=10m ./tests/integration/...
+
+      - name: Generate coverage report
+        id: coverage
+        run: |
+          go tool cover -html=coverage.out -o coverage.html
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
+          echo "coverage=$COVERAGE" >> "$GITHUB_OUTPUT"
+          echo "Test coverage: $COVERAGE"
+
+      - name: Upload coverage to Codecov
+        if: inputs.enable-codecov
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: ./coverage.out
+          flags: unittests
+          token: ${{ secrets.CODECOV_TOKEN }}
+        continue-on-error: true
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ${{ inputs.artifact-name-prefix }}coverage-report
+          path: coverage.html
+          retention-days: 30
+
+      - name: Build and test binary
+        if: inputs.binary-path != ''
+        run: |
+          mkdir -p bin
+          BINARY_NAME=$(basename ${{ inputs.binary-path }})
+          go build -ldflags="-s -w -X main.version=${{ needs.setup.outputs.version }}" -o bin/${BINARY_NAME} ${{ inputs.binary-path }}
+
+          if [ ! -f bin/${BINARY_NAME} ]; then
+            echo "::error::Binary was not created"
+            exit 1
           fi
 
-          # Parse additional env vars from JSON if provided
+          if [ ! -x bin/${BINARY_NAME} ]; then
+            echo "::error::Binary is not executable"
+            exit 1
+          fi
+
+          echo "Testing --version flag..."
+          if ! ./bin/${BINARY_NAME} --version; then
+            echo "::warning::Binary --version command failed (not critical)"
+          fi
+
+          echo "Testing --help flag..."
+          if ! ./bin/${BINARY_NAME} --help; then
+            echo "::warning::Binary --help command failed (not critical)"
+          fi
+
+          echo "Binary tests passed successfully"
+
+  test-and-lint-postgres:
+    name: Test & Lint (PostgreSQL)
+    runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.should-run-tests == 'true' && inputs.enable-postgres
+    outputs:
+      coverage: ${{ steps.coverage.outputs.coverage }}
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: ${{ inputs.postgres-db }}
+          POSTGRES_USER: ${{ inputs.postgres-user }}
+          POSTGRES_PASSWORD: ${{ inputs.postgres-password }}
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Run pre-build commands
+        if: inputs.pre-build-commands != ''
+        run: ${{ inputs.pre-build-commands }}
+
+      - name: Download and verify dependencies
+        run: |
+          go mod download
+          go mod verify
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Check formatting
+        run: |
+          if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+            echo "::error::The following files are not formatted:"
+            gofmt -s -l .
+            exit 1
+          fi
+
+      - name: Run staticcheck
+        uses: dominikh/staticcheck-action@9716614d4101e79b4340dd97b10e54d68234e431 # v1.4.1
+        with:
+          version: "latest"
+          install-go: false
+
+      - name: Set test environment variables
+        run: |
+          echo "DATABASE_URL=postgres://${{ inputs.postgres-user }}:${{ inputs.postgres-password }}@localhost:5432/${{ inputs.postgres-db }}?sslmode=disable" >> $GITHUB_ENV
+
           if [[ -n "${{ inputs.test-env-vars }}" ]]; then
             echo '${{ inputs.test-env-vars }}' | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> $GITHUB_ENV
           fi
@@ -243,7 +352,6 @@ jobs:
           BINARY_NAME=$(basename ${{ inputs.binary-path }})
           go build -ldflags="-s -w -X main.version=${{ needs.setup.outputs.version }}" -o bin/${BINARY_NAME} ${{ inputs.binary-path }}
 
-          # Test that binary was created and is executable
           if [ ! -f bin/${BINARY_NAME} ]; then
             echo "::error::Binary was not created"
             exit 1
@@ -254,25 +362,28 @@ jobs:
             exit 1
           fi
 
-          # Test version flag (should exit with code 0)
           echo "Testing --version flag..."
           if ! ./bin/${BINARY_NAME} --version; then
             echo "::warning::Binary --version command failed (not critical)"
           fi
 
-          # Test help flag (should exit with code 0)
           echo "Testing --help flag..."
           if ! ./bin/${BINARY_NAME} --help; then
             echo "::warning::Binary --help command failed (not critical)"
           fi
 
-          echo "✅ Binary tests passed successfully"
+          echo "Binary tests passed successfully"
 
   security-scan:
     name: Scan Security (${{ matrix.scanner }})
     runs-on: ubuntu-latest
-    needs: [setup, test-and-lint]
-    if: inputs.enable-security-scans && needs.setup.outputs.should-run-security == 'true' && (needs.test-and-lint.result == 'success' || needs.test-and-lint.result == 'skipped')
+    needs: [setup, test-and-lint, test-and-lint-postgres]
+    if: >-
+      always() &&
+      inputs.enable-security-scans &&
+      needs.setup.outputs.should-run-security == 'true' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
     strategy:
       matrix:
         scanner: [gosec, govulncheck, trivy-fs]
@@ -330,8 +441,13 @@ jobs:
   codeql-analysis:
     name: Analyze Code
     runs-on: ubuntu-latest
-    needs: [setup, test-and-lint]
-    if: inputs.enable-codeql && (github.event_name == 'push' || github.event_name == 'pull_request') && (needs.test-and-lint.result == 'success' || needs.test-and-lint.result == 'skipped')
+    needs: [setup, test-and-lint, test-and-lint-postgres]
+    if: >-
+      always() &&
+      inputs.enable-codeql &&
+      (github.event_name == 'push' || github.event_name == 'pull_request') &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
 
     steps:
       - name: Checkout code
