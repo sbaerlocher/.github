@@ -6,6 +6,21 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-03-07
+
+### Changed
+
+- **renovate-base.json**: Enable automerge for own workflow and preset updates
+  - Add `automerge: true` and `stabilityDays: 0` to `sbaerlocher/.github` workflow package rule
+  - New package rule for `sbaerlocher/.github` Renovate preset references with automerge enabled
+  - Ensures own workflow and preset version bumps are merged automatically without delay
+
+### Documentation
+
+- **release.md**: Update release process to include `latest` tag management
+
+---
+
 ## 2026-03-06
 
 ### Changed
