@@ -77,7 +77,9 @@
       "pinDigests": false,
       "versioning": "regex:^(?<major>\\d{4})-(?<minor>\\d{2})-(?<patch>\\d{2})$",
       "allowedVersions": "/^\\d{4}-\\d{2}-\\d{2}$/",
-      "minimumReleaseAge": "0 days"
+      "minimumReleaseAge": "0 days",
+      "automerge": true,
+      "stabilityDays": 0
     },
     {
       "description": "Major updates require manual approval",
@@ -93,6 +95,12 @@
       "matchCurrentVersion": "/^0\\./",
       "automerge": false,
       "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Automerge sbaerlocher/.github Renovate preset updates",
+      "matchDepNames": ["sbaerlocher/.github"],
+      "automerge": true,
+      "stabilityDays": 0
     }
   ],
   "lockFileMaintenance": {
