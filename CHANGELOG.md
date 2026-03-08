@@ -6,6 +6,17 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-03-08
+
+### Changed
+
+- **release-go.yml**: Add Go build caching for faster releases
+  - Enable module cache via `setup-go` (`cache: true`)
+  - Add separate `actions/cache` step for Go build artifacts (`~/.cache/go-build`)
+  - Cache key based on `go.sum` hash with fallback restore keys
+
+---
+
 ## 2026-03-07
 
 ### Changed
