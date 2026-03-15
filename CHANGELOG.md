@@ -6,6 +6,19 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-03-15
+
+### Changed
+
+- **ai-claude-review.yml**: Switch to official code-review plugin with inline comments (#13)
+  - Migrate from manual `gh pr comment` review to `code-review@claude-code-plugins` plugin
+  - Add `plugin_marketplaces` pointing to `anthropics/claude-code.git`
+  - Enable `pull-requests: write` permission for inline review comments
+  - Use `/code-review --comment` prompt for structured inline PR reviews
+  - Add `fetch-depth: 1` for faster checkout
+
+---
+
 ## 2026-03-08
 
 ### Changed
