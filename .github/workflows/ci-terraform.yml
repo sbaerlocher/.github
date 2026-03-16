@@ -125,7 +125,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Run Trivy Scanner
-        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # 0.34.2
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
           scan-type: 'config'
           scan-ref: ${{ inputs.working-directory }}
@@ -134,7 +134,7 @@ jobs:
           exit-code: '0'
 
       - name: Trivy JSON Results
-        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # 0.34.2
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
           scan-type: 'config'
           scan-ref: ${{ inputs.working-directory }}
@@ -153,7 +153,7 @@ jobs:
 
       - name: Trivy SARIF Results
         if: ${{ inputs.enable-sarif-upload }}
-        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # 0.34.2
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
           scan-type: 'config'
           scan-ref: ${{ inputs.working-directory }}
@@ -163,7 +163,7 @@ jobs:
 
       - name: Upload Trivy SARIF to GitHub Security
         if: ${{ inputs.enable-sarif-upload }}
-        uses: github/codeql-action/upload-sarif@0d579ffd059c29b07949a3cce3983f0780820c98 # v4
+        uses: github/codeql-action/upload-sarif@b1bff81932f5cdfc8695c7752dcee935dcd061c8 # v4
         with:
           sarif_file: 'trivy-results.sarif'
           category: 'trivy'
@@ -177,7 +177,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Run Trivy (Terraform Security)
-        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # 0.34.2
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
           scan-type: 'config'
           scan-ref: ${{ inputs.working-directory }}
@@ -203,7 +203,7 @@ jobs:
 
       - name: Upload TFSec SARIF to GitHub Security
         if: ${{ inputs.enable-sarif-upload }}
-        uses: github/codeql-action/upload-sarif@0d579ffd059c29b07949a3cce3983f0780820c98 # v4
+        uses: github/codeql-action/upload-sarif@b1bff81932f5cdfc8695c7752dcee935dcd061c8 # v4
         with:
           sarif_file: 'tfsec-results.sarif'
           category: 'tfsec'
