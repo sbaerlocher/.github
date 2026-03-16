@@ -3,113 +3,148 @@
   "description": "JavaScript/TypeScript Renovate configuration for Node.js, pnpm, Astro, Vue, Cloudflare Workers",
   "extends": [
     "github>sbaerlocher/.github:renovate-base#main",
-    ":enableVulnerabilityAlertsWithLabel(security)",
     ":preserveSemverRanges"
   ],
-  "enabledManagers": ["npm", "nvm", "github-actions"],
-  "rangeStrategy": "bump",
+  "enabledManagers": [
+    "npm",
+    "nvm",
+    "github-actions"
+  ],
   "packageRules": [
     {
-      "description": "Node.js version updates",
-      "matchManagers": ["nvm"],
-      "matchPackageNames": ["node"],
+      "description": "Node.js version updates - higher stability",
+      "matchManagers": [
+        "nvm"
+      ],
+      "matchPackageNames": [
+        "node"
+      ],
       "groupName": "Node.js",
-      "semanticCommitType": "chore",
       "semanticCommitScope": "node",
-      "stabilityDays": 14,
+      "minimumReleaseAge": "14 days",
       "automerge": false,
-      "dependencyDashboardApproval": true,
-      "labels": ["nodejs"]
+      "labels": [
+        "nodejs"
+      ]
     },
     {
       "description": "TypeScript - manual review for breaking changes",
-      "matchPackageNames": ["typescript"],
+      "matchPackageNames": [
+        "typescript"
+      ],
       "groupName": "TypeScript",
-      "semanticCommitType": "chore",
       "semanticCommitScope": "typescript",
       "automerge": false,
-      "dependencyDashboardApproval": true,
-      "labels": ["typescript"],
-      "stabilityDays": 7
+      "minimumReleaseAge": "7 days",
+      "labels": [
+        "typescript"
+      ]
     },
     {
       "description": "Group ESLint packages",
-      "matchPackagePatterns": ["^eslint", "^@eslint/", "^eslint-"],
       "groupName": "ESLint packages",
-      "semanticCommitType": "chore",
-      "semanticCommitScope": "lint"
+      "semanticCommitScope": "lint",
+      "matchPackageNames": [
+        "/^eslint/",
+        "/^@eslint//",
+        "/^eslint-/"
+      ]
     },
     {
       "description": "Group Prettier packages",
-      "matchPackagePatterns": ["^prettier", "^@prettier/"],
       "groupName": "Prettier packages",
-      "semanticCommitType": "chore",
-      "semanticCommitScope": "format"
+      "semanticCommitScope": "format",
+      "matchPackageNames": [
+        "/^prettier/",
+        "/^@prettier//"
+      ]
     },
     {
       "description": "Group Vitest packages",
-      "matchPackagePatterns": ["^vitest", "^@vitest/"],
       "groupName": "Vitest packages",
-      "semanticCommitType": "chore",
-      "semanticCommitScope": "test"
+      "semanticCommitScope": "test",
+      "matchPackageNames": [
+        "/^vitest/",
+        "/^@vitest//"
+      ]
     },
     {
       "description": "Group Jest packages",
-      "matchPackagePatterns": ["^jest", "^@jest/", "^@types/jest"],
       "groupName": "Jest packages",
-      "semanticCommitType": "chore",
-      "semanticCommitScope": "test"
+      "semanticCommitScope": "test",
+      "matchPackageNames": [
+        "/^jest/",
+        "/^@jest//",
+        "/^@types/jest/"
+      ]
     },
     {
       "description": "Group Vite packages",
-      "matchPackagePatterns": ["^vite", "^@vitejs/"],
       "groupName": "Vite packages",
-      "semanticCommitType": "chore",
-      "semanticCommitScope": "build"
+      "semanticCommitScope": "build",
+      "matchPackageNames": [
+        "/^vite/",
+        "/^@vitejs//"
+      ]
     },
     {
       "description": "Group Astro packages",
-      "matchPackagePatterns": ["^astro", "^@astrojs/"],
       "groupName": "Astro packages",
-      "semanticCommitType": "chore",
       "semanticCommitScope": "astro",
-      "stabilityDays": 5,
-      "labels": ["astro"]
+      "minimumReleaseAge": "5 days",
+      "labels": [
+        "astro"
+      ],
+      "matchPackageNames": [
+        "/^astro/",
+        "/^@astrojs//"
+      ]
     },
     {
       "description": "Group Vue packages",
-      "matchPackagePatterns": ["^vue", "^@vue/"],
       "groupName": "Vue packages",
-      "semanticCommitType": "chore",
       "semanticCommitScope": "vue",
-      "stabilityDays": 5,
-      "labels": ["vue"]
+      "minimumReleaseAge": "5 days",
+      "labels": [
+        "vue"
+      ],
+      "matchPackageNames": [
+        "/^vue/",
+        "/^@vue//"
+      ]
     },
     {
       "description": "Group Cloudflare Workers packages",
-      "matchPackagePatterns": ["^@cloudflare/", "^wrangler"],
       "groupName": "Cloudflare Workers packages",
-      "semanticCommitType": "chore",
       "semanticCommitScope": "workers",
-      "labels": ["cloudflare"]
+      "labels": [
+        "cloudflare"
+      ],
+      "matchPackageNames": [
+        "/^@cloudflare//",
+        "/^wrangler/"
+      ]
     },
     {
       "description": "Group pnpm package manager",
-      "matchManagers": ["npm"],
-      "matchPackageNames": ["pnpm"],
+      "matchManagers": [
+        "npm"
+      ],
+      "matchPackageNames": [
+        "pnpm"
+      ],
       "groupName": "pnpm",
-      "semanticCommitType": "chore",
       "semanticCommitScope": "pnpm",
       "automerge": false,
-      "stabilityDays": 7
+      "minimumReleaseAge": "7 days"
     },
     {
-      "description": "Group @types packages with their corresponding packages",
-      "matchPackagePatterns": ["^@types/"],
+      "description": "Group @types packages",
       "groupName": "TypeScript definitions",
-      "automerge": true,
-      "semanticCommitType": "chore",
-      "semanticCommitScope": "types"
+      "semanticCommitScope": "types",
+      "matchPackageNames": [
+        "/^@types//"
+      ]
     },
     {
       "description": "Workspace protocol - internal dependencies",
@@ -117,35 +152,44 @@
       "enabled": false
     },
     {
-      "description": "Major framework updates - extra caution",
-      "matchPackagePatterns": ["^astro", "^vue", "^@astrojs/", "^@vue/"],
-      "matchUpdateTypes": ["major"],
-      "dependencyDashboardApproval": true,
-      "automerge": false,
-      "stabilityDays": 14,
-      "labels": ["framework", "major-update"]
+      "description": "Major framework updates - extra stability",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "minimumReleaseAge": "14 days",
+      "labels": [
+        "framework",
+        "major-update"
+      ],
+      "matchPackageNames": [
+        "/^astro/",
+        "/^vue/",
+        "/^@astrojs//",
+        "/^@vue//"
+      ]
     },
     {
-      "description": "Build tooling major updates - manual review",
-      "matchPackagePatterns": ["^vite", "^@vitejs/", "^webpack", "^rollup"],
-      "matchUpdateTypes": ["major"],
-      "dependencyDashboardApproval": true,
-      "automerge": false,
-      "stabilityDays": 10
-    },
-    {
-      "description": "Auto-merge devDependencies patches and minors",
-      "matchDepTypes": ["devDependencies"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "excludePackageNames": ["typescript", "astro", "vue"],
-      "automerge": true
+      "description": "Major build tooling updates - extra stability",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "minimumReleaseAge": "10 days",
+      "matchPackageNames": [
+        "/^vite/",
+        "/^@vitejs//",
+        "/^webpack/",
+        "/^rollup/"
+      ]
     },
     {
       "description": "Production dependencies - extra stability",
-      "matchDepTypes": ["dependencies"],
-      "stabilityDays": 5,
-      "labels": ["production"]
+      "matchDepTypes": [
+        "dependencies"
+      ],
+      "minimumReleaseAge": "5 days",
+      "labels": [
+        "production"
+      ]
     }
-  ],
-  "postUpdateOptions": ["npmDedupe", "pnpmDedupe"]
+  ]
 }

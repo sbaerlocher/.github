@@ -1,7 +1,9 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "GitOps Renovate configuration for Fleet, Helm, Kubernetes and Kustomize",
-  "extends": ["github>sbaerlocher/.github:renovate-base#main"],
+  "extends": [
+    "github>sbaerlocher/.github:renovate-base#main"
+  ],
   "enabledManagers": [
     "kubernetes",
     "helm-values",
@@ -11,58 +13,58 @@
     "github-actions"
   ],
   "kubernetes": {
-    "fileMatch": [
-      "\\.ya?ml$",
-      "^kustomization\\.ya?ml$"
+    "managerFilePatterns": [
+      "/\\.ya?ml$/",
+      "/^kustomization\\.ya?ml$/"
     ]
   },
   "helm-values": {
-    "fileMatch": [
-      "values\\.ya?ml$",
-      "values-.+\\.ya?ml$"
+    "managerFilePatterns": [
+      "/values\\.ya?ml$/",
+      "/values-.+\\.ya?ml$/"
     ]
   },
   "packageRules": [
     {
       "description": "Group Helm chart updates",
-      "matchManagers": ["helm-values", "helmfile"],
-      "matchDatasources": ["helm"],
+      "matchManagers": [
+        "helm-values",
+        "helmfile"
+      ],
+      "matchDatasources": [
+        "helm"
+      ],
       "groupName": "Helm charts",
-      "semanticCommitType": "chore",
       "semanticCommitScope": "helm",
-      "stabilityDays": 5,
+      "minimumReleaseAge": "5 days",
       "prPriority": 5
     },
     {
       "description": "Container images - pin digests for production",
-      "matchManagers": ["kubernetes"],
-      "matchDatasources": ["docker"],
+      "matchManagers": [
+        "kubernetes"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
       "pinDigests": true,
-      "semanticCommitType": "chore",
       "semanticCommitScope": "images",
-      "versioning": "docker",
-      "stabilityDays": 3
+      "versioning": "docker"
     },
     {
       "description": "Kustomize base updates",
-      "matchManagers": ["kustomize"],
+      "matchManagers": [
+        "kustomize"
+      ],
       "groupName": "Kustomize bases",
-      "semanticCommitType": "chore",
       "semanticCommitScope": "kustomize"
     },
     {
-      "description": "Major Helm chart updates - manual approval",
-      "matchManagers": ["helm-values", "helmfile"],
-      "matchDatasources": ["helm"],
-      "matchUpdateTypes": ["major"],
-      "dependencyDashboardApproval": true,
-      "automerge": false,
-      "stabilityDays": 7,
-      "labels": ["helm", "major-update"]
-    },
-    {
       "description": "Critical platform charts - extra stability",
-      "matchManagers": ["helm-values", "helmfile"],
+      "matchManagers": [
+        "helm-values",
+        "helmfile"
+      ],
       "matchPackageNames": [
         "cert-manager",
         "external-secrets",
@@ -74,24 +76,21 @@
         "grafana",
         "vault"
       ],
-      "stabilityDays": 7,
+      "minimumReleaseAge": "7 days",
       "automerge": false,
-      "dependencyDashboardApproval": true,
-      "labels": ["platform", "critical"]
-    },
-    {
-      "description": "Container image major versions - manual review",
-      "matchManagers": ["kubernetes"],
-      "matchDatasources": ["docker"],
-      "matchUpdateTypes": ["major"],
-      "dependencyDashboardApproval": true,
-      "automerge": false,
-      "labels": ["docker", "major-update"]
+      "labels": [
+        "platform",
+        "critical"
+      ]
     },
     {
       "description": "Disable digest pinning for custom regex manager (Fleet/Helm values)",
-      "matchManagers": ["custom.regex"],
-      "matchDatasources": ["docker"],
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
       "pinDigests": false
     }
   ],
@@ -99,7 +98,9 @@
     {
       "customType": "regex",
       "description": "Fleet Helm Charts in fleet.yaml (standard HTTP repos)",
-      "fileMatch": ["(^|/)fleet\\.ya?ml$"],
+      "managerFilePatterns": [
+        "/(^|/)fleet\\.ya?ml$/"
+      ],
       "matchStrings": [
         "repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?[\\s\\S]*?chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?[\\s\\S]*?version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?"
       ],
@@ -108,7 +109,9 @@
     {
       "customType": "regex",
       "description": "Fleet Helm Charts in fleet.yaml (OCI registries)",
-      "fileMatch": ["(^|/)fleet\\.ya?ml$"],
+      "managerFilePatterns": [
+        "/(^|/)fleet\\.ya?ml$/"
+      ],
       "matchStrings": [
         "chart:\\s+['\"]?oci://(?<registryUrl>[^/\\s'\"]+)/(?<depName>[^\\s'\"]+)['\"]?[\\s\\S]*?version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?"
       ],
@@ -118,7 +121,9 @@
     {
       "customType": "regex",
       "description": "Container image tags in YAML (image: repo:tag format)",
-      "fileMatch": ["\\.ya?ml$"],
+      "managerFilePatterns": [
+        "/\\.ya?ml$/"
+      ],
       "matchStrings": [
         "image:\\s+['\"]?(?<depName>[^:\"'\\s]+):(?<currentValue>[^\"'\\s]+)['\"]?"
       ],
@@ -128,7 +133,9 @@
     {
       "customType": "regex",
       "description": "Docker images in comments (for GitOps references)",
-      "fileMatch": ["\\.ya?ml$"],
+      "managerFilePatterns": [
+        "/\\.ya?ml$/"
+      ],
       "matchStrings": [
         "#\\s*renovate:\\s*image=(?<depName>[^:]+):(?<currentValue>[^\\s]+)"
       ],
@@ -138,18 +145,23 @@
     {
       "customType": "regex",
       "description": "Kubernetes tool versions in comments",
-      "fileMatch": ["\\.ya?ml$", "Makefile$"],
+      "managerFilePatterns": [
+        "/\\.ya?ml$/",
+        "/Makefile$/"
+      ],
       "matchStrings": [
         "#\\s*renovate:\\s*k8s-(?<depName>kubectl|helm|kustomize)\\s+(?<currentValue>[^\\s]+)"
       ],
       "datasourceTemplate": "github-releases",
       "depNameTemplate": "kubernetes/{{depName}}",
       "versioningTemplate": "semver"
-    }
-  ],
-  "regexManagers": [
+    },
     {
-      "fileMatch": ["(^|/)fleet\\.ya?ml$"],
+      "customType": "regex",
+      "description": "Fleet datasource comment annotations",
+      "managerFilePatterns": [
+        "/(^|/)fleet\\.ya?ml$/"
+      ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)( versioning=(?<versioning>\\S+))?(\\s+registryUrl=(?<registryUrl>\\S+))?\\s+.+?:\\s*['\"]?(?<currentValue>[^'\"\\s]+)['\"]?"
       ]
