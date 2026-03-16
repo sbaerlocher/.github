@@ -38,7 +38,7 @@ jobs:
       # Container Image SBOM
       - name: Generate SBOM for container image
         if: inputs.artifact-type == 'container'
-        uses: anchore/sbom-action@17ae1740179002c89186b61233e0f892c3118b11 # v0.23.0
+        uses: anchore/sbom-action@57aae528053a48a3f6235f2d9461b05fbcb7366d # v0.23.1
         with:
           image: ${{ inputs.artifact-ref }}
           format: ${{ inputs.sbom-format }}
@@ -47,7 +47,7 @@ jobs:
       # Filesystem SBOM
       - name: Generate SBOM for filesystem
         if: inputs.artifact-type == 'filesystem'
-        uses: anchore/sbom-action@17ae1740179002c89186b61233e0f892c3118b11 # v0.23.0
+        uses: anchore/sbom-action@57aae528053a48a3f6235f2d9461b05fbcb7366d # v0.23.1
         with:
           path: ${{ inputs.artifact-ref }}
           format: ${{ inputs.sbom-format }}
@@ -114,7 +114,7 @@ jobs:
     if: always() && !cancelled()
     steps:
       - name: Download SBOM
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: sbom-${{ inputs.artifact-type }}
           path: ./sbom
