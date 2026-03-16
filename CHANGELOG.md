@@ -6,6 +6,31 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-03-16
+
+### Changed
+
+- **renovate-*.json**: Migrate deprecated options and simplify all 6 presets (#15)
+  - `stabilityDays` → `minimumReleaseAge` (26 occurrences across all presets)
+  - `matchPackagePrefixes` → `matchPackageNames` with glob syntax (renovate-go.json)
+  - `matchPackagePatterns` → `matchPackageNames` with regex syntax (renovate-js.json, renovate-docker.json)
+  - `fileMatch` → `managerFilePatterns` (renovate-terraform.json, renovate-kubernetes.json, renovate-docker.json, renovate-go.json)
+  - `regexManagers` → `customManagers` with `customType: "regex"` (renovate-kubernetes.json)
+  - Remove `dependencyDashboardApproval` to allow automatic PR creation
+  - Remove redundant rules already inherited from `renovate-base.json`
+  - Add `configMigration: true` to base for automatic future migration PRs
+- **GitHub Actions**: Update SHA-pinned action references across workflows (#16, #17, #18, #19, #20)
+  - `actions/cache` v4 → v5
+  - `slackapi/slack-github-action` v2 → v3
+  - `postgres` Docker tag v17 → v18
+  - Various actions updated to latest SHA (actions/checkout, actions/setup-node, actions/setup-go, github/codeql-action, anthropics/claude-code-action, aquasecurity/trivy-action, anchore/sbom-action, sigstore/cosign-installer, docker/build-push-action, docker/metadata-action)
+
+### Fixed
+
+- **ci-go.yml**: Allow compound SPDX license `BSD-3-Clause AND LicenseRef-scancode-google-patent-license-golang` in dependency review (#14)
+
+---
+
 ## 2026-03-15
 
 ### Changed
