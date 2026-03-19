@@ -6,6 +6,18 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-03-19
+
+### Changed
+
+- **GitHub Actions**: Update SHA-pinned action references across workflows (#21, #22)
+  - `pnpm/action-setup` v4.4.0 → v5.0.0 (ci-js.yml, deploy-cloudflare-workers.yml, e2e-docker.yml,
+    quality-benchmarks.yml, release-npm.yml, security-code.yml, security-deps.yml)
+  - `anthropics/claude-code-action` SHA update to latest v1 (ai-claude.yml, ai-claude-review.yml)
+  - `actions/cache` SHA update to latest v5 (release-go.yml)
+
+---
+
 ## 2026-03-16
 
 ### Changed
