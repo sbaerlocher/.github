@@ -10,8 +10,12 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ### Changed
 
-- **GitHub Actions**: Update `github/codeql-action` SHA digest to `c6f9311` (#23)
-  - Affects: ci-go.yml, ci-js.yml, ci-terraform.yml, release-docker.yml, security-code.yml, security-config.yml, security-containers.yml
+- **GitHub Actions**: Update action SHA digests (#23, #24)
+  - `github/codeql-action` SHA → `c6f9311` (#23): ci-go.yml, ci-js.yml, ci-terraform.yml, release-docker.yml,
+    security-code.yml, security-config.yml, security-containers.yml
+  - `codecov/codecov-action` v5.5.2 → v5.5.3 (#24): ci-go.yml, ci-js.yml
+  - `actions/cache` v5.0.3 → v5.0.4 (#24): ci-js.yml, deploy-cloudflare-workers.yml, deploy-terraform.yml
+  - `trufflesecurity/trufflehog` v3.93.8 → v3.94.0 (#24): security-secrets.yml
 - **renovate-base.json**: Refine scheduling and automerge behavior
   - Schedule changed from `"before 6am on Monday"` to `"before 6am"` (daily)
   - Remove `prCreation: "not-pending"` to allow immediate PR creation
