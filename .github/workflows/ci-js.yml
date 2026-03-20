@@ -163,7 +163,7 @@ jobs:
           esac
 
       - name: Cache dependencies
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: ${{ steps.cache-dir.outputs.dir }}
           key: ${{ runner.os }}-${{ inputs.package-manager }}-${{ hashFiles('**/pnpm-lock.yaml', '**/package-lock.json', '**/yarn.lock', '**/bun.lockb') }}
@@ -172,7 +172,7 @@ jobs:
 
       - name: Cache Turborepo
         if: hashFiles('turbo.json') != ''
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: .turbo
           key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'package-lock.json', 'yarn.lock', 'bun.lockb') }}-${{ github.sha }}
@@ -329,7 +329,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: inputs.enable-codecov && inputs.enable-coverage
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5.5.3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ${{ inputs.coverage-files }}
@@ -412,7 +412,7 @@ jobs:
 
       - name: Cache dependencies
         if: matrix.scanner == 'dependency-audit'
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: ${{ steps.cache-dir.outputs.dir }}
           key: ${{ runner.os }}-${{ inputs.package-manager }}-${{ hashFiles('**/pnpm-lock.yaml', '**/package-lock.json', '**/yarn.lock') }}
