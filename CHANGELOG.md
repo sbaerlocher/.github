@@ -10,6 +10,8 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ### Changed
 
+- **GitHub Actions**: Update `github/codeql-action` SHA digest to `c6f9311` (#23)
+  - Affects: ci-go.yml, ci-js.yml, ci-terraform.yml, release-docker.yml, security-code.yml, security-config.yml, security-containers.yml
 - **renovate-base.json**: Refine scheduling and automerge behavior
   - Schedule changed from `"before 6am on Monday"` to `"before 6am"` (daily)
   - Remove `prCreation: "not-pending"` to allow immediate PR creation
