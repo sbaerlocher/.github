@@ -6,6 +6,43 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-03-20
+
+### Changed
+
+- **renovate-base.json**: Refine scheduling and automerge behavior
+  - Schedule changed from `"before 6am on Monday"` to `"before 6am"` (daily)
+  - Remove `prCreation: "not-pending"` to allow immediate PR creation
+  - Remove `internalChecksFilter: "strict"` to not block automerge on internal checks
+  - Fix `sbaerlocher/.github` package rule: replace deprecated `matchPackageNames` with `matchDepNames`
+  - Set `minimumReleaseAge: "1 days"` for `.github` preset references (was `"0 days"`)
+  - Remove generic `_VERSION` Makefile custom manager (covered by ecosystem-specific presets)
+- **renovate-docker.json**: Improve stability and image matching
+  - Add `minimumReleaseAge: "5 days"` to Base OS, language runtime, and web server image rules
+  - Add `/^go$/` to language runtime image patterns
+  - Fix Docker image regex: require tag (prevent digest-only false matches)
+- **renovate-go.json**: Consolidate package groups
+  - Merge 7 separate groups into 3: "Go ecosystem packages", "Go platform packages", "Go dev tooling"
+  - Remove "Go indirect dependencies" explicit rule
+- **renovate-js.json**: Add priority ordering and consolidate groups
+  - Add `prPriority: 20` for Node.js, `prPriority: 5` for TypeScript and pnpm
+  - Merge ESLint + Prettier into "Code quality tools"
+  - Merge Vitest + Jest into "Testing tools"
+  - Increase major build tooling `minimumReleaseAge` from `"10 days"` to `"14 days"`
+- **renovate-kubernetes.json**: Improve regex and priority assignment
+  - Move `prPriority: 5` from Helm charts to critical platform charts
+  - Fix Fleet HTTP regex to prevent cross-matches between multiple `repo:`/`chart:`/`version:` blocks
+  - Add `currentDigest` capture group to Docker image regex for digest tracking
+  - Improve description for custom regex `pinDigests: false` rule
+- **renovate-terraform.json**: Remove Terragrunt support
+  - Remove `terragrunt` and `terragrunt-version` managers
+  - Remove Terragrunt version rules and custom managers
+  - Remove pre-commit terraform hooks rule
+  - Add `prPriority: 5` to critical providers
+  - Simplify Makefile custom manager to Terraform only
+
+---
+
 ## 2026-03-19
 
 ### Changed

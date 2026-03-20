@@ -23,6 +23,7 @@
       "semanticCommitScope": "node",
       "minimumReleaseAge": "14 days",
       "automerge": false,
+      "prPriority": 20,
       "labels": [
         "nodejs"
       ]
@@ -35,47 +36,33 @@
       "groupName": "TypeScript",
       "semanticCommitScope": "typescript",
       "automerge": false,
+      "prPriority": 5,
       "minimumReleaseAge": "7 days",
       "labels": [
         "typescript"
       ]
     },
     {
-      "description": "Group ESLint packages",
-      "groupName": "ESLint packages",
+      "description": "Code quality tools - ESLint and Prettier",
+      "groupName": "Code quality tools",
       "semanticCommitScope": "lint",
       "matchPackageNames": [
         "/^eslint/",
         "/^@eslint//",
-        "/^eslint-/"
-      ]
-    },
-    {
-      "description": "Group Prettier packages",
-      "groupName": "Prettier packages",
-      "semanticCommitScope": "format",
-      "matchPackageNames": [
+        "/^eslint-/",
         "/^prettier/",
         "/^@prettier//"
       ]
     },
     {
-      "description": "Group Vitest packages",
-      "groupName": "Vitest packages",
+      "description": "Testing tools - Vitest and Jest",
+      "groupName": "Testing tools",
       "semanticCommitScope": "test",
       "matchPackageNames": [
         "/^vitest/",
-        "/^@vitest//"
-      ]
-    },
-    {
-      "description": "Group Jest packages",
-      "groupName": "Jest packages",
-      "semanticCommitScope": "test",
-      "matchPackageNames": [
+        "/^@vitest//",
         "/^jest/",
-        "/^@jest//",
-        "/^@types/jest/"
+        "/^@jest//"
       ]
     },
     {
@@ -136,6 +123,7 @@
       "groupName": "pnpm",
       "semanticCommitScope": "pnpm",
       "automerge": false,
+      "prPriority": 5,
       "minimumReleaseAge": "7 days"
     },
     {
@@ -173,7 +161,7 @@
       "matchUpdateTypes": [
         "major"
       ],
-      "minimumReleaseAge": "10 days",
+      "minimumReleaseAge": "14 days",
       "matchPackageNames": [
         "/^vite/",
         "/^@vitejs//",

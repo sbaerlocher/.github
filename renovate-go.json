@@ -28,118 +28,56 @@
       "prPriority": 20
     },
     {
-      "description": "Group golang.org/x packages",
+      "description": "Go ecosystem packages - golang.org/x, go.uber.org",
       "matchManagers": [
         "gomod"
       ],
       "matchPackageNames": [
-        "golang.org/x/**"
-      ],
-      "groupName": "golang.org/x packages",
-      "semanticCommitScope": "deps"
-    },
-    {
-      "description": "Group google.golang.org packages",
-      "matchManagers": [
-        "gomod"
-      ],
-      "matchPackageNames": [
-        "google.golang.org/**"
-      ],
-      "groupName": "google.golang.org packages",
-      "semanticCommitScope": "deps"
-    },
-    {
-      "description": "Group go.uber.org packages",
-      "matchManagers": [
-        "gomod"
-      ],
-      "matchPackageNames": [
+        "golang.org/x/**",
         "go.uber.org/**"
       ],
-      "groupName": "go.uber.org packages",
+      "groupName": "Go ecosystem packages",
       "semanticCommitScope": "deps"
     },
     {
-      "description": "Group gRPC related packages",
+      "description": "Go platform packages - gRPC, Kubernetes, Prometheus",
       "matchManagers": [
         "gomod"
       ],
       "matchPackageNames": [
-        "google.golang.org/grpc**",
-        "github.com/grpc-ecosystem/**"
-      ],
-      "groupName": "gRPC packages",
-      "semanticCommitScope": "grpc",
-      "minimumReleaseAge": "5 days"
-    },
-    {
-      "description": "Group Kubernetes packages",
-      "matchManagers": [
-        "gomod"
-      ],
-      "matchPackageNames": [
+        "google.golang.org/**",
+        "github.com/grpc-ecosystem/**",
         "k8s.io/**",
-        "sigs.k8s.io/**"
-      ],
-      "groupName": "Kubernetes packages",
-      "semanticCommitScope": "k8s",
-      "minimumReleaseAge": "7 days",
-      "labels": [
-        "kubernetes"
-      ]
-    },
-    {
-      "description": "Group Prometheus packages",
-      "matchManagers": [
-        "gomod"
-      ],
-      "matchPackageNames": [
+        "sigs.k8s.io/**",
         "github.com/prometheus/**"
       ],
-      "groupName": "Prometheus packages",
-      "semanticCommitScope": "prometheus"
-    },
-    {
-      "description": "Group testing packages",
-      "matchManagers": [
-        "gomod"
-      ],
-      "groupName": "Go testing packages",
-      "semanticCommitScope": "test",
-      "matchPackageNames": [
-        "/testify/",
-        "/gomock/",
-        "/mockery/",
-        "/ginkgo/",
-        "/gomega/"
+      "groupName": "Go platform packages",
+      "semanticCommitScope": "platform",
+      "minimumReleaseAge": "7 days",
+      "labels": [
+        "platform"
       ]
     },
     {
-      "description": "Group linting and formatting tools",
+      "description": "Go dev tooling - testing, linting, build tools",
       "matchManagers": [
         "gomod"
       ],
-      "groupName": "Go linting tools",
-      "semanticCommitScope": "lint",
-      "matchPackageNames": [
-        "/golangci-lint/",
-        "/gofumpt/",
-        "/goimports/",
-        "/staticcheck/"
-      ]
-    },
-    {
-      "description": "Development tools",
-      "matchManagers": [
-        "gomod"
-      ],
-      "groupName": "Go development tools",
+      "groupName": "Go dev tooling",
       "semanticCommitScope": "tools",
       "labels": [
         "dev-tools"
       ],
       "matchPackageNames": [
+        "/testify/",
+        "/gomock/",
+        "/mockery/",
+        "/ginkgo/",
+        "/gomega/",
+        "/golangci-lint/",
+        "/gofumpt/",
+        "/goimports/",
+        "/staticcheck/",
         "/air/",
         "/wire/",
         "/mockgen/",
@@ -147,18 +85,6 @@
         "/buf/",
         "/goreleaser/"
       ]
-    },
-    {
-      "description": "Indirect dependencies - lower priority",
-      "matchManagers": [
-        "gomod"
-      ],
-      "matchDepTypes": [
-        "indirect"
-      ],
-      "groupName": "Go indirect dependencies",
-      "prPriority": -5,
-      "minimumReleaseAge": "5 days"
     },
     {
       "description": "Major golang.org/x updates - auto-approve (pseudo-versioned)",

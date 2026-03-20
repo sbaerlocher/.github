@@ -8,8 +8,6 @@
     "terraform",
     "terraform-version",
     "tflint-plugin",
-    "terragrunt",
-    "terragrunt-version",
     "github-actions",
     "custom.regex"
   ],
@@ -96,6 +94,7 @@
       ],
       "minimumReleaseAge": "7 days",
       "automerge": false,
+      "prPriority": 5,
       "labels": [
         "terraform",
         "critical-provider"
@@ -152,23 +151,6 @@
       ]
     },
     {
-      "description": "Terragrunt version updates",
-      "matchManagers": [
-        "terragrunt",
-        "terragrunt-version"
-      ],
-      "matchPackageNames": [
-        "gruntwork-io/terragrunt"
-      ],
-      "groupName": "Terragrunt",
-      "semanticCommitScope": "terragrunt",
-      "minimumReleaseAge": "7 days",
-      "automerge": false,
-      "labels": [
-        "terragrunt"
-      ]
-    },
-    {
       "description": "Lock file maintenance for Terraform",
       "matchManagers": [
         "terraform"
@@ -180,15 +162,6 @@
         "before 6am on the first day of the month"
       ],
       "semanticCommitScope": "lock"
-    },
-    {
-      "description": "Pre-commit terraform hooks",
-      "matchPackageNames": [
-        "antonbabenko/pre-commit-terraform",
-        "terraform-docs/terraform-docs"
-      ],
-      "groupName": "Terraform pre-commit tools",
-      "semanticCommitScope": "tools"
     }
   ],
   "customManagers": [
@@ -207,27 +180,13 @@
     },
     {
       "customType": "regex",
-      "description": "Terragrunt version in .terragrunt-version files",
-      "managerFilePatterns": [
-        "/(^|/)\\.terragrunt-version$/"
-      ],
-      "matchStrings": [
-        "^(?<currentValue>\\S+)$"
-      ],
-      "datasourceTemplate": "github-releases",
-      "depNameTemplate": "gruntwork-io/terragrunt",
-      "versioningTemplate": "semver"
-    },
-    {
-      "customType": "regex",
-      "description": "Terraform/Terragrunt versions in Makefiles",
+      "description": "Terraform version in Makefiles",
       "managerFilePatterns": [
         "/^Makefile$/",
         "/\\.mk$/"
       ],
       "matchStrings": [
-        "TERRAFORM_VERSION\\s*[:?]?=\\s*(?<currentValue>[^\\s]+)",
-        "TERRAGRUNT_VERSION\\s*[:?]?=\\s*(?<currentValue>[^\\s]+)"
+        "TERRAFORM_VERSION\\s*[:?]?=\\s*(?<currentValue>[^\\s]+)"
       ],
       "datasourceTemplate": "github-releases",
       "depNameTemplate": "hashicorp/terraform",

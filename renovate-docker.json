@@ -42,7 +42,8 @@
         "debian",
         "ubuntu"
       ],
-      "groupName": "Base OS images"
+      "groupName": "Base OS images",
+      "minimumReleaseAge": "5 days"
     },
     {
       "description": "Language runtime images - group by language",
@@ -50,8 +51,10 @@
         "docker"
       ],
       "groupName": "{{packageName}} runtime",
+      "minimumReleaseAge": "5 days",
       "matchPackageNames": [
         "/^golang/",
+        "/^go$/",
         "/^node/",
         "/^python/",
         "/^ruby/",
@@ -88,7 +91,8 @@
         "caddy",
         "traefik"
       ],
-      "groupName": "{{packageName}} web server"
+      "groupName": "{{packageName}} web server",
+      "minimumReleaseAge": "5 days"
     }
   ],
   "customManagers": [
@@ -99,7 +103,7 @@
         "/\\.github/workflows/.*\\.ya?ml$/"
       ],
       "matchStrings": [
-        "image:\\s*(?<depName>[^:@\\s]+)(?::(?<currentValue>[^@\\s]+))?(?:@(?<currentDigest>sha256:[a-f0-9]+))?"
+        "image:\\s*(?<depName>[^:@\\s]+):(?<currentValue>[^@\\s]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?"
       ],
       "datasourceTemplate": "docker",
       "versioningTemplate": "docker"

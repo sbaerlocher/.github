@@ -36,8 +36,7 @@
       ],
       "groupName": "Helm charts",
       "semanticCommitScope": "helm",
-      "minimumReleaseAge": "5 days",
-      "prPriority": 5
+      "minimumReleaseAge": "5 days"
     },
     {
       "description": "Container images - pin digests for production",
@@ -78,13 +77,14 @@
       ],
       "minimumReleaseAge": "7 days",
       "automerge": false,
+      "prPriority": 5,
       "labels": [
         "platform",
         "critical"
       ]
     },
     {
-      "description": "Disable digest pinning for custom regex manager (Fleet/Helm values)",
+      "description": "Disable auto digest pinning for custom regex manager - Fleet/Helm stack does not universally support image@sha256: format. Manually add digests where supported; Renovate will track existing digests via currentDigest capture group.",
       "matchManagers": [
         "custom.regex"
       ],
@@ -102,7 +102,7 @@
         "/(^|/)fleet\\.ya?ml$/"
       ],
       "matchStrings": [
-        "repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?[\\s\\S]*?chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?[\\s\\S]*?version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?"
+        "repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?(?:(?!repo:)[\\s\\S])*?chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?(?:(?!repo:)[\\s\\S])*?version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?"
       ],
       "datasourceTemplate": "helm"
     },
@@ -120,12 +120,12 @@
     },
     {
       "customType": "regex",
-      "description": "Container image tags in YAML (image: repo:tag format)",
+      "description": "Container image tags in YAML (image: repo:tag or repo:tag@sha256: format)",
       "managerFilePatterns": [
         "/\\.ya?ml$/"
       ],
       "matchStrings": [
-        "image:\\s+['\"]?(?<depName>[^:\"'\\s]+):(?<currentValue>[^\"'\\s]+)['\"]?"
+        "image:\\s+['\"]?(?<depName>[^:\"'@\\s]+):(?<currentValue>[^\"'@\\s]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?['\"]?"
       ],
       "datasourceTemplate": "docker",
       "versioningTemplate": "docker"
