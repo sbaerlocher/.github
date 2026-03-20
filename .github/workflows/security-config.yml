@@ -72,7 +72,7 @@ jobs:
         if: |
           inputs.enable-sarif && always() &&
           github.event.repository.visibility == 'public'
-        uses: github/codeql-action/upload-sarif@b1bff81932f5cdfc8695c7752dcee935dcd061c8 # v4
+        uses: github/codeql-action/upload-sarif@c6f931105cb2c34c8f901cc885ba1e2e259cf745 # v4
         with:
           sarif_file: 'trivy-config-results.sarif'
           category: 'trivy-config'
@@ -142,7 +142,7 @@ jobs:
           inputs.enable-sarif && always() &&
           steps.sarif_check.outputs.exists == 'true' &&
           github.event.repository.visibility == 'public'
-        uses: github/codeql-action/upload-sarif@b1bff81932f5cdfc8695c7752dcee935dcd061c8 # v4
+        uses: github/codeql-action/upload-sarif@c6f931105cb2c34c8f901cc885ba1e2e259cf745 # v4
         with:
           sarif_file: 'trivy-results.sarif'
           category: 'trivy-terraform'
