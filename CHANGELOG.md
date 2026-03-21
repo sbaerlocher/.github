@@ -6,6 +6,16 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-03-21
+
+### Changed
+
+- **ci-go.yml**: Add `MPL-2.0` to allowed licenses in dependency review
+  - Aligns Go CI allowlist with JS CI (`ci-js.yml` already permits MPL-2.0)
+  - Required by `lightningcss@1.32.0` (transitive dependency of Vite v8)
+
+---
+
 ## 2026-03-20
 
 ### Changed
