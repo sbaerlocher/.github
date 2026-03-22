@@ -78,7 +78,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@c6f931105cb2c34c8f901cc885ba1e2e259cf745 # v4
+        uses: github/codeql-action/init@38697555549f1db7851b81482ff19f1fa5c4fedc # v4
         with:
           languages: ${{ matrix.language }}
           queries: ${{ inputs.queries }}
@@ -156,10 +156,10 @@ jobs:
 
       - name: Autobuild
         if: inputs.build-command == '' && matrix.language != 'javascript-typescript' && matrix.language != 'python'
-        uses: github/codeql-action/autobuild@c6f931105cb2c34c8f901cc885ba1e2e259cf745 # v4
+        uses: github/codeql-action/autobuild@38697555549f1db7851b81482ff19f1fa5c4fedc # v4
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@c6f931105cb2c34c8f901cc885ba1e2e259cf745 # v4
+        uses: github/codeql-action/analyze@38697555549f1db7851b81482ff19f1fa5c4fedc # v4
         with:
           category: '/language:${{ matrix.language }}'
           upload: ${{ inputs.enable-sarif-upload && 'always' || 'never' }}
