@@ -1,11 +1,4 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>sbaerlocher/.github:renovate-base#main"],
-  "packageRules": [
-    {
-      "description": "Group GitHub Actions updates",
-      "groupName": "github-actions",
-      "matchManagers": ["github-actions"]
-    }
-  ]
+  "extends": ["github>sbaerlocher/.github:renovate-base#main"]
 }

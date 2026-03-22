@@ -38,7 +38,7 @@ on:
 
 permissions:
   contents: write
-  id-token: write  # Required for keyless signing
+  id-token: write # Required for keyless signing
 
 jobs:
   generate-sbom:

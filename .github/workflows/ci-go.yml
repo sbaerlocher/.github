@@ -174,7 +174,7 @@ jobs:
       - name: Run staticcheck
         uses: dominikh/staticcheck-action@9716614d4101e79b4340dd97b10e54d68234e431 # v1.4.1
         with:
-          version: "latest"
+          version: 'latest'
           install-go: false
 
       - name: Set test environment variables
@@ -299,7 +299,7 @@ jobs:
       - name: Run staticcheck
         uses: dominikh/staticcheck-action@9716614d4101e79b4340dd97b10e54d68234e431 # v1.4.1
         with:
-          version: "latest"
+          version: 'latest'
           install-go: false
 
       - name: Set test environment variables
@@ -423,11 +423,11 @@ jobs:
         if: matrix.scanner == 'trivy-fs'
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
-          scan-type: "fs"
-          scan-ref: "."
-          format: "sarif"
-          output: "trivy-fs.sarif"
-          severity: "MEDIUM,HIGH,CRITICAL"
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-fs.sarif'
+          severity: 'MEDIUM,HIGH,CRITICAL'
           ignore-unfixed: true
 
       - name: Upload SARIF file
@@ -464,7 +464,7 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@38697555549f1db7851b81482ff19f1fa5c4fedc # v4
         with:
-          category: "/language:go"
+          category: '/language:go'
 
   dependency-review:
     name: Dependency Review

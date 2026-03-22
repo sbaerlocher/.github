@@ -97,11 +97,11 @@ uses: sbaerlocher/.github/.github/workflows/ci-js.yml@v1
 
 **Purpose**: Validate code quality, tests, and security before merge
 
-| Workflow | File | Description | Languages/Tools |
-|----------|------|-------------|-----------------|
-| CI (Go) | [ci-go.yml](./.github/workflows/ci-go.yml) | Go build, test & security | Go, golangci-lint, gosec |
-| CI (JS/TS) | [ci-js.yml](./.github/workflows/ci-js.yml) | All-in-one: quality, tests, security | JS/TS, Prettier, ESLint, Vitest |
-| CI (Terraform) | [ci-terraform.yml](./.github/workflows/ci-terraform.yml) | Terraform validation | Terraform, tflint, yamllint |
+| Workflow       | File                                                     | Description                          | Languages/Tools                 |
+| -------------- | -------------------------------------------------------- | ------------------------------------ | ------------------------------- |
+| CI (Go)        | [ci-go.yml](./.github/workflows/ci-go.yml)               | Go build, test & security            | Go, golangci-lint, gosec        |
+| CI (JS/TS)     | [ci-js.yml](./.github/workflows/ci-js.yml)               | All-in-one: quality, tests, security | JS/TS, Prettier, ESLint, Vitest |
+| CI (Terraform) | [ci-terraform.yml](./.github/workflows/ci-terraform.yml) | Terraform validation                 | Terraform, tflint, yamllint     |
 
 **Key Features**:
 
@@ -114,14 +114,14 @@ uses: sbaerlocher/.github/.github/workflows/ci-js.yml@v1
 
 **Purpose**: Comprehensive security scanning (SAST, secrets, dependencies, containers)
 
-| Workflow | File | Description | Tools |
-|----------|------|-------------|-------|
-| SAST | [security-code.yml](./.github/workflows/security-code.yml) | Static code analysis | CodeQL (multi-language) |
-| Config Security | [security-config.yml](./.github/workflows/security-config.yml) | IaC security | Checkov, Kubeconform |
-| Dependencies | [security-deps.yml](./.github/workflows/security-deps.yml) | Dependency vulnerabilities | govulncheck, npm audit |
-| Secrets | [security-secrets.yml](./.github/workflows/security-secrets.yml) | Secret detection | Gitleaks, TruffleHog |
-| Containers | [security-containers.yml](./.github/workflows/security-containers.yml) | Container scanning | Trivy, Grype |
-| Supply Chain | [security-supply-chain.yml](./.github/workflows/security-supply-chain.yml) | SBOM & signing | Cosign, CycloneDX |
+| Workflow        | File                                                                       | Description                | Tools                   |
+| --------------- | -------------------------------------------------------------------------- | -------------------------- | ----------------------- |
+| SAST            | [security-code.yml](./.github/workflows/security-code.yml)                 | Static code analysis       | CodeQL (multi-language) |
+| Config Security | [security-config.yml](./.github/workflows/security-config.yml)             | IaC security               | Checkov, Kubeconform    |
+| Dependencies    | [security-deps.yml](./.github/workflows/security-deps.yml)                 | Dependency vulnerabilities | govulncheck, npm audit  |
+| Secrets         | [security-secrets.yml](./.github/workflows/security-secrets.yml)           | Secret detection           | Gitleaks, TruffleHog    |
+| Containers      | [security-containers.yml](./.github/workflows/security-containers.yml)     | Container scanning         | Trivy, Grype            |
+| Supply Chain    | [security-supply-chain.yml](./.github/workflows/security-supply-chain.yml) | SBOM & signing             | Cosign, CycloneDX       |
 
 **Strategy**:
 
@@ -134,10 +134,10 @@ uses: sbaerlocher/.github/.github/workflows/ci-js.yml@v1
 
 **Purpose**: Deploy infrastructure and applications
 
-| Workflow | File | Description | Use Case |
-|----------|------|-------------|----------|
-| Terraform Deploy | [deploy-terraform.yml](./.github/workflows/deploy-terraform.yml) | Terraform plan & apply | IaC deployments |
-| Cloudflare Workers | [deploy-cloudflare-workers.yml](./.github/workflows/deploy-cloudflare-workers.yml) | Wrangler deploy | Serverless functions |
+| Workflow           | File                                                                               | Description            | Use Case             |
+| ------------------ | ---------------------------------------------------------------------------------- | ---------------------- | -------------------- |
+| Terraform Deploy   | [deploy-terraform.yml](./.github/workflows/deploy-terraform.yml)                   | Terraform plan & apply | IaC deployments      |
+| Cloudflare Workers | [deploy-cloudflare-workers.yml](./.github/workflows/deploy-cloudflare-workers.yml) | Wrangler deploy        | Serverless functions |
 
 **Features**:
 
@@ -149,12 +149,12 @@ uses: sbaerlocher/.github/.github/workflows/ci-js.yml@v1
 
 **Purpose**: Build and publish versioned artifacts
 
-| Workflow | File | Description | Output |
-|----------|------|-------------|--------|
-| Go Release | [release-go.yml](./.github/workflows/release-go.yml) | GoReleaser | Binaries (multi-platform) |
-| Docker Release | [release-docker.yml](./.github/workflows/release-docker.yml) | Docker build & push | Container images |
-| Helm Release | [release-helm.yml](./.github/workflows/release-helm.yml) | Helm chart publish | OCI charts |
-| NPM Release | [release-npm.yml](./.github/workflows/release-npm.yml) | NPM publish | Package with provenance |
+| Workflow       | File                                                         | Description         | Output                    |
+| -------------- | ------------------------------------------------------------ | ------------------- | ------------------------- |
+| Go Release     | [release-go.yml](./.github/workflows/release-go.yml)         | GoReleaser          | Binaries (multi-platform) |
+| Docker Release | [release-docker.yml](./.github/workflows/release-docker.yml) | Docker build & push | Container images          |
+| Helm Release   | [release-helm.yml](./.github/workflows/release-helm.yml)     | Helm chart publish  | OCI charts                |
+| NPM Release    | [release-npm.yml](./.github/workflows/release-npm.yml)       | NPM publish         | Package with provenance   |
 
 **Trigger**: `push` events on tags (`v*`)
 
@@ -162,11 +162,11 @@ uses: sbaerlocher/.github/.github/workflows/ci-js.yml@v1
 
 **Purpose**: Scheduled maintenance and operational tasks
 
-| Workflow | File | Description | Schedule |
-|----------|------|-------------|----------|
-| Drift Detection | [ops-drift-detection.yml](./.github/workflows/ops-drift-detection.yml) | Terraform drift | Weekly Monday 06:00 UTC |
-| Secret Sync | [ops-sync-secrets.yml](./.github/workflows/ops-sync-secrets.yml) | Bitwarden → CF Workers | On-demand |
-| Orchestration | [ops-terraform-orchestration.yml](./.github/workflows/ops-terraform-orchestration.yml) | Multi-environment TF | On-demand |
+| Workflow        | File                                                                                   | Description            | Schedule                |
+| --------------- | -------------------------------------------------------------------------------------- | ---------------------- | ----------------------- |
+| Drift Detection | [ops-drift-detection.yml](./.github/workflows/ops-drift-detection.yml)                 | Terraform drift        | Weekly Monday 06:00 UTC |
+| Secret Sync     | [ops-sync-secrets.yml](./.github/workflows/ops-sync-secrets.yml)                       | Bitwarden → CF Workers | On-demand               |
+| Orchestration   | [ops-terraform-orchestration.yml](./.github/workflows/ops-terraform-orchestration.yml) | Multi-environment TF   | On-demand               |
 
 ---
 
@@ -295,11 +295,11 @@ jobs:
 
 **Common Secrets**:
 
-| Secret | Purpose | Required For |
-|--------|---------|--------------|
-| `BW_ACCESS_TOKEN` | Bitwarden Secrets Manager | Terraform/Workers deploy |
-| `CODECOV_TOKEN` | Code coverage upload | CI workflows |
-| `CLAUDE_CODE_OAUTH_TOKEN` | AI code review | Private repos only |
+| Secret                    | Purpose                   | Required For             |
+| ------------------------- | ------------------------- | ------------------------ |
+| `BW_ACCESS_TOKEN`         | Bitwarden Secrets Manager | Terraform/Workers deploy |
+| `CODECOV_TOKEN`           | Code coverage upload      | CI workflows             |
+| `CLAUDE_CODE_OAUTH_TOKEN` | AI code review            | Private repos only       |
 
 ---
 
@@ -436,6 +436,20 @@ Ensure lock files are committed:
 - **[STANDARDS.md](./STANDARDS.md)** - Repository standards for all projects
 - **[CHANGELOG.md](./CHANGELOG.md)** - Version history and changes
 - **Renovate Presets**: `renovate-*.json` files in repository root
+
+---
+
+## Renovate Preset Conventions
+
+**Gotchas beim Bearbeiten der Renovate-Presets**:
+
+- `renovate.json` (eigene Konfiguration dieses Repos) muss den `#main`-Suffix verwenden:
+  `github>sbaerlocher/.github:renovate-base#main` — ohne `#main` referenziert Renovate
+  ggf. einen alten gepinnten Commit von sich selbst
+- `lockFileMaintenance` gehört **nicht** in `packageRules` — Renovate behandelt es als
+  Top-Level-Scheduler, nicht als Package Rule
+- JS-Framework-Gruppenregeln (Svelte, Vue, React usw.) benötigen explizite
+  `matchPackageNames`-Einträge, damit Major-Updates korrekt abgefangen werden
 
 ---
 
