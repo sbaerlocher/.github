@@ -1,20 +1,28 @@
 name: AI - Code Review
 
 on:
+  pull_request:
+    types: [opened, ready_for_review, reopened]
   workflow_call:
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN:
         required: true
 
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   claude-review:
-    if: github.event.pull_request.user.login != 'renovate[bot]'
+    if: |
+      !github.event.pull_request.draft &&
+      github.event.pull_request.user.login != 'renovate[bot]' &&
+      github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: write
-      issues: read
       id-token: write
 
     steps:
@@ -25,10 +33,14 @@ jobs:
       - uses: anthropics/claude-code-action@6062f3709600659be5e47fcddf2cf76993c235c2 # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          track_progress: true
+          use_sticky_comment: true
           plugin_marketplaces: "https://github.com/anthropics/claude-code.git"
           plugins: "code-review@claude-code-plugins"
           claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --max-turns 30
+            --model claude-opus-4-6
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh pr checks:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),Bash(git log:*)"
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
