@@ -129,6 +129,7 @@ uses: sbaerlocher/.github/.github/workflows/ci-terraform.yml@2026-02-14
 | Ops      | `ops-terraform-orchestration.yml` | Multi-environment TF               |
 | AI       | `ai-claude-review.yml`            | Auto code review (reads REVIEW.md) |
 | AI       | `ai-claude.yml`                   | On-demand @claude mentions         |
+| E2E      | `e2e-docker.yml`                  | E2E tests via Docker Compose       |
 
 ### Action SHA Pinning
 

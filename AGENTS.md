@@ -126,7 +126,7 @@ uses: sbaerlocher/.github/.github/workflows/ci-js.yml@v1
 | Dependencies    | `security-deps.yml`         | Dependency vulnerabilities | govulncheck, npm audit  |
 | Secrets         | `security-secrets.yml`      | Secret detection           | Gitleaks, TruffleHog    |
 | Containers      | `security-containers.yml`   | Container scanning         | Trivy, Grype            |
-| Supply Chain    | `security-supply-chain.yml` | SBOM & signing             | Cosign, CycloneDX       |
+| Supply Chain    | `security-sbom.yml`         | SBOM & signing             | Cosign, CycloneDX       |
 
 **Strategy**:
 
@@ -179,6 +179,14 @@ uses: sbaerlocher/.github/.github/workflows/ci-js.yml@v1
 | ----------- | ---------------------- | ---------------------------------- |
 | Code Review | `ai-claude-review.yml` | Auto code review (reads REVIEW.md) |
 | On-demand   | `ai-claude.yml`        | On-demand @claude mentions         |
+
+### E2E - End-to-End Tests (1)
+
+**Purpose**: End-to-end testing with Docker Compose
+
+| Workflow   | File              | Description                     |
+| ---------- | ----------------- | ------------------------------- |
+| E2E Docker | `e2e-docker.yml` | E2E tests via Docker Compose    |
 
 ---
 
@@ -369,7 +377,7 @@ Ensure lock files are committed:
 ```text
 .github/
 ├── .github/
-│   ├── workflows/           # 27 reusable workflows
+│   ├── workflows/           # 21 reusable workflows
 │   │   ├── ci-*.yml        # CI workflows
 │   │   ├── security-*.yml  # Security workflows
 │   │   ├── deploy-*.yml    # Deploy workflows
@@ -385,7 +393,7 @@ Ensure lock files are committed:
 ├── README.md               # Human-readable documentation
 ├── CHANGELOG.md            # Version history
 ├── STANDARDS.md            # Repository standards
-├── SETUP.md         # GitHub repo setup commands & branch rulesets
+├── SETUP.md                # GitHub repo setup commands & branch rulesets
 ├── REVIEW.md               # Code review guidelines for this repo
 ├── LICENSE                 # MIT License
 ├── .editorconfig           # Editor consistency
