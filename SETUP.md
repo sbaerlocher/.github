@@ -105,11 +105,13 @@ Change the `pull_request` rule parameters to:
 
 The `context` value must exactly match the string GitHub shows in the Check Suite:
 
-| Workflow type     | Context format         | Example              |
-| ----------------- | ---------------------- | -------------------- |
-| Direct job        | `<job-id>`             | `ci`                 |
-| Reusable workflow | `<caller-job> / <job>` | `ci / terraform`     |
-| Matrix job        | `<job-id> (<matrix>)`  | `ci (ubuntu-latest)` |
+| Workflow type     | Context format                  | Example                                        |
+| ----------------- | ------------------------------- | ---------------------------------------------- |
+| Direct job        | `<job name>`                    | `ci`                                           |
+| Reusable workflow | `<caller job name> / <job name>` | `Continuous Integration / Validation Summary`  |
+| Matrix job        | `<job name> (<matrix>)`         | `ci (ubuntu-latest)`                           |
+
+GitHub uses the `name:` field of the job, not the job ID. If no `name:` is set, the job ID is used.
 
 Verify the exact string by opening a PR and checking the "Checks" tab before adding it as a
 required check.
