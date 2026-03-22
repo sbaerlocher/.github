@@ -109,9 +109,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
-        with:
-          driver-opts: |
-            image=moby/buildkit:latest
 
       - name: Log in to Container Registry
         if: inputs.push
@@ -200,26 +197,23 @@ jobs:
         if: always()
         run: |
           {
-            echo "## 🐳 Docker Build Summary"
+            echo "## Docker Build — ${{ inputs.registry }}/${{ inputs.image-name }}"
             echo ""
-            echo "- **Image:** ${{ inputs.registry }}/${{ inputs.image-name }}"
-            echo "- **Platforms:** ${{ inputs.platforms }}"
-            echo "- **Push:** ${{ inputs.push }}"
+            echo "**Platforms:** ${{ inputs.platforms }}"
+            echo "**Push:** ${{ inputs.push }}"
+            echo "**Status:** ${{ steps.build.outcome }}"
             echo ""
             if [[ "${{ steps.build.outcome }}" == "success" ]]; then
-              echo "### ✅ Build successful"
-              echo ""
               echo "**Tags:**"
               echo '```'
               echo "${{ steps.meta.outputs.tags }}"
               echo '```'
-              echo ""
               if [[ "${{ inputs.push }}" == "true" ]]; then
+                echo ""
                 echo "**Digest:** \`${{ steps.build.outputs.digest }}\`"
               else
-                echo "**Note:** Image built locally for testing (not pushed)"
+                echo ""
+                echo "> Image built locally — not pushed to registry."
               fi
-            else
-              echo "### ❌ Build failed"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
