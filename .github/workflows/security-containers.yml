@@ -97,7 +97,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Run Grype vulnerability scanner
-        uses: anchore/scan-action@7037fa011853d5a11690026fb85feee79f4c946c # v7.3.2
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
         id: grype
         with:
           image: ${{ inputs.image-ref }}
@@ -151,41 +151,15 @@ jobs:
         run: |
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
           cat >> "$GITHUB_STEP_SUMMARY" << EOF
-          # Container Image Security Report
+          # Security — Container Image
 
           **Timestamp:** $TIMESTAMP
           **Image:** \`${{ inputs.image-ref }}\`
-
-          ## Scan Results
+          **Repository:** ${{ github.repository }} @ ${{ github.ref_name }}
 
           | Scanner | Status |
-          |---------|--------|
+          | --- | --- |
           | Trivy | ${{ needs.trivy-image.result }} |
           | Grype | ${{ needs.grype-image.result }} |
           | Image Analysis | ${{ needs.image-analysis.result }} |
-
-          ## Tools Used
-
-          - **Trivy**: Comprehensive vulnerability scanner
-          - **Grype**: Anchore vulnerability scanner (optional)
-          - **Docker Inspect**: Image layer analysis
-
-          ## Security Coverage
-
-          - OS package vulnerabilities
-          - Application dependency vulnerabilities
-          - Known CVEs and security advisories
-          - Image layer analysis
-          - Base image identification
-
-          ## Recommendations
-
-          - ✓ Use minimal base images (Alpine, Distroless)
-          - ✓ Scan images before deployment
-          - ✓ Keep base images and dependencies updated
-          - ✓ Remove unnecessary packages and files
-          - ✓ Use multi-stage builds to reduce image size
-
-          ---
-          *Container security scan completed*
           EOF

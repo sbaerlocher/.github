@@ -66,7 +66,6 @@ on:
 
 permissions:
   contents: write
-  id-token: write  # Required for provenance
 
 jobs:
   pre-release-checks:
@@ -208,6 +207,9 @@ jobs:
     if: needs.pre-release-checks.outputs.should-publish == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      id-token: write # Required for NPM provenance
+      contents: read
     outputs:
       version: ${{ needs.pre-release-checks.outputs.version }}
 
@@ -466,53 +468,20 @@ jobs:
           VERSION="${{ needs.pre-release-checks.outputs.version }}"
 
           cat >> "$GITHUB_STEP_SUMMARY" << EOF
-          # 📦 NPM Package Release
+          # Release — NPM Package
 
           **Timestamp:** $TIMESTAMP
           **Version:** \`v$VERSION\`
+          **Registry:** ${{ inputs.registry-url }}
+          **Provenance:** ${{ inputs.enable-provenance && 'Enabled' || 'Disabled' }}
           **Dry Run:** ${{ inputs.dry-run }}
 
-          ## Release Status
-
           | Component | Status |
-          |-----------|--------|
+          | --- | --- |
           | Pre-Release Checks | ${{ needs.pre-release-checks.result }} |
           | NPM Publish | ${{ needs.publish.result }} |
           | GitHub Release | ${{ needs.github-release.result }} |
 
-          ## Package Information
-
-          **Registry:** ${{ inputs.registry-url }}
-          **Provenance:** ${{ inputs.enable-provenance && 'Enabled ✓' || 'Disabled' }}
-
-          ${{ needs.pre-release-checks.outputs.should-publish == 'false' && '⚠️ **Note:** Version already published, skipped publish step' || '' }}
-
-          ${{ inputs.dry-run && '🧪 **Dry Run Mode** - Package was NOT actually published' || '' }}
-
-          ## Installation
-
-          \`\`\`bash
-          npm install $(cat ${{ inputs.working-directory }}/package.json | grep -m 1 '"name"' | cut -d'"' -f4)@$VERSION
-          \`\`\`
-
-          ## NPM Provenance
-
-          ${{ inputs.enable-provenance && 'This package was published with NPM provenance, providing cryptographic proof of:
-          - Where the package was built (GitHub Actions)
-          - Which workflow built it
-          - The commit SHA that was built
-
-          View provenance: https://www.npmjs.com/package/PACKAGE_NAME/v/' || 'Provenance not enabled for this release' }}$VERSION
-
-          ## Release Checklist
-
-          - ${{ needs.pre-release-checks.result == 'success' && '✓' || '✗' }} Pre-release checks passed
-          - ${{ inputs.run-tests && '✓ Tests executed' || '⏭️ Tests skipped' }}
-          - ${{ inputs.run-build && '✓ Build executed' || '⏭️ Build skipped' }}
-          - ${{ needs.publish.result == 'success' && '✓ Published to NPM' || needs.pre-release-checks.outputs.should-publish == 'false' && '⏭️ Already published' || '✗ Publish failed' }}
-          - ${{ needs.github-release.result == 'success' && '✓ GitHub release created' || inputs.create-github-release == 'false' && '⏭️ GitHub release disabled' || '✗ GitHub release failed' }}
-          - ${{ inputs.enable-sbom && '✓ SBOM generated' || '⏭️ SBOM disabled' }}
-
-          ---
-          *NPM package release completed*
+          ${{ needs.pre-release-checks.outputs.should-publish == 'false' && '> Version already published — publish step skipped.' || '' }}
+          ${{ inputs.dry-run && '> Dry-run mode — package was NOT published.' || '' }}
           EOF

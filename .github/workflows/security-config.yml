@@ -91,7 +91,7 @@ jobs:
         run: |
           echo "Generating detailed Trivy report..."
           docker run --rm -v "$(pwd):/workspace" \
-            aquasec/trivy:latest config /workspace \
+            aquasec/trivy:0.35.0 config /workspace \
             --severity ${{ inputs.severity-threshold }},HIGH,CRITICAL \
             --format table \
             | tee trivy-config-report.txt
@@ -314,58 +314,18 @@ jobs:
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
 
           cat >> "$GITHUB_STEP_SUMMARY" << EOF
-          # 🏗️ Infrastructure Configuration Security Report
+          # Security — IaC Configuration
 
           **Timestamp:** $TIMESTAMP
           **Severity Threshold:** ${{ inputs.severity-threshold }}+
+          **Repository:** ${{ github.repository }} @ ${{ github.ref_name }}
 
-          ## Scan Results
+          | Scan | Enabled | Status |
+          | --- | --- | --- |
+          | Trivy Config | yes | ${{ needs.trivy-config-scan.result }} |
+          | Terraform | ${{ inputs.scan-terraform && 'yes' || 'no' }} | ${{ needs.terraform-security.result }} |
+          | Kubernetes | ${{ inputs.scan-kubernetes && 'yes' || 'no' }} | ${{ needs.kubernetes-security.result }} |
+          | Ansible | ${{ inputs.scan-ansible && 'yes' || 'no' }} | ${{ needs.ansible-security.result }} |
 
-          | Component | Enabled | Status |
-          |-----------|---------|--------|
-          | Trivy Config Scan | ✓ | ${{ needs.trivy-config-scan.result }} |
-          | Terraform (TFSec) | ${{ inputs.scan-terraform && '✓' || '–' }} | ${{ needs.terraform-security.result }} |
-          | Kubernetes (Kubesec) | ${{ inputs.scan-kubernetes && '✓' || '–' }} | ${{ needs.kubernetes-security.result }} |
-          | Ansible (ansible-lint) | ${{ inputs.scan-ansible && '✓' || '–' }} | ${{ needs.ansible-security.result }} |
-
-          ## Tools Used
-
-          **Universal:**
-          - Trivy: Multi-purpose configuration scanner
-
-          **Terraform:**
-          - TFSec: Terraform static analysis
-          - Custom validators: CIDR blocks, hardcoded IPs
-
-          **Kubernetes:**
-          - Kubesec: Kubernetes manifest security scoring
-          - Pattern detection: Hardcoded credentials
-
-          **Ansible:**
-          - ansible-lint: Ansible best practices checker
-          - yamllint: YAML syntax and style validator
-
-          ## Security Coverage
-
-          This workflow scans infrastructure-as-code for:
-
-          - 🔒 Security misconfigurations
-          - 🌐 Overly permissive network rules
-          - 🔑 Hardcoded credentials and secrets
-          - 📋 Best practice violations
-          - ⚙️  Configuration vulnerabilities
-
-          ## Best Practices
-
-          - ✓ Use variables/parameters instead of hardcoded values
-          - ✓ Apply principle of least privilege
-          - ✓ Use External Secrets Operator for Kubernetes secrets
-          - ✓ Enable encryption at rest and in transit
-          - ✓ Regularly update IaC tools and modules
-          - ✓ Use module registries (Terraform Registry, Ansible Galaxy)
-
-          ---
-          *Infrastructure configuration security scan completed*
-
-          **Note:** Secret detection is handled by \`security-secrets.yml\` workflow
+          > Secret detection is handled separately by \`security-secrets.yml\`
           EOF

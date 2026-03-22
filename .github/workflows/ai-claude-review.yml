@@ -7,6 +7,8 @@ on:
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN:
         required: true
+        # Note: for pull_request trigger, secrets.CLAUDE_CODE_OAUTH_TOKEN resolves
+        # directly from the repo's secrets context — no caller needed.
 
 concurrency:
   group: claude-review-${{ github.event.pull_request.number || github.run_id }}
@@ -23,6 +25,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      issues: read # required for gh issue view/list in claude_args
       id-token: write
 
     steps:

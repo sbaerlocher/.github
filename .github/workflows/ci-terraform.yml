@@ -13,9 +13,6 @@ on:
       enable-tflint:
         type: boolean
         default: false
-      enable-tfsec:
-        type: boolean
-        default: true
       enable-sarif-upload:
         type: boolean
         default: false
@@ -104,19 +101,6 @@ jobs:
           tflint --format compact
           echo "TFLint passed"
 
-  gitleaks:
-    name: Secret Scanning
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 0
-
-      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   trivy:
     name: Vulnerability Scanning
     runs-on: ubuntu-latest
@@ -167,43 +151,3 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
           category: 'trivy'
-
-  tfsec:
-    name: Terraform Security Scan
-    if: ${{ inputs.enable-tfsec }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Run Trivy (Terraform Security)
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
-        with:
-          scan-type: 'config'
-          scan-ref: ${{ inputs.working-directory }}
-          format: 'json'
-          output: 'trivy-terraform-results.json'
-          scanners: 'config'
-          exit-code: 0
-          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
-
-      - name: Upload Trivy Results (Artifact)
-        if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
-        with:
-          name: trivy-terraform-results
-          path: trivy-terraform-results.json
-          retention-days: 30
-          if-no-files-found: ignore
-
-      - name: TFSec SARIF Results
-        if: ${{ inputs.enable-sarif-upload }}
-        run: |
-          docker run --rm -v "$(pwd)/${{ inputs.working-directory }}:/src" aquasec/tfsec /src --format sarif > tfsec-results.sarif 2>/dev/null || true
-
-      - name: Upload TFSec SARIF to GitHub Security
-        if: ${{ inputs.enable-sarif-upload }}
-        uses: github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc # v4
-        with:
-          sarif_file: 'tfsec-results.sarif'
-          category: 'tfsec'

@@ -1,49 +1,30 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "Go Renovate configuration for Go modules, tools, and dependencies",
-  "extends": [
-    "github>sbaerlocher/.github:renovate-base#main"
-  ],
-  "postUpdateOptions": [
-    "gomodTidy",
-    "gomodUpdateImportPaths"
-  ],
+  "extends": ["github>sbaerlocher/.github:renovate-base#main"],
+  "postUpdateOptions": ["gomodTidy", "gomodUpdateImportPaths"],
   "packageRules": [
     {
       "description": "Go version updates - higher stability",
-      "matchManagers": [
-        "gomod"
-      ],
-      "matchDepTypes": [
-        "golang"
-      ],
+      "matchManagers": ["gomod"],
+      "matchDepTypes": ["golang"],
       "groupName": "Go version",
       "semanticCommitScope": "go",
       "minimumReleaseAge": "14 days",
       "automerge": false,
-      "labels": [
-        "go",
-        "golang-version"
-      ],
+      "labels": ["go", "golang-version"],
       "prPriority": 20
     },
     {
       "description": "Go ecosystem packages - golang.org/x, go.uber.org",
-      "matchManagers": [
-        "gomod"
-      ],
-      "matchPackageNames": [
-        "golang.org/x/**",
-        "go.uber.org/**"
-      ],
+      "matchManagers": ["gomod"],
+      "matchPackageNames": ["golang.org/x/**", "go.uber.org/**"],
       "groupName": "Go ecosystem packages",
       "semanticCommitScope": "deps"
     },
     {
       "description": "Go platform packages - gRPC, Kubernetes, Prometheus",
-      "matchManagers": [
-        "gomod"
-      ],
+      "matchManagers": ["gomod"],
       "matchPackageNames": [
         "google.golang.org/**",
         "github.com/grpc-ecosystem/**",
@@ -54,20 +35,14 @@
       "groupName": "Go platform packages",
       "semanticCommitScope": "platform",
       "minimumReleaseAge": "7 days",
-      "labels": [
-        "platform"
-      ]
+      "labels": ["platform"]
     },
     {
       "description": "Go dev tooling - testing, linting, build tools",
-      "matchManagers": [
-        "gomod"
-      ],
+      "matchManagers": ["gomod"],
       "groupName": "Go dev tooling",
       "semanticCommitScope": "tools",
-      "labels": [
-        "dev-tools"
-      ],
+      "labels": ["dev-tools"],
       "matchPackageNames": [
         "/testify/",
         "/gomock/",
@@ -88,15 +63,9 @@
     },
     {
       "description": "Major golang.org/x updates - auto-approve (pseudo-versioned)",
-      "matchManagers": [
-        "gomod"
-      ],
-      "matchPackageNames": [
-        "golang.org/x/**"
-      ],
-      "matchUpdateTypes": [
-        "major"
-      ],
+      "matchManagers": ["gomod"],
+      "matchPackageNames": ["golang.org/x/**"],
+      "matchUpdateTypes": ["major"],
       "automerge": true,
       "minimumReleaseAge": "5 days"
     }
@@ -105,38 +74,24 @@
     {
       "customType": "regex",
       "description": "Go version in .go-version files",
-      "managerFilePatterns": [
-        "/(^|/)\\.go-version$/"
-      ],
-      "matchStrings": [
-        "^(?<currentValue>\\d+\\.\\d+(?:\\.\\d+)?)$"
-      ],
+      "managerFilePatterns": ["/(^|/)\\.go-version$/"],
+      "matchStrings": ["^(?<currentValue>\\d+\\.\\d+(?:\\.\\d+)?)$"],
       "datasourceTemplate": "golang-version",
       "depNameTemplate": "go"
     },
     {
       "customType": "regex",
       "description": "Go version in Makefiles",
-      "managerFilePatterns": [
-        "/^Makefile$/",
-        "/\\.mk$/"
-      ],
-      "matchStrings": [
-        "GO_VERSION\\s*[:?]?=\\s*(?<currentValue>\\d+\\.\\d+(?:\\.\\d+)?)"
-      ],
+      "managerFilePatterns": ["/^Makefile$/", "/\\.mk$/"],
+      "matchStrings": ["GO_VERSION\\s*[:?]?=\\s*(?<currentValue>\\d+\\.\\d+(?:\\.\\d+)?)"],
       "datasourceTemplate": "golang-version",
       "depNameTemplate": "go"
     },
     {
       "customType": "regex",
       "description": "Go tools in Makefiles",
-      "managerFilePatterns": [
-        "/^Makefile$/",
-        "/\\.mk$/"
-      ],
-      "matchStrings": [
-        "GOLANGCI_LINT_VERSION\\s*[:?]?=\\s*v?(?<currentValue>[^\\s]+)"
-      ],
+      "managerFilePatterns": ["/^Makefile$/", "/\\.mk$/"],
+      "matchStrings": ["GOLANGCI_LINT_VERSION\\s*[:?]?=\\s*v?(?<currentValue>[^\\s]+)"],
       "datasourceTemplate": "github-releases",
       "depNameTemplate": "golangci/golangci-lint",
       "versioningTemplate": "semver"
@@ -144,10 +99,7 @@
     {
       "customType": "regex",
       "description": "Go tools versions in comments",
-      "managerFilePatterns": [
-        "/\\.ya?ml$/",
-        "/Dockerfile$/"
-      ],
+      "managerFilePatterns": ["/\\.ya?ml$/", "/Dockerfile$/"],
       "matchStrings": [
         "#\\s*renovate:\\s*go-tool\\s+(?<depName>[^\\s]+)\\s+(?<currentValue>[^\\s]+)"
       ],

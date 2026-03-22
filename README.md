@@ -37,7 +37,7 @@ jobs:
   ci:
     uses: sbaerlocher/.github/.github/workflows/ci-go.yml@v1
     with:
-      go-version: "1.25"
+      go-version: '1.25'
 ```
 
 ### Terraform Projects
@@ -272,7 +272,7 @@ jobs:
   ci:
     uses: sbaerlocher/.github/.github/workflows/ci-go.yml@v1
     with:
-      go-version: "1.25"
+      go-version: '1.25'
       enable-security-scans: true
 ```
 
@@ -321,7 +321,7 @@ jobs:
   terraform:
     uses: sbaerlocher/.github/.github/workflows/ci-terraform.yml@v1
     with:
-      terraform-version: "1.14.3"
+      terraform-version: '1.14.3'
 ```
 
 **Features**:
@@ -418,7 +418,7 @@ jobs:
   dependency-scan:
     uses: sbaerlocher/.github/.github/workflows/security-deps.yml@v1
     with:
-      language: "javascript"
+      language: 'javascript'
       enable-license-check: true
 ```
 
@@ -441,7 +441,7 @@ jobs:
   container-scan:
     uses: sbaerlocher/.github/.github/workflows/security-containers.yml@v1
     with:
-      image: "ghcr.io/user/app:latest"
+      image: 'ghcr.io/user/app:latest'
 ```
 
 **Features**:
@@ -463,8 +463,8 @@ jobs:
   sbom:
     uses: sbaerlocher/.github/.github/workflows/security-supply-chain.yml@v1
     with:
-      artifact-type: "docker"
-      artifact-ref: "ghcr.io/user/app:v1.0.0"
+      artifact-type: 'docker'
+      artifact-ref: 'ghcr.io/user/app:v1.0.0'
       enable-sbom: true
       enable-signing: true
 ```
@@ -490,8 +490,8 @@ jobs:
   deploy:
     uses: sbaerlocher/.github/.github/workflows/deploy-terraform.yml@v1
     with:
-      environment: "production"
-      terraform-version: "1.14.3"
+      environment: 'production'
+      terraform-version: '1.14.3'
       bw-secrets: |
         uuid-1 > TF_VAR_api_token
         uuid-2 > TF_VAR_password
@@ -568,8 +568,8 @@ jobs:
   release:
     uses: sbaerlocher/.github/.github/workflows/release-docker.yml@v1
     with:
-      image-name: "ghcr.io/${{ github.repository }}"
-      platforms: "linux/amd64,linux/arm64"
+      image-name: 'ghcr.io/${{ github.repository }}'
+      platforms: 'linux/amd64,linux/arm64'
 ```
 
 **Features**:
@@ -592,7 +592,7 @@ jobs:
   release:
     uses: sbaerlocher/.github/.github/workflows/release-helm.yml@v1
     with:
-      chart-path: "./charts/app"
+      chart-path: './charts/app'
 ```
 
 **Features**:
@@ -638,7 +638,7 @@ jobs:
   drift:
     uses: sbaerlocher/.github/.github/workflows/ops-drift-detection.yml@v1
     with:
-      environment: "production"
+      environment: 'production'
     secrets:
       BW_ACCESS_TOKEN: ${{ secrets.BW_ACCESS_TOKEN }}
 ```

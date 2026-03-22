@@ -4,12 +4,12 @@
 
 **Public vs Private Repos:**
 
-| Aspect | Public | Private |
-|--------|--------|---------|
-| LICENSE | MIT (Required) | None (Rights with Owner) |
-| `security.yml` (CodeQL) | Required | Optional |
-| Claude Workflows | Not recommended | Recommended |
-| Other structure | Identical | Identical |
+| Aspect                  | Public          | Private                  |
+| ----------------------- | --------------- | ------------------------ |
+| LICENSE                 | MIT (Required)  | None (Rights with Owner) |
+| `security.yml` (CodeQL) | Required        | Optional                 |
+| Claude Workflows        | Not recommended | Recommended              |
+| Other structure         | Identical       | Identical                |
 
 ---
 
@@ -119,9 +119,13 @@ Format: Keep a Changelog
 # Changelog
 
 ## [1.0.0] - 2025-01-15
+
 ### Added
+
 - Feature X
+
 ### Fixed
+
 - Bug Y
 ```
 
@@ -196,29 +200,29 @@ uses: sbaerlocher/.github/.github/workflows/ci-terraform.yml@2026-02-14
 
 All workflows are centralized as **Reusable Workflows** in `sbaerlocher/.github/.github/workflows/`:
 
-| Category | Workflow | Local File | Reusable Workflow | Description |
-|----------|----------|------------|-------------------|-------------|
-| **CI** | Continuous Integration (Go) | `ci.yml` | `ci-go.yml` | Go tests, linting, validation |
-| **CI** | Continuous Integration (JS/TS) | `ci.yml` | `ci-js.yml` | All-in-one: quality, tests, security |
-| **CI** | Continuous Integration (Terraform) | `ci.yml` | `ci-terraform.yml` | TF validate, fmt, tflint |
-| **Deploy** | Deployment (Terraform) | `deploy.yml` | `deploy-terraform.yml` | Terraform plan & apply |
-| **Deploy** | Deployment (Cloudflare Workers) | `deploy.yml` | `deploy-cloudflare-workers.yml` | Wrangler deploy |
-| **Release** | Release (Go) | `release.yml` | `release-go.yml` | GoReleaser |
-| **Release** | Release (Docker) | `release.yml` | `release-docker.yml` | Multi-platform build & push |
-| **Release** | Release (Helm) | `release.yml` | `release-helm.yml` | Helm chart publish |
-| **Release** | Release (NPM) | `release.yml` | `release-npm.yml` | NPM publish with provenance |
-| **Security** | SAST (Public) | `security.yml` | `security-code.yml` | CodeQL multi-language |
-| **Security** | Config Security | `security.yml` | `security-config.yml` | Terraform, Kubernetes, Ansible |
-| **Security** | Dependency Security | `security.yml` | `security-deps.yml` | Go, JS/TS, Python + licenses |
-| **Security** | Secret Detection | `security.yml` | `security-secrets.yml` | Gitleaks, TruffleHog |
-| **Security** | Container Security | `security.yml` | `security-containers.yml` | Trivy, Grype |
-| **Security** | Supply Chain | `security.yml` | `security-supply-chain.yml` | SBOM, Cosign signing |
-| **Operations** | Drift Detection | `drift.yml` | `ops-drift-detection.yml` | Terraform drift detection |
-| **Operations** | Orchestration | - | `ops-terraform-orchestration.yml` | Multi-environment |
-| **Operations** | Secret Sync | - | `ops-sync-secrets.yml` | Bitwarden to CF Workers |
-| **Docs** | Terraform Docs | `docs.yml` | `docs-terraform.yml` | Auto-generate TF docs |
-| **AI** | Code Review (Private) | `claude-code-review.yml` | `ai-claude-review.yml` | AI code review |
-| **AI** | Assistant (Private) | `claude.yml` | `ai-claude.yml` | On-demand @claude |
+| Category       | Workflow                           | Local File               | Reusable Workflow                 | Description                          |
+| -------------- | ---------------------------------- | ------------------------ | --------------------------------- | ------------------------------------ |
+| **CI**         | Continuous Integration (Go)        | `ci.yml`                 | `ci-go.yml`                       | Go tests, linting, validation        |
+| **CI**         | Continuous Integration (JS/TS)     | `ci.yml`                 | `ci-js.yml`                       | All-in-one: quality, tests, security |
+| **CI**         | Continuous Integration (Terraform) | `ci.yml`                 | `ci-terraform.yml`                | TF validate, fmt, tflint             |
+| **Deploy**     | Deployment (Terraform)             | `deploy.yml`             | `deploy-terraform.yml`            | Terraform plan & apply               |
+| **Deploy**     | Deployment (Cloudflare Workers)    | `deploy.yml`             | `deploy-cloudflare-workers.yml`   | Wrangler deploy                      |
+| **Release**    | Release (Go)                       | `release.yml`            | `release-go.yml`                  | GoReleaser                           |
+| **Release**    | Release (Docker)                   | `release.yml`            | `release-docker.yml`              | Multi-platform build & push          |
+| **Release**    | Release (Helm)                     | `release.yml`            | `release-helm.yml`                | Helm chart publish                   |
+| **Release**    | Release (NPM)                      | `release.yml`            | `release-npm.yml`                 | NPM publish with provenance          |
+| **Security**   | SAST (Public)                      | `security.yml`           | `security-code.yml`               | CodeQL multi-language                |
+| **Security**   | Config Security                    | `security.yml`           | `security-config.yml`             | Terraform, Kubernetes, Ansible       |
+| **Security**   | Dependency Security                | `security.yml`           | `security-deps.yml`               | Go, JS/TS, Python + licenses         |
+| **Security**   | Secret Detection                   | `security.yml`           | `security-secrets.yml`            | Gitleaks, TruffleHog                 |
+| **Security**   | Container Security                 | `security.yml`           | `security-containers.yml`         | Trivy, Grype                         |
+| **Security**   | Supply Chain                       | `security.yml`           | `security-supply-chain.yml`       | SBOM, Cosign signing                 |
+| **Operations** | Drift Detection                    | `drift.yml`              | `ops-drift-detection.yml`         | Terraform drift detection            |
+| **Operations** | Orchestration                      | -                        | `ops-terraform-orchestration.yml` | Multi-environment                    |
+| **Operations** | Secret Sync                        | -                        | `ops-sync-secrets.yml`            | Bitwarden to CF Workers              |
+| **Docs**       | Terraform Docs                     | `docs.yml`               | `docs-terraform.yml`              | Auto-generate TF docs                |
+| **AI**         | Code Review (Private)              | `claude-code-review.yml` | `ai-claude-review.yml`            | AI code review                       |
+| **AI**         | Assistant (Private)                | `claude.yml`             | `ai-claude.yml`                   | On-demand @claude                    |
 
 **Workflow Consolidation Strategy:**
 
@@ -314,7 +318,7 @@ Scheduled workflows should run **weekly** (not daily) to minimize unnecessary wo
 
 ```yaml
 schedule:
-  - cron: '0 6 * * 1'  # Weekly Monday 06:00 UTC
+  - cron: '0 6 * * 1' # Weekly Monday 06:00 UTC
 ```
 
 Common schedules:
@@ -352,12 +356,14 @@ jobs:
 ```
 
 **Benefits:**
+
 - CI runs once on PR (validation)
 - Deploy runs once on merge (includes CI + deployment)
 - No duplicate test/lint runs on main branch
 - Cleaner workflow history
 
 **Anti-Pattern (Avoid):**
+
 ```yaml
 # ❌ WRONG - Runs twice (PR + push to main)
 on:
@@ -381,13 +387,13 @@ See [.github/workflows/ci.yml](./workflows/ci.yml)
 
 **By Repo Type:**
 
-| Repo Type | Required | Optional | Notes |
-|-----------|----------|----------|-------|
-| **Software Projects** | `ci.yml`, `release.yml` | - | Produce releasable artifacts (Docker, Helm, Binaries) |
-| **Infrastructure (IaC)** | `ci.yml`, `deploy.yml`, `security.yml` | `drift.yml`, `docs.yml` | Terraform IaC |
-| **GitOps** | `ci.yml`, `deploy.yml` | - | Kubernetes via Fleet |
-| **Packages** | `ci.yml`, `release.yml` | - | NPM, Go, Python packages |
-| **Serverless** | `ci.yml`, `deploy.yml` | - | Cloudflare Workers |
+| Repo Type                | Required                               | Optional                | Notes                                                 |
+| ------------------------ | -------------------------------------- | ----------------------- | ----------------------------------------------------- |
+| **Software Projects**    | `ci.yml`, `release.yml`                | -                       | Produce releasable artifacts (Docker, Helm, Binaries) |
+| **Infrastructure (IaC)** | `ci.yml`, `deploy.yml`, `security.yml` | `drift.yml`, `docs.yml` | Terraform IaC                                         |
+| **GitOps**               | `ci.yml`, `deploy.yml`                 | -                       | Kubernetes via Fleet                                  |
+| **Packages**             | `ci.yml`, `release.yml`                | -                       | NPM, Go, Python packages                              |
+| **Serverless**           | `ci.yml`, `deploy.yml`                 | -                       | Cloudflare Workers                                    |
 
 **Workflow Distinction:**
 
@@ -507,12 +513,12 @@ Shared presets in root can be extended by other repos.
 
 **Available Presets:**
 
-| Preset | Extends | Use For |
-|--------|---------|---------|
-| `renovate-base` | - | All repos (base config) |
-| `renovate-js` | base | JS/TS projects |
-| `renovate-terraform` | base | Terraform/IaC |
-| `renovate-gitops` | base | GitOps/Helm |
+| Preset               | Extends | Use For                 |
+| -------------------- | ------- | ----------------------- |
+| `renovate-base`      | -       | All repos (base config) |
+| `renovate-js`        | base    | JS/TS projects          |
+| `renovate-terraform` | base    | Terraform/IaC           |
+| `renovate-gitops`    | base    | GitOps/Helm             |
 
 **Usage in your repo's `.github/renovate.json`:**
 
@@ -534,21 +540,21 @@ See [templates/](https://github.com/sbaerlocher/sbaerlocher/tree/main/templates/
 
 **Project → Preset Mapping:**
 
-| Project | Preset | Reason |
-|---------|--------|--------|
-| `applications` | `renovate-gitops` | Fleet/Helm GitOps |
-| `authentication` | `renovate-terraform` | Terraform/IaC |
-| `infrastructure` | `renovate-gitops` | Terraform + Ansible + K8s |
-| `observability` | `renovate-terraform` | Terraform/IaC |
-| `functions` | `renovate-js` | TypeScript/Cloudflare Workers |
-| `sbaerlocher.ch` | `renovate-js` | Astro/TypeScript |
-| `sbaerlo.ch` | `renovate-js` | Astro/TypeScript |
-| `vue.aareguru` | `renovate-js` | Vue/TypeScript |
-| `dotfiles` | `renovate-base` | Nix + GitHub Actions |
-| `helm-chart` | `renovate-gitops` | Helm Charts |
-| `savvy` | `renovate-base` | Go |
-| `tsmetrics` | `renovate-base` | Go |
-| `loyalty-system` | `renovate-base` | Go |
+| Project          | Preset               | Reason                        |
+| ---------------- | -------------------- | ----------------------------- |
+| `applications`   | `renovate-gitops`    | Fleet/Helm GitOps             |
+| `authentication` | `renovate-terraform` | Terraform/IaC                 |
+| `infrastructure` | `renovate-gitops`    | Terraform + Ansible + K8s     |
+| `observability`  | `renovate-terraform` | Terraform/IaC                 |
+| `functions`      | `renovate-js`        | TypeScript/Cloudflare Workers |
+| `sbaerlocher.ch` | `renovate-js`        | Astro/TypeScript              |
+| `sbaerlo.ch`     | `renovate-js`        | Astro/TypeScript              |
+| `vue.aareguru`   | `renovate-js`        | Vue/TypeScript                |
+| `dotfiles`       | `renovate-base`      | Nix + GitHub Actions          |
+| `helm-chart`     | `renovate-gitops`    | Helm Charts                   |
+| `savvy`          | `renovate-base`      | Go                            |
+| `tsmetrics`      | `renovate-base`      | Go                            |
+| `loyalty-system` | `renovate-base`      | Go                            |
 
 **Anti-Pattern (Never Do):**
 
@@ -577,13 +583,13 @@ See [templates/](https://github.com/sbaerlocher/sbaerlocher/tree/main/templates/
 
 For more complex projects additionally:
 
-| File | Purpose | When |
-|------|---------|------|
-| `README.md` | Project overview, setup basics | All repos - keep minimal, avoid excessive detail |
-| `ARCHITECTURE.md` | System design, components, decisions | Infrastructure, monorepos |
-| `OPERATIONS.md` | Runbooks, troubleshooting, maintenance | Production services |
-| `DEPLOYMENT.md` | Deploy process, environments | When more complex than 1 command |
-| `.github/SECRETS.md` | Secrets documentation | **Required** when repo uses any secrets |
+| File                 | Purpose                                | When                                             |
+| -------------------- | -------------------------------------- | ------------------------------------------------ |
+| `README.md`          | Project overview, setup basics         | All repos - keep minimal, avoid excessive detail |
+| `ARCHITECTURE.md`    | System design, components, decisions   | Infrastructure, monorepos                        |
+| `OPERATIONS.md`      | Runbooks, troubleshooting, maintenance | Production services                              |
+| `DEPLOYMENT.md`      | Deploy process, environments           | When more complex than 1 command                 |
+| `.github/SECRETS.md` | Secrets documentation                  | **Required** when repo uses any secrets          |
 
 **Naming:** Uppercase, English.
 
@@ -613,9 +619,9 @@ For more complex projects additionally:
 
 ### CONTRIBUTING.md
 
-| Repo Type | Required |
-|-----------|----------|
-| **Public** | Yes (open source) |
+| Repo Type   | Required                                          |
+| ----------- | ------------------------------------------------- |
+| **Public**  | Yes (open source)                                 |
 | **Private** | Only for team projects with external contributors |
 
 ### CODE_OF_CONDUCT.md
@@ -626,23 +632,23 @@ Only for public community projects. For personal repos: Not needed.
 
 ## What Does NOT Belong in Every Repo
 
-| File | Reason |
-|------|--------|
-| docs/ folder | README is usually enough, no separate doc site |
-| SECURITY.md | Only for public packages |
-| Issue/PR Templates | Overkill for personal repos |
+| File               | Reason                                         |
+| ------------------ | ---------------------------------------------- |
+| docs/ folder       | README is usually enough, no separate doc site |
+| SECURITY.md        | Only for public packages                       |
+| Issue/PR Templates | Overkill for personal repos                    |
 
 ---
 
 ## Formatter by Language
 
-| Language | Formatter | Config File |
-|----------|-----------|-------------|
-| JS/TS | Prettier | `.prettierrc` |
-| Go | gofmt | - (built-in) |
-| Terraform | terraform fmt | - (built-in) |
-| Python | Black/Ruff | `pyproject.toml` |
-| YAML | Prettier | `.prettierrc` |
+| Language  | Formatter     | Config File      |
+| --------- | ------------- | ---------------- |
+| JS/TS     | Prettier      | `.prettierrc`    |
+| Go        | gofmt         | - (built-in)     |
+| Terraform | terraform fmt | - (built-in)     |
+| Python    | Black/Ruff    | `pyproject.toml` |
+| YAML      | Prettier      | `.prettierrc`    |
 
 Only add when the language is used in the repo.
 
@@ -774,17 +780,17 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 **Types:**
 
-| Type | Usage | Description |
-|------|-------|-------------|
-| `feat` | New features | A new feature for the user |
-| `fix` | Bug fixes | A bug fix for the user |
-| `docs` | Documentation | Documentation only changes |
-| `style` | Formatting | Changes that don't affect code meaning (white-space, formatting) |
-| `refactor` | Code restructuring | Code change that neither fixes a bug nor adds a feature |
-| `perf` | Performance | Code change that improves performance |
-| `test` | Tests | Adding missing tests or correcting existing tests |
-| `chore` | Maintenance | Changes to build process, dependencies, tooling |
-| `ci` | CI/CD | Changes to CI configuration files and scripts |
+| Type       | Usage              | Description                                                      |
+| ---------- | ------------------ | ---------------------------------------------------------------- |
+| `feat`     | New features       | A new feature for the user                                       |
+| `fix`      | Bug fixes          | A bug fix for the user                                           |
+| `docs`     | Documentation      | Documentation only changes                                       |
+| `style`    | Formatting         | Changes that don't affect code meaning (white-space, formatting) |
+| `refactor` | Code restructuring | Code change that neither fixes a bug nor adds a feature          |
+| `perf`     | Performance        | Code change that improves performance                            |
+| `test`     | Tests              | Adding missing tests or correcting existing tests                |
+| `chore`    | Maintenance        | Changes to build process, dependencies, tooling                  |
+| `ci`       | CI/CD              | Changes to CI configuration files and scripts                    |
 
 **Scopes:**
 
@@ -824,12 +830,12 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 **Strategy by Project Type:**
 
-| Project Type | Strategy | Description |
-|--------------|----------|-------------|
-| **GitOps** | Direct to main | No feature branches, all changes direct after validation |
-| **Infrastructure** | Direct to main | Fast deployment, CI/CD validation |
-| **Applications** | Feature branches | Use feature branches for complex changes |
-| **Packages** | Feature branches | Always use PRs for version-controlled releases |
+| Project Type       | Strategy         | Description                                              |
+| ------------------ | ---------------- | -------------------------------------------------------- |
+| **GitOps**         | Direct to main   | No feature branches, all changes direct after validation |
+| **Infrastructure** | Direct to main   | Fast deployment, CI/CD validation                        |
+| **Applications**   | Feature branches | Use feature branches for complex changes                 |
+| **Packages**       | Feature branches | Always use PRs for version-controlled releases           |
 
 **Direct-to-Main Requirements:**
 
@@ -855,6 +861,247 @@ Examples:
 
 ---
 
+## GitHub Repository Configuration
+
+All repositories must be configured consistently. Use the `gh` CLI or GitHub API to apply settings
+programmatically.
+
+### General Repository Settings
+
+```bash
+gh repo edit {owner}/{repo} \
+  --delete-branch-on-merge \
+  --enable-squash-merge \
+  --enable-auto-merge
+
+# gh repo edit has no --disable flags for merge types — use the API directly
+gh api repos/{owner}/{repo} --method PATCH \
+  --field allow_merge_commit=false \
+  --field allow_rebase_merge=false
+```
+
+| Setting                | Value         | Reason                                   |
+| ---------------------- | ------------- | ---------------------------------------- |
+| Delete branch on merge | Yes           | Keeps branch list clean                  |
+| Squash merge           | Yes (default) | Clean, linear commit history             |
+| Merge commits          | No            | Squash preferred                         |
+| Rebase merge           | No            | Squash preferred                         |
+| Auto-merge             | Enabled       | Required for Renovate auto-merge to work |
+
+**Exception:** GitOps/Infrastructure repos (`applications`, `infrastructure`) may prefer rebase merge
+to preserve individual commit messages for auditability.
+
+---
+
+### GITHUB_TOKEN Default Permissions
+
+**Set repository-level default to read-only.** Workflows must explicitly request write permissions.
+This limits blast radius if a workflow is compromised.
+
+```bash
+gh api repos/{owner}/{repo} --method PATCH \
+  --field default_workflow_permissions=read \
+  --field can_approve_pull_request_reviews=false
+```
+
+Workflows that need write access declare it explicitly:
+
+```yaml
+permissions:
+  contents: write # only if needed (e.g. release)
+  pull-requests: write # only if needed (e.g. claude-code-review)
+```
+
+**Anti-pattern (avoid):**
+
+```yaml
+# ❌ WRONG — grants full write to all resources
+permissions: write-all
+```
+
+---
+
+### Branch Protection — Repository Rulesets
+
+Use **Repository Rulesets** (modern replacement for classic branch protection rules).
+
+**Required rules for the `main` branch:**
+
+| Rule                                | Setting                 | Reason                                |
+| ----------------------------------- | ----------------------- | ------------------------------------- |
+| Restrict deletions                  | Block                   | Protect main from accidental deletion |
+| Block force pushes                  | Block                   | Protect commit history                |
+| Require pull request before merging | Yes                     | All changes via PR                    |
+| Required approving reviews          | 0 (personal) / 1 (team) | Flexible per project                  |
+| Dismiss stale reviews on push       | Yes (team repos)        | Re-review after new commits           |
+| Require status checks to pass       | Yes                     | CI must be green before merge         |
+| Require branches to be up to date   | Yes                     | No merges on stale branches           |
+
+**Bypass actors:** By default no bypass list — admins are also bound by the ruleset. Add bypass
+actors only when automation requires it (e.g. release bots), and document the reason.
+
+**Configure via `gh` CLI (personal repo):**
+
+```bash
+gh api repos/{owner}/{repo}/rulesets --method POST --input - <<'EOF'
+{
+  "name": "main-branch-protection",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [],
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/main"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 0,
+        "dismiss_stale_reviews_on_push": false,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": false
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "required_status_checks": [
+          { "context": "ci" }
+        ]
+      }
+    }
+  ]
+}
+EOF
+```
+
+**For team repos** (set `required_approving_review_count: 1` and `dismiss_stale_reviews_on_push:
+true`):
+
+```json
+{
+  "type": "pull_request",
+  "parameters": {
+    "required_approving_review_count": 1,
+    "dismiss_stale_reviews_on_push": true,
+    "require_code_owner_review": true,
+    "require_last_push_approval": false,
+    "required_review_thread_resolution": true
+  }
+}
+```
+
+---
+
+### Required Status Check Context Format
+
+The `context` value must **exactly** match the string GitHub shows in the Check Suite. The format
+depends on how the workflow is called:
+
+| Workflow type     | Context format         | Example              |
+| ----------------- | ---------------------- | -------------------- |
+| Direct job        | `<job-id>`             | `ci`                 |
+| Reusable workflow | `<caller-job> / <job>` | `ci / terraform`     |
+| Matrix job        | `<job-id> (<matrix>)`  | `ci (ubuntu-latest)` |
+
+**Verify the exact string** by opening a PR and checking the "Checks" tab before adding it as a
+required check.
+
+**Required checks by repo type:**
+
+| Repo Type                 | Required Checks | Notes                                    |
+| ------------------------- | --------------- | ---------------------------------------- |
+| Software / Packages       | `ci`            | Has `ci.yml` with `pull_request` trigger |
+| Infrastructure (IaC)      | `ci`            | Has `ci.yml` with `pull_request` trigger |
+| GitOps                    | `ci`            | Has `ci.yml` with `pull_request` trigger |
+| Reusable workflow library | —               | No PR-triggered workflow → omit the rule |
+
+**Only add `required_status_checks` if the repo has a workflow with a direct `pull_request`
+trigger.** Repos that only contain `workflow_call` workflows (e.g. `.github`) must omit this rule —
+the check would never run and block every PR.
+
+**Never add as required checks:**
+
+- `security` — runs on weekly schedule, would block all PRs
+- `drift` — runs on weekly schedule, would block all PRs
+
+---
+
+### Full Setup Script
+
+For consistent setup when creating a new repository:
+
+```bash
+#!/usr/bin/env bash
+# Usage: ./scripts/setup-repo.sh <owner/repo>
+set -euo pipefail
+
+REPO=$1
+
+# General settings
+gh repo edit "$REPO" \
+  --delete-branch-on-merge \
+  --enable-squash-merge \
+  --enable-auto-merge
+
+gh api "repos/$REPO" --method PATCH \
+  --field allow_merge_commit=false \
+  --field allow_rebase_merge=false
+
+# GITHUB_TOKEN: read-only by default
+gh api "repos/$REPO" --method PATCH \
+  --field default_workflow_permissions=read \
+  --field can_approve_pull_request_reviews=false
+
+# Branch ruleset
+gh api "repos/$REPO/rulesets" --method POST --input - <<'EOF'
+{
+  "name": "main-branch-protection",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [],
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/main"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 0,
+        "dismiss_stale_reviews_on_push": false,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": false
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "required_status_checks": [
+          { "context": "ci" }
+        ]
+      }
+    }
+  ]
+}
+EOF
+```
+
+---
+
 ## Secret Management
 
 **CRITICAL**: Secrets must NEVER be committed to Git.
@@ -873,12 +1120,12 @@ Examples:
 
 ### Approved Secret Storage
 
-| Environment | Method | Usage |
-|-------------|--------|-------|
-| **Kubernetes** | External Secrets Operator | All K8s secrets via Bitwarden |
-| **CI/CD** | GitHub Repository Secrets | Workflow secrets |
-| **Cloudflare Workers** | Wrangler Secrets | `wrangler secret put <NAME>` |
-| **Local Development** | `.env.local` (gitignored) | Never committed |
+| Environment            | Method                    | Usage                         |
+| ---------------------- | ------------------------- | ----------------------------- |
+| **Kubernetes**         | External Secrets Operator | All K8s secrets via Bitwarden |
+| **CI/CD**              | GitHub Repository Secrets | Workflow secrets              |
+| **Cloudflare Workers** | Wrangler Secrets          | `wrangler secret put <NAME>`  |
+| **Local Development**  | `.env.local` (gitignored) | Never committed               |
 
 ### External Secrets Operator Pattern
 
@@ -1042,23 +1289,23 @@ Custom Slash Commands for recurring tasks.
 
 **Standard Commands (all repos):**
 
-| Command | File | Description |
-|---------|------|-------------|
-| `/code-review` | `code-review.md` | Code review for file/folder |
-| `/commit` | `commit.md` | Git commit with Conventional Commits |
-| `/quality-check` | `quality-check.md` | All checks before PR |
+| Command          | File               | Description                                                    |
+| ---------------- | ------------------ | -------------------------------------------------------------- |
+| `/code-review`   | `code-review.md`   | Code review for file/folder                                    |
+| `/commit`        | `commit.md`        | Git commit with Conventional Commits                           |
+| `/quality-check` | `quality-check.md` | All checks before PR                                           |
 | `/actions-check` | `actions-check.md` | GitHub Actions best practices (SHA pinning, permissions, etc.) |
 
 **Templates**: See [templates/commands/](https://github.com/sbaerlocher/sbaerlocher/tree/main/templates/commands/) for copy-paste examples.
 
 **Project-specific Commands:**
 
-| Repo Type | Commands |
-|-----------|----------|
-| Terraform | `tf-plan.md`, `tf-apply.md` |
-| GitOps | `fleet-check.md`, `helm-check.md` |
-| Cloudflare Workers | `deploy.md`, `new-service.md` |
-| Packages | `release.md`, `test.md` |
+| Repo Type          | Commands                          |
+| ------------------ | --------------------------------- |
+| Terraform          | `tf-plan.md`, `tf-apply.md`       |
+| GitOps             | `fleet-check.md`, `helm-check.md` |
+| Cloudflare Workers | `deploy.md`, `new-service.md`     |
+| Packages           | `release.md`, `test.md`           |
 
 **Format:**
 
@@ -1086,13 +1333,13 @@ $ARGUMENTS = Parameters from user
 
 Use standardized resource sizes:
 
-| Size | CPU Requests | CPU Limits | Memory Requests | Memory Limits |
-|------|--------------|------------|-----------------|---------------|
-| **Micro** | 50m | 250m | 64Mi | 256Mi |
-| **Small** | 100m | 500m | 128Mi | 512Mi |
-| **Medium** | 200m | "1" | 256Mi | 1Gi |
-| **Large** | 500m | "2" | 512Mi | 2Gi |
-| **XLarge** | "1" | "4" | 1Gi | 4Gi |
+| Size       | CPU Requests | CPU Limits | Memory Requests | Memory Limits |
+| ---------- | ------------ | ---------- | --------------- | ------------- |
+| **Micro**  | 50m          | 250m       | 64Mi            | 256Mi         |
+| **Small**  | 100m         | 500m       | 128Mi           | 512Mi         |
+| **Medium** | 200m         | "1"        | 256Mi           | 1Gi           |
+| **Large**  | 500m         | "2"        | 512Mi           | 2Gi           |
+| **XLarge** | "1"          | "4"        | 1Gi             | 4Gi           |
 
 ### CPU Normalization
 
@@ -1127,8 +1374,8 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 0        # No extra pods during update
-      maxUnavailable: 1  # Old pod terminated first
+      maxSurge: 0 # No extra pods during update
+      maxUnavailable: 1 # Old pod terminated first
 ```
 
 **Standard Clusters** (CPU <90%):
@@ -1138,8 +1385,8 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 1        # One extra pod during update
-      maxUnavailable: 0  # Zero downtime
+      maxSurge: 1 # One extra pod during update
+      maxUnavailable: 0 # Zero downtime
 ```
 
 ### Service Assignments
@@ -1186,22 +1433,22 @@ readinessProbe:
 ```yaml
 metadata:
   annotations:
-    k8s.grafana.com/scrape: "true"
-    k8s.grafana.com/metrics.portNumber: "9187"
-    k8s.grafana.com/metrics.path: "/metrics"
-    k8s.grafana.com/job: "<service-name>"
-    k8s.grafana.com/metrics.scrapeInterval: "60s"  # Optional
+    k8s.grafana.com/scrape: 'true'
+    k8s.grafana.com/metrics.portNumber: '9187'
+    k8s.grafana.com/metrics.path: '/metrics'
+    k8s.grafana.com/job: '<service-name>'
+    k8s.grafana.com/metrics.scrapeInterval: '60s' # Optional
 ```
 
 ### Common Metrics Ports
 
-| Service | Port | Path | Key Metrics |
-|---------|------|------|-------------|
-| **External Secrets** | 8080 | /metrics | `externalsecret_status_condition` |
-| **Cert-Manager** | 9402 | /metrics | `certmanager_certificate_ready_status` |
-| **PostgreSQL (CNPG)** | 9187 | /metrics | `cnpg_pg_database_size_bytes` |
-| **Traefik** | 9100 | /metrics | `traefik_service_requests_total` |
-| **Alloy** | 12345 | /metrics | `prometheus_target_scrapes_total` |
+| Service               | Port  | Path     | Key Metrics                            |
+| --------------------- | ----- | -------- | -------------------------------------- |
+| **External Secrets**  | 8080  | /metrics | `externalsecret_status_condition`      |
+| **Cert-Manager**      | 9402  | /metrics | `certmanager_certificate_ready_status` |
+| **PostgreSQL (CNPG)** | 9187  | /metrics | `cnpg_pg_database_size_bytes`          |
+| **Traefik**           | 9100  | /metrics | `traefik_service_requests_total`       |
+| **Alloy**             | 12345 | /metrics | `prometheus_target_scrapes_total`      |
 
 ### Metrics Naming Convention
 
@@ -1275,7 +1522,9 @@ What the project does (1 sentence).
 ## Setup
 
 \`\`\`bash
+
 # Installation/start commands
+
 \`\`\`
 
 ## License
