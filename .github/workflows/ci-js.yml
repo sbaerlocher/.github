@@ -132,8 +132,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: ${{ inputs.node-version != '' && inputs.node-version || '' }}
-          node-version-file: ${{ inputs.node-version == '' && inputs.node-version-file || '' }}
+          node-version: ${{ inputs.node-version }}
+          node-version-file: ${{ inputs.node-version-file }}
 
       - name: Setup pnpm
         if: inputs.package-manager == 'pnpm'
@@ -387,8 +387,8 @@ jobs:
         if: matrix.scanner == 'dependency-audit'
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: ${{ inputs.node-version != '' && inputs.node-version || '' }}
-          node-version-file: ${{ inputs.node-version == '' && inputs.node-version-file || '' }}
+          node-version: ${{ inputs.node-version }}
+          node-version-file: ${{ inputs.node-version-file }}
 
       - name: Setup pnpm
         if: matrix.scanner == 'dependency-audit' && inputs.package-manager == 'pnpm'
