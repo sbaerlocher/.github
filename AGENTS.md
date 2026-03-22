@@ -9,7 +9,9 @@
 
 ## Context for AI Agents
 
-This repository contains centralized, reusable GitHub Actions workflows that are used across all repositories in the sbaerlocher organization. When working on this repository, you are directly impacting the CI/CD pipelines of multiple projects.
+This repository contains centralized, reusable GitHub Actions workflows used across all
+repositories in the sbaerlocher organization. When working on this repository, you are
+directly impacting the CI/CD pipelines of multiple projects.
 
 ### What This Repository Does
 
@@ -22,9 +24,10 @@ This repository contains centralized, reusable GitHub Actions workflows that are
 
 **Current Statistics**:
 
-- **Total Workflows**: 27 reusable workflows (see [.github/workflows/](./.github/workflows/))
-- **Categories**: CI (3), Security (6), Deploy (2), Release (4), Operations (3), Other (9)
-- **Consumers**: applications, infrastructure, authentication, observability, functions, sbaerlocher.ch, tsmetrics, and more
+- **Total Workflows**: 21 reusable workflows (see [.github/workflows/](./.github/workflows/))
+- **Categories**: CI (5), Security (6), Deploy (2), Release (4), Operations (1), AI (2), E2E (1)
+- **Consumers**: applications, infrastructure, authentication, observability, functions,
+  sbaerlocher.ch, tsmetrics, and more
 
 ---
 
@@ -93,15 +96,17 @@ uses: sbaerlocher/.github/.github/workflows/ci-js.yml@v1
 
 ## Workflow Categories
 
-### CI - Continuous Integration (3)
+### CI - Continuous Integration (5)
 
 **Purpose**: Validate code quality, tests, and security before merge
 
-| Workflow       | File                                                     | Description                          | Languages/Tools                 |
-| -------------- | -------------------------------------------------------- | ------------------------------------ | ------------------------------- |
-| CI (Go)        | [ci-go.yml](./.github/workflows/ci-go.yml)               | Go build, test & security            | Go, golangci-lint, gosec        |
-| CI (JS/TS)     | [ci-js.yml](./.github/workflows/ci-js.yml)               | All-in-one: quality, tests, security | JS/TS, Prettier, ESLint, Vitest |
-| CI (Terraform) | [ci-terraform.yml](./.github/workflows/ci-terraform.yml) | Terraform validation                 | Terraform, tflint, yamllint     |
+| Workflow       | File               | Description               | Languages/Tools                 |
+| -------------- | ------------------ | ------------------------- | ------------------------------- |
+| CI (Ansible)   | `ci-ansible.yml`   | Ansible syntax & lint     | Ansible, ansible-lint           |
+| CI (GitOps)    | `ci-gitops.yml`    | Fleet & K8s validation    | Fleet, Helm, kubeconform        |
+| CI (Go)        | `ci-go.yml`        | Go build, test & security | Go, golangci-lint, gosec        |
+| CI (JS/TS)     | `ci-js.yml`        | Quality, tests & security | JS/TS, Prettier, ESLint, Vitest |
+| CI (Terraform) | `ci-terraform.yml` | Terraform validation      | Terraform, tflint               |
 
 **Key Features**:
 
@@ -114,14 +119,14 @@ uses: sbaerlocher/.github/.github/workflows/ci-js.yml@v1
 
 **Purpose**: Comprehensive security scanning (SAST, secrets, dependencies, containers)
 
-| Workflow        | File                                                                       | Description                | Tools                   |
-| --------------- | -------------------------------------------------------------------------- | -------------------------- | ----------------------- |
-| SAST            | [security-code.yml](./.github/workflows/security-code.yml)                 | Static code analysis       | CodeQL (multi-language) |
-| Config Security | [security-config.yml](./.github/workflows/security-config.yml)             | IaC security               | Checkov, Kubeconform    |
-| Dependencies    | [security-deps.yml](./.github/workflows/security-deps.yml)                 | Dependency vulnerabilities | govulncheck, npm audit  |
-| Secrets         | [security-secrets.yml](./.github/workflows/security-secrets.yml)           | Secret detection           | Gitleaks, TruffleHog    |
-| Containers      | [security-containers.yml](./.github/workflows/security-containers.yml)     | Container scanning         | Trivy, Grype            |
-| Supply Chain    | [security-supply-chain.yml](./.github/workflows/security-supply-chain.yml) | SBOM & signing             | Cosign, CycloneDX       |
+| Workflow        | File                        | Description                | Tools                   |
+| --------------- | --------------------------- | -------------------------- | ----------------------- |
+| SAST            | `security-code.yml`         | Static code analysis       | CodeQL (multi-language) |
+| Config Security | `security-config.yml`       | IaC security               | Checkov, Kubeconform    |
+| Dependencies    | `security-deps.yml`         | Dependency vulnerabilities | govulncheck, npm audit  |
+| Secrets         | `security-secrets.yml`      | Secret detection           | Gitleaks, TruffleHog    |
+| Containers      | `security-containers.yml`   | Container scanning         | Trivy, Grype            |
+| Supply Chain    | `security-supply-chain.yml` | SBOM & signing             | Cosign, CycloneDX       |
 
 **Strategy**:
 
@@ -134,10 +139,10 @@ uses: sbaerlocher/.github/.github/workflows/ci-js.yml@v1
 
 **Purpose**: Deploy infrastructure and applications
 
-| Workflow           | File                                                                               | Description            | Use Case             |
-| ------------------ | ---------------------------------------------------------------------------------- | ---------------------- | -------------------- |
-| Terraform Deploy   | [deploy-terraform.yml](./.github/workflows/deploy-terraform.yml)                   | Terraform plan & apply | IaC deployments      |
-| Cloudflare Workers | [deploy-cloudflare-workers.yml](./.github/workflows/deploy-cloudflare-workers.yml) | Wrangler deploy        | Serverless functions |
+| Workflow           | File                            | Description            | Use Case             |
+| ------------------ | ------------------------------- | ---------------------- | -------------------- |
+| Terraform Deploy   | `deploy-terraform.yml`          | Terraform plan & apply | IaC deployments      |
+| Cloudflare Workers | `deploy-cloudflare-workers.yml` | Wrangler deploy        | Serverless functions |
 
 **Features**:
 
@@ -149,24 +154,31 @@ uses: sbaerlocher/.github/.github/workflows/ci-js.yml@v1
 
 **Purpose**: Build and publish versioned artifacts
 
-| Workflow       | File                                                         | Description         | Output                    |
-| -------------- | ------------------------------------------------------------ | ------------------- | ------------------------- |
-| Go Release     | [release-go.yml](./.github/workflows/release-go.yml)         | GoReleaser          | Binaries (multi-platform) |
-| Docker Release | [release-docker.yml](./.github/workflows/release-docker.yml) | Docker build & push | Container images          |
-| Helm Release   | [release-helm.yml](./.github/workflows/release-helm.yml)     | Helm chart publish  | OCI charts                |
-| NPM Release    | [release-npm.yml](./.github/workflows/release-npm.yml)       | NPM publish         | Package with provenance   |
+| Workflow       | File                 | Description         | Output                    |
+| -------------- | -------------------- | ------------------- | ------------------------- |
+| Go Release     | `release-go.yml`     | GoReleaser          | Binaries (multi-platform) |
+| Docker Release | `release-docker.yml` | Docker build & push | Container images          |
+| Helm Release   | `release-helm.yml`   | Helm chart publish  | OCI charts                |
+| NPM Release    | `release-npm.yml`    | NPM publish         | Package with provenance   |
 
 **Trigger**: `push` events on tags (`v*`)
 
-### Operations - Operational Tasks (3)
+### Operations - Operational Tasks (1)
 
 **Purpose**: Scheduled maintenance and operational tasks
 
-| Workflow        | File                                                                                   | Description            | Schedule                |
-| --------------- | -------------------------------------------------------------------------------------- | ---------------------- | ----------------------- |
-| Drift Detection | [ops-drift-detection.yml](./.github/workflows/ops-drift-detection.yml)                 | Terraform drift        | Weekly Monday 06:00 UTC |
-| Secret Sync     | [ops-sync-secrets.yml](./.github/workflows/ops-sync-secrets.yml)                       | Bitwarden → CF Workers | On-demand               |
-| Orchestration   | [ops-terraform-orchestration.yml](./.github/workflows/ops-terraform-orchestration.yml) | Multi-environment TF   | On-demand               |
+| Workflow      | File                              | Description          | Schedule  |
+| ------------- | --------------------------------- | -------------------- | --------- |
+| Orchestration | `ops-terraform-orchestration.yml` | Multi-environment TF | On-demand |
+
+### AI - AI-Assisted Workflows (2)
+
+**Purpose**: AI-powered code review and on-demand assistance (private repos only)
+
+| Workflow    | File                   | Description                        |
+| ----------- | ---------------------- | ---------------------------------- |
+| Code Review | `ai-claude-review.yml` | Auto code review (reads REVIEW.md) |
+| On-demand   | `ai-claude.yml`        | On-demand @claude mentions         |
 
 ---
 
@@ -307,7 +319,7 @@ jobs:
 
 ### Workflow Not Found Error
 
-```
+```text
 Error: Unable to resolve action sbaerlocher/.github/.github/workflows/ci-js.yml@main
 ```
 
@@ -373,6 +385,8 @@ Ensure lock files are committed:
 ├── README.md               # Human-readable documentation
 ├── CHANGELOG.md            # Version history
 ├── STANDARDS.md            # Repository standards
+├── SETUP.md         # GitHub repo setup commands & branch rulesets
+├── REVIEW.md               # Code review guidelines for this repo
 ├── LICENSE                 # MIT License
 ├── .editorconfig           # Editor consistency
 ├── .gitignore              # Git ignore patterns
@@ -435,6 +449,7 @@ Ensure lock files are committed:
 - **[README.md](./README.md)** - User-facing workflow documentation
 - **[STANDARDS.md](./STANDARDS.md)** - Repository standards for all projects
 - **[CHANGELOG.md](./CHANGELOG.md)** - Version history and changes
+- **[REVIEW.md](./REVIEW.md)** - Code review guidelines for this repository
 - **Renovate Presets**: `renovate-*.json` files in repository root
 
 ---
@@ -478,7 +493,7 @@ Ensure lock files are committed:
 
 **Repository Owner**: Simon Bärlocher (@sbaerlocher)
 **Issues**: [GitHub Issues](https://github.com/sbaerlocher/.github/issues)
-**Website**: https://sbaerlocher.ch
+**Website**: [sbaerlocher.ch](https://sbaerlocher.ch)
 
 ---
 
