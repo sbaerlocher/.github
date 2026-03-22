@@ -108,7 +108,7 @@ The `context` value must exactly match the string GitHub shows in the Check Suit
 | Workflow type     | Context format                  | Example                                        |
 | ----------------- | ------------------------------- | ---------------------------------------------- |
 | Direct job        | `<job name>`                    | `ci`                                           |
-| Reusable workflow | `<caller job name> / <job name>`| `Continuous Integration / Validation Summary`  |
+| Reusable workflow | `<caller job name> / <job name>` | `Continuous Integration / Validation Summary`  |
 | Matrix job        | `<job name> (<matrix>)`         | `ci (ubuntu-latest)`                           |
 
 GitHub uses the `name:` field of the job, not the job ID. If no `name:` is set, the job ID is used.
