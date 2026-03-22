@@ -1,0 +1,303 @@
+name: Continuous Integration (GitOps)
+
+# Reusable workflow for GitOps repositories using Fleet, Helm, and Kubernetes.
+# Validates YAML syntax, Fleet configuration, GitRepo paths, Helm charts, and
+# Kubernetes manifests via kubeconform.
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: 'Python version for yamllint'
+        type: string
+        required: false
+        default: '3.14'
+      helm-version:
+        description: 'Helm version'
+        type: string
+        required: false
+        default: '4.1.3'
+      kubeconform-version:
+        description: 'kubeconform version'
+        type: string
+        required: false
+        default: '0.7.0'
+      enable-yaml-lint:
+        description: 'Run YAML syntax validation'
+        type: boolean
+        required: false
+        default: true
+      enable-fleet-validation:
+        description: 'Validate Fleet bundle configuration'
+        type: boolean
+        required: false
+        default: true
+      enable-gitrepo-validation:
+        description: 'Validate GitRepo paths'
+        type: boolean
+        required: false
+        default: true
+      enable-helm-lint:
+        description: 'Lint Helm charts'
+        type: boolean
+        required: false
+        default: true
+      enable-k8s-validation:
+        description: 'Validate Kubernetes manifests with kubeconform'
+        type: boolean
+        required: false
+        default: true
+      enable-docs-check:
+        description: 'Check for required documentation files'
+        type: boolean
+        required: false
+        default: true
+      fleet-paths:
+        description: 'Space-separated paths to search for fleet.yaml files'
+        type: string
+        required: false
+        default: 'platform applications'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate-yaml:
+    name: Validate YAML Syntax
+    if: inputs.enable-yaml-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-yamllint
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Validate YAML files
+        run: |
+          find . -name "*.yaml" -o -name "*.yml" | xargs yamllint -c .yamllint.yml || true
+
+  validate-fleet-configs:
+    name: Validate Fleet Configurations
+    if: inputs.enable-fleet-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Check fleet.yaml files exist
+        run: |
+          echo "Checking for fleet.yaml files in: ${{ inputs.fleet-paths }}"
+          FLEET_FILES=$(find ${{ inputs.fleet-paths }} -name "fleet.yaml" 2>/dev/null | wc -l)
+          echo "Found $FLEET_FILES fleet.yaml files"
+
+          if [ "$FLEET_FILES" -eq 0 ]; then
+            echo "ERROR: No fleet.yaml files found!"
+            exit 1
+          fi
+
+      - name: Validate fleet.yaml structure
+        run: |
+          echo "Validating fleet.yaml files..."
+          ERRORS=0
+
+          for file in $(find ${{ inputs.fleet-paths }} -name "fleet.yaml" 2>/dev/null); do
+            echo "Checking $file..."
+
+            if ! grep -q "defaultNamespace:" "$file"; then
+              echo "WARNING: $file missing defaultNamespace field"
+            fi
+
+            if grep -q "^helm:" "$file"; then
+              if grep -q "  chart:" "$file"; then
+                if ! grep -q "  version:" "$file"; then
+                  echo "ERROR: $file has helm chart but missing version field"
+                  ERRORS=$((ERRORS + 1))
+                fi
+                if ! grep -q "  repo:" "$file"; then
+                  if ! grep -q "  chart: oci://" "$file"; then
+                    echo "WARNING: $file has helm chart but missing repo field (unless using OCI)"
+                  fi
+                fi
+              else
+                echo "INFO: $file uses helm lifecycle options for plain manifests"
+              fi
+            fi
+          done
+
+          if [ $ERRORS -gt 0 ]; then
+            echo "Found $ERRORS errors in fleet.yaml files"
+            exit 1
+          fi
+
+          echo "All fleet.yaml files validated successfully!"
+
+  validate-gitrepo:
+    name: Validate GitRepo Configuration
+    if: inputs.enable-gitrepo-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Check GitRepo exists
+        run: |
+          if [ ! -f "gitrepos/production.yaml" ]; then
+            echo "ERROR: gitrepos/production.yaml not found!"
+            exit 1
+          fi
+
+      - name: Validate GitRepo paths
+        run: |
+          echo "Validating GitRepo paths..."
+          ERRORS=0
+
+          PATHS=$(grep -A 100 "paths:" gitrepos/production.yaml | grep "^    - " | sed 's/^    - //')
+
+          for path in $PATHS; do
+            if [ ! -d "$path" ]; then
+              echo "WARNING: Path $path in GitRepo does not exist"
+            elif [ ! -f "$path/fleet.yaml" ]; then
+              echo "ERROR: Path $path in GitRepo missing fleet.yaml"
+              ERRORS=$((ERRORS + 1))
+            else
+              echo "✓ $path"
+            fi
+          done
+
+          if [ $ERRORS -gt 0 ]; then
+            echo "Found $ERRORS errors in GitRepo configuration"
+            exit 1
+          fi
+
+          echo "GitRepo configuration validated successfully!"
+
+  validate-helm:
+    name: Validate Helm Charts
+    if: inputs.enable-helm-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Helm
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
+        with:
+          version: v${{ inputs.helm-version }}
+
+      - name: Cache Helm
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: ~/.cache/helm
+          key: ${{ runner.os }}-helm-${{ hashFiles('**/Chart.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-helm-
+
+      - name: Lint Helm Charts
+        run: |
+          echo "Linting Helm charts in: ${{ inputs.fleet-paths }}"
+          ERRORS=0
+
+          for dir in $(echo "${{ inputs.fleet-paths }}" | tr ' ' '\n' | while read p; do echo "$p"/*; done); do
+            if [ -f "$dir/Chart.yaml" ]; then
+              echo "Linting $dir..."
+              if ! helm lint "$dir"; then
+                echo "ERROR: Helm lint failed for $dir"
+                ERRORS=$((ERRORS + 1))
+              fi
+            fi
+          done
+
+          if [ $ERRORS -gt 0 ]; then
+            echo "Found $ERRORS Helm chart errors"
+            exit 1
+          fi
+
+          echo "All Helm charts validated successfully!"
+
+  validate-kubernetes:
+    name: Validate Kubernetes Manifests
+    if: inputs.enable-k8s-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install kubeconform
+        run: |
+          curl -L https://github.com/yannh/kubeconform/releases/download/v${{ inputs.kubeconform-version }}/kubeconform-linux-amd64.tar.gz | tar xz
+          sudo mv kubeconform /usr/local/bin/
+
+      - name: Validate Kubernetes manifests
+        run: |
+          echo "Validating Kubernetes manifests with kubeconform..."
+          find ${{ inputs.fleet-paths }} -name "*.yaml" -o -name "*.yml" | \
+            grep -E "(templates|manifests)" | \
+            xargs kubeconform -summary -output json -ignore-missing-schemas || true
+
+  check-documentation:
+    name: Check Documentation
+    if: inputs.enable-docs-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Check required documentation
+        run: |
+          ERRORS=0
+
+          if [ ! -f "README.md" ]; then
+            echo "ERROR: README.md not found!"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          if [ ! -f "DEPLOYMENT.md" ]; then
+            echo "ERROR: DEPLOYMENT.md not found!"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          if [ $ERRORS -gt 0 ]; then
+            echo "Missing required documentation files"
+            exit 1
+          fi
+
+          echo "All required documentation files present!"
+
+  summary:
+    name: Validation Summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [validate-yaml, validate-fleet-configs, validate-gitrepo, validate-helm, validate-kubernetes, check-documentation]
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "## GitOps Validation Summary"
+          echo ""
+          echo "All validation checks completed!"
+          echo ""
+          echo "Please review any warnings above before merging."

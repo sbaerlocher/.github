@@ -109,14 +109,8 @@ jobs:
       - name: Determine what should run
         id: should-run
         run: |
-          # Always run on main, tags, or schedule
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]] || [[ "${{ github.ref }}" =~ ^refs/tags/v.* ]] || [[ "${{ github.event_name }}" == "schedule" ]]; then
-            echo "tests=true" >> "$GITHUB_OUTPUT"
-            echo "security=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "tests=true" >> "$GITHUB_OUTPUT"
-            echo "security=true" >> "$GITHUB_OUTPUT"
-          fi
+          echo "tests=true" >> "$GITHUB_OUTPUT"
+          echo "security=true" >> "$GITHUB_OUTPUT"
 
   quality-and-test:
     name: Test & Lint
@@ -510,27 +504,18 @@ jobs:
         run: |
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
           cat >> "$GITHUB_STEP_SUMMARY" << EOF
-          # JavaScript/TypeScript CI Summary
+          # CI — JavaScript/TypeScript
 
           **Timestamp:** $TIMESTAMP
+          **Repository:** ${{ github.repository }} @ ${{ github.ref_name }}
 
-          ## Test & Quality Results
-
-          | Component | Status |
-          |-----------|--------|
+          | Job | Status |
+          | --- | --- |
           | Quality & Tests | ${{ needs.quality-and-test.result }} |
           | Security Scan | ${{ needs.security-scan.result }} |
           | Dependency Review | ${{ needs.dependency-review.result }} |
 
-          ## Coverage
-
-          - **Test Coverage**: ${{ needs.quality-and-test.outputs.coverage }}
-
-          ## Configuration
-
-          - **Package Manager**: ${{ inputs.package-manager }}
-          - **Working Directory**: ${{ inputs.working-directory }}
-
-          ---
-          *CI completed for JavaScript/TypeScript project*
+          **Coverage:** ${{ needs.quality-and-test.outputs.coverage }}
+          **Package Manager:** ${{ inputs.package-manager }}
+          **Working Directory:** ${{ inputs.working-directory }}
           EOF

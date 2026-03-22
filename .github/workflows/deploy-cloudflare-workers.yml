@@ -157,12 +157,9 @@ jobs:
         if: always()
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" << 'EOF'
-          ## Worker Deployment: ${{ matrix.worker }}
+          ## Deploy — Cloudflare Worker: ${{ matrix.worker }}
 
-          **Status**: ${{ job.status }}
-          **Package Manager**: ${{ inputs.package-manager }}
-          **Wrangler Version**: ${{ inputs.wrangler-version }}
-
-          ---
-          *Deployed to Cloudflare Workers*
+          **Status:** ${{ job.status }}
+          **Package Manager:** ${{ inputs.package-manager }}
+          **Wrangler Version:** ${{ inputs.wrangler-version }}
           EOF

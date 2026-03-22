@@ -111,14 +111,8 @@ jobs:
       - name: Determine what should run
         id: should-run
         run: |
-          # Always run on main, tags, or schedule
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]] || [[ "${{ github.ref }}" =~ ^refs/tags/v.* ]] || [[ "${{ github.event_name }}" == "schedule" ]]; then
-            echo "tests=true" >> "$GITHUB_OUTPUT"
-            echo "security=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "tests=true" >> "$GITHUB_OUTPUT"
-            echo "security=true" >> "$GITHUB_OUTPUT"
-          fi
+          echo "tests=true" >> "$GITHUB_OUTPUT"
+          echo "security=true" >> "$GITHUB_OUTPUT"
 
       - name: Get version
         id: version

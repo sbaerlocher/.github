@@ -255,53 +255,20 @@ jobs:
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
 
           cat >> "$GITHUB_STEP_SUMMARY" << EOF
-          # 🔒 Dependencies & License Compliance Report
+          # Security — Dependencies & Licenses
 
           **Timestamp:** $TIMESTAMP
           **Language:** ${{ inputs.language }}
-          **License Check:** ${{ inputs.enable-license-check && 'Enabled ✓' || 'Disabled' }}
-
-          ## Scan Results
+          **License Check:** ${{ inputs.enable-license-check && 'Enabled' || 'Disabled' }}
 
           | Component | Status |
-          |-----------|--------|
+          | --- | --- |
           | Dependency Review | ${{ needs.dependency-review.result }} |
           | Go Audit | ${{ needs.go-audit.result }} |
           | JavaScript Audit | ${{ needs.javascript-audit.result }} |
           | Python Audit | ${{ needs.python-audit.result }} |
 
-          ## Tools Used by Language
-
-          **Go:**
-          - govulncheck: Official Go vulnerability scanner
-          - go-licenses: Google license compliance tool
-
-          **JavaScript/TypeScript:**
-          - npm/pnpm/yarn/bun audit: Package vulnerability scanning
-          - license-checker: License compliance checker
-
-          **Python:**
-          - safety: Python dependency security scanner
-          - pip-licenses: Python license extractor
-
-          **All Languages:**
-          - GitHub Dependency Review: Native GitHub PR dependency analysis
-
-          ## Security Best Practices
-
-          - ✓ Keep dependencies up to date
-          - ✓ Use lock files (go.sum, package-lock.json, requirements.txt)
-          - ✓ Review dependency licenses before adoption
-          - ✓ Monitor security advisories
-          - ✓ Use Renovate/Dependabot for automated updates
-          - ✓ Avoid copyleft licenses in proprietary projects
-
-          ## License Configuration
-
           **Allowed Licenses:** \`${{ inputs.allowed-licenses }}\`
           **Denied Licenses:** \`${{ inputs.denied-licenses }}\`
           **Fail on Violation:** ${{ inputs.fail-on-license-violation }}
-
-          ---
-          *Dependency security and license compliance analysis completed*
           EOF

@@ -861,6 +861,242 @@ Examples:
 
 ---
 
+## GitHub Repository Configuration
+
+All repositories must be configured consistently. Use the `gh` CLI or GitHub API to apply settings
+programmatically.
+
+### General Repository Settings
+
+```bash
+gh repo edit {owner}/{repo} \
+  --delete-branch-on-merge \
+  --enable-squash-merge \
+  --enable-auto-merge
+
+# gh repo edit has no --disable flags for merge types — use the API directly
+gh api repos/{owner}/{repo} --method PATCH \
+  --field allow_merge_commit=false \
+  --field allow_rebase_merge=false
+```
+
+| Setting | Value | Reason |
+| ----------------------- | ------------- | ---------------------------------------- |
+| Delete branch on merge | Yes | Keeps branch list clean |
+| Squash merge | Yes (default) | Clean, linear commit history |
+| Merge commits | No | Squash preferred |
+| Rebase merge | No | Squash preferred |
+| Auto-merge | Enabled | Required for Renovate auto-merge to work |
+
+**Exception:** GitOps/Infrastructure repos (`applications`, `infrastructure`) may prefer rebase merge
+to preserve individual commit messages for auditability.
+
+---
+
+### GITHUB_TOKEN Default Permissions
+
+**Set repository-level default to read-only.** Workflows must explicitly request write permissions.
+This limits blast radius if a workflow is compromised.
+
+```bash
+gh api repos/{owner}/{repo} --method PATCH \
+  --field default_workflow_permissions=read \
+  --field can_approve_pull_request_reviews=false
+```
+
+Workflows that need write access declare it explicitly:
+
+```yaml
+permissions:
+  contents: write      # only if needed (e.g. release)
+  pull-requests: write # only if needed (e.g. claude-code-review)
+```
+
+**Anti-pattern (avoid):**
+
+```yaml
+# ❌ WRONG — grants full write to all resources
+permissions: write-all
+```
+
+---
+
+### Branch Protection — Repository Rulesets
+
+Use **Repository Rulesets** (modern replacement for classic branch protection rules).
+
+**Required rules for the `main` branch:**
+
+| Rule | Setting | Reason |
+| ------------------------------------ | ----------------------- | --------------------------------------- |
+| Restrict deletions | Block | Protect main from accidental deletion |
+| Block force pushes | Block | Protect commit history |
+| Require pull request before merging | Yes | All changes via PR |
+| Required approving reviews | 0 (personal) / 1 (team) | Flexible per project |
+| Dismiss stale reviews on push | Yes (team repos) | Re-review after new commits |
+| Require status checks to pass | Yes | CI must be green before merge |
+| Require branches to be up to date | Yes | No merges on stale branches |
+
+**Bypass actors:** By default no bypass list — admins are also bound by the ruleset. Add bypass
+actors only when automation requires it (e.g. release bots), and document the reason.
+
+**Configure via `gh` CLI (personal repo):**
+
+```bash
+gh api repos/{owner}/{repo}/rulesets --method POST --input - <<'EOF'
+{
+  "name": "main-branch-protection",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [],
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/main"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 0,
+        "dismiss_stale_reviews_on_push": false,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": false
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "required_status_checks": [
+          { "context": "ci" }
+        ]
+      }
+    }
+  ]
+}
+EOF
+```
+
+**For team repos** (set `required_approving_review_count: 1` and `dismiss_stale_reviews_on_push:
+true`):
+
+```json
+{
+  "type": "pull_request",
+  "parameters": {
+    "required_approving_review_count": 1,
+    "dismiss_stale_reviews_on_push": true,
+    "require_code_owner_review": true,
+    "require_last_push_approval": false,
+    "required_review_thread_resolution": true
+  }
+}
+```
+
+---
+
+### Required Status Check Context Format
+
+The `context` value must **exactly** match the string GitHub shows in the Check Suite. The format
+depends on how the workflow is called:
+
+| Workflow type | Context format | Example |
+| -------------------- | ----------------------- | ----------------------- |
+| Direct job | `<job-id>` | `ci` |
+| Reusable workflow | `<caller-job> / <job>` | `ci / terraform` |
+| Matrix job | `<job-id> (<matrix>)` | `ci (ubuntu-latest)` |
+
+**Verify the exact string** by opening a PR and checking the "Checks" tab before adding it as a
+required check.
+
+**Required checks by repo type:**
+
+| Repo Type | Required Checks |
+| --------------------- | --------------- |
+| Software / Packages | `ci` |
+| Infrastructure (IaC) | `ci` |
+| GitOps | `ci` |
+
+**Never add as required checks:**
+
+- `security` — runs on weekly schedule, would block all PRs
+- `drift` — runs on weekly schedule, would block all PRs
+
+---
+
+### Full Setup Script
+
+For consistent setup when creating a new repository:
+
+```bash
+#!/usr/bin/env bash
+# Usage: ./scripts/setup-repo.sh <owner/repo>
+set -euo pipefail
+
+REPO=$1
+
+# General settings
+gh repo edit "$REPO" \
+  --delete-branch-on-merge \
+  --enable-squash-merge \
+  --enable-auto-merge
+
+gh api "repos/$REPO" --method PATCH \
+  --field allow_merge_commit=false \
+  --field allow_rebase_merge=false
+
+# GITHUB_TOKEN: read-only by default
+gh api "repos/$REPO" --method PATCH \
+  --field default_workflow_permissions=read \
+  --field can_approve_pull_request_reviews=false
+
+# Branch ruleset
+gh api "repos/$REPO/rulesets" --method POST --input - <<'EOF'
+{
+  "name": "main-branch-protection",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [],
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/main"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 0,
+        "dismiss_stale_reviews_on_push": false,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": false
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "required_status_checks": [
+          { "context": "ci" }
+        ]
+      }
+    }
+  ]
+}
+EOF
+```
+
+---
+
 ## Secret Management
 
 **CRITICAL**: Secrets must NEVER be committed to Git.

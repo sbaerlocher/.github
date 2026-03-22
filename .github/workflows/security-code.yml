@@ -185,28 +185,14 @@ jobs:
           fi
 
           cat >> "$GITHUB_STEP_SUMMARY" << EOF
-          # 🔒 Code Security Analysis (SAST)
+          # Security — Code Analysis (SAST)
 
           **Language:** ${{ matrix.language }}
           **Status:** ${{ job.status }}
           **Timestamp:** $TIMESTAMP
 
-          ## Analysis Details
-
-          - **Query Suites**: ${{ inputs.queries }}
-          - **Package Manager**: ${{ steps.detect-pm.outputs.manager || 'N/A' }}
-          - **Paths Ignored**: ${{ inputs.paths-ignore }}
-          - **Results**: ${RESULTS_INFO}
-
-          ## Security Coverage
-
-          CodeQL performs static application security testing (SAST) to identify:
-
-          - 🔍 Security vulnerabilities (SQL injection, XSS, etc.)
-          - 📊 Code quality issues
-          - 🐛 Common coding mistakes
-          - ⚠️  Potential bugs and anti-patterns
-
-          ---
-          *${RESULTS_INFO}*
+          **Query Suite:** ${{ inputs.queries }}
+          **Package Manager:** ${{ steps.detect-pm.outputs.manager || 'N/A' }}
+          **Paths Ignored:** ${{ inputs.paths-ignore }}
+          **Results:** ${RESULTS_INFO}
           EOF
