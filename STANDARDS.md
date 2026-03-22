@@ -880,13 +880,13 @@ gh api repos/{owner}/{repo} --method PATCH \
   --field allow_rebase_merge=false
 ```
 
-| Setting | Value | Reason |
-| ----------------------- | ------------- | ---------------------------------------- |
-| Delete branch on merge | Yes | Keeps branch list clean |
-| Squash merge | Yes (default) | Clean, linear commit history |
-| Merge commits | No | Squash preferred |
-| Rebase merge | No | Squash preferred |
-| Auto-merge | Enabled | Required for Renovate auto-merge to work |
+| Setting                | Value         | Reason                                   |
+| ---------------------- | ------------- | ---------------------------------------- |
+| Delete branch on merge | Yes           | Keeps branch list clean                  |
+| Squash merge           | Yes (default) | Clean, linear commit history             |
+| Merge commits          | No            | Squash preferred                         |
+| Rebase merge           | No            | Squash preferred                         |
+| Auto-merge             | Enabled       | Required for Renovate auto-merge to work |
 
 **Exception:** GitOps/Infrastructure repos (`applications`, `infrastructure`) may prefer rebase merge
 to preserve individual commit messages for auditability.
@@ -908,7 +908,7 @@ Workflows that need write access declare it explicitly:
 
 ```yaml
 permissions:
-  contents: write      # only if needed (e.g. release)
+  contents: write # only if needed (e.g. release)
   pull-requests: write # only if needed (e.g. claude-code-review)
 ```
 
@@ -927,15 +927,15 @@ Use **Repository Rulesets** (modern replacement for classic branch protection ru
 
 **Required rules for the `main` branch:**
 
-| Rule | Setting | Reason |
-| ------------------------------------ | ----------------------- | --------------------------------------- |
-| Restrict deletions | Block | Protect main from accidental deletion |
-| Block force pushes | Block | Protect commit history |
-| Require pull request before merging | Yes | All changes via PR |
-| Required approving reviews | 0 (personal) / 1 (team) | Flexible per project |
-| Dismiss stale reviews on push | Yes (team repos) | Re-review after new commits |
-| Require status checks to pass | Yes | CI must be green before merge |
-| Require branches to be up to date | Yes | No merges on stale branches |
+| Rule                                | Setting                 | Reason                                |
+| ----------------------------------- | ----------------------- | ------------------------------------- |
+| Restrict deletions                  | Block                   | Protect main from accidental deletion |
+| Block force pushes                  | Block                   | Protect commit history                |
+| Require pull request before merging | Yes                     | All changes via PR                    |
+| Required approving reviews          | 0 (personal) / 1 (team) | Flexible per project                  |
+| Dismiss stale reviews on push       | Yes (team repos)        | Re-review after new commits           |
+| Require status checks to pass       | Yes                     | CI must be green before merge         |
+| Require branches to be up to date   | Yes                     | No merges on stale branches           |
 
 **Bypass actors:** By default no bypass list — admins are also bound by the ruleset. Add bypass
 actors only when automation requires it (e.g. release bots), and document the reason.
@@ -1005,22 +1005,27 @@ true`):
 The `context` value must **exactly** match the string GitHub shows in the Check Suite. The format
 depends on how the workflow is called:
 
-| Workflow type | Context format | Example |
-| -------------------- | ----------------------- | ----------------------- |
-| Direct job | `<job-id>` | `ci` |
-| Reusable workflow | `<caller-job> / <job>` | `ci / terraform` |
-| Matrix job | `<job-id> (<matrix>)` | `ci (ubuntu-latest)` |
+| Workflow type     | Context format         | Example              |
+| ----------------- | ---------------------- | -------------------- |
+| Direct job        | `<job-id>`             | `ci`                 |
+| Reusable workflow | `<caller-job> / <job>` | `ci / terraform`     |
+| Matrix job        | `<job-id> (<matrix>)`  | `ci (ubuntu-latest)` |
 
 **Verify the exact string** by opening a PR and checking the "Checks" tab before adding it as a
 required check.
 
 **Required checks by repo type:**
 
-| Repo Type | Required Checks |
-| --------------------- | --------------- |
-| Software / Packages | `ci` |
-| Infrastructure (IaC) | `ci` |
-| GitOps | `ci` |
+| Repo Type                 | Required Checks | Notes                                    |
+| ------------------------- | --------------- | ---------------------------------------- |
+| Software / Packages       | `ci`            | Has `ci.yml` with `pull_request` trigger |
+| Infrastructure (IaC)      | `ci`            | Has `ci.yml` with `pull_request` trigger |
+| GitOps                    | `ci`            | Has `ci.yml` with `pull_request` trigger |
+| Reusable workflow library | —               | No PR-triggered workflow → omit the rule |
+
+**Only add `required_status_checks` if the repo has a workflow with a direct `pull_request`
+trigger.** Repos that only contain `workflow_call` workflows (e.g. `.github`) must omit this rule —
+the check would never run and block every PR.
 
 **Never add as required checks:**
 

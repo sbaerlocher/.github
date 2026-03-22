@@ -291,7 +291,15 @@ jobs:
     name: Validation Summary
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [validate-yaml, validate-fleet-configs, validate-gitrepo, validate-helm, validate-kubernetes, check-documentation]
+    needs:
+      [
+        validate-yaml,
+        validate-fleet-configs,
+        validate-gitrepo,
+        validate-helm,
+        validate-kubernetes,
+        check-documentation,
+      ]
     if: always()
     steps:
       - name: Summary
