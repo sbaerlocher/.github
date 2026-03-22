@@ -1,18 +1,10 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "Base Renovate configuration for sbaerlocher repositories",
-  "extends": [
-    "config:best-practices",
-    ":dependencyDashboard",
-    ":semanticCommitTypeAll(chore)"
-  ],
-  "schedule": [
-    "before 6am"
-  ],
+  "extends": ["config:best-practices", ":dependencyDashboard", ":semanticCommitTypeAll(chore)"],
+  "schedule": ["before 6am"],
   "timezone": "Europe/Zurich",
-  "labels": [
-    "dependencies"
-  ],
+  "labels": ["dependencies"],
   "assigneesFromCodeOwners": true,
   "reviewersFromCodeOwners": true,
   "prConcurrentLimit": 5,
@@ -28,44 +20,27 @@
   "rangeStrategy": "bump",
   "minimumReleaseAge": "3 days",
   "configMigration": true,
-  "postUpdateOptions": [
-    "gomodTidy",
-    "npmDedupe",
-    "pnpmDedupe"
-  ],
+  "postUpdateOptions": ["gomodTidy", "npmDedupe", "pnpmDedupe"],
   "commitMessageAction": "Update",
   "commitMessagePrefix": "chore(deps): ",
   "commitMessageTopic": "{{depName}}",
   "commitMessageExtra": "to {{#if isPinDigest}}{{{newDigestShort}}}{{else}}{{#if isMajor}}{{prettyNewMajor}}{{else}}{{#if isSingleVersion}}{{prettyNewVersion}}{{else}}{{#if newValue}}{{{newValue}}}{{else}}{{{newDigestShort}}}{{/if}}{{/if}}{{/if}}{{/if}}",
   "dependencyDashboardTitle": "Dependency Dashboard",
-  "dependencyDashboardLabels": [
-    "dependencies",
-    "renovate"
-  ],
+  "dependencyDashboardLabels": ["dependencies", "renovate"],
   "dependencyDashboardFooter": "Managed by Renovate Bot - [Documentation](https://docs.renovatebot.com/)",
   "packageRules": [
     {
       "description": "Automerge all non-major updates",
-      "matchUpdateTypes": [
-        "minor",
-        "patch",
-        "pin",
-        "digest"
-      ],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
       "groupName": "all non-major dependencies",
       "groupSlug": "all-non-major",
       "automerge": true
     },
     {
       "description": "Major updates require manual review",
-      "matchUpdateTypes": [
-        "major"
-      ],
+      "matchUpdateTypes": ["major"],
       "automerge": false,
-      "labels": [
-        "dependencies",
-        "major-update"
-      ],
+      "labels": ["dependencies", "major-update"],
       "prPriority": 10,
       "minimumReleaseAge": "7 days"
     },
@@ -76,9 +51,7 @@
     },
     {
       "description": "GitHub Actions - pin digests & automerge",
-      "matchManagers": [
-        "github-actions"
-      ],
+      "matchManagers": ["github-actions"],
       "groupName": "GitHub Actions",
       "pinDigests": true,
       "automerge": true,
@@ -87,13 +60,11 @@
     },
     {
       "description": "sbaerlocher/.github - date tags, no digest pinning, immediate merge",
-      "matchDepNames": [
-        "sbaerlocher/.github"
-      ],
+      "matchDepNames": ["sbaerlocher/.github"],
       "pinDigests": false,
       "versioning": "regex:^(?<major>\\d{4})-(?<minor>\\d{2})-(?<patch>\\d{2})$",
       "allowedVersions": "/^\\d{4}-\\d{2}-\\d{2}$/",
-      "minimumReleaseAge": "1 days",
+      "minimumReleaseAge": "1 day",
       "automerge": true
     }
   ],
@@ -102,15 +73,9 @@
   },
   "vulnerabilityAlerts": {
     "enabled": true,
-    "labels": [
-      "dependencies",
-      "security",
-      "priority-high"
-    ],
+    "labels": ["dependencies", "security", "priority-high"],
     "automerge": true,
-    "schedule": [
-      "at any time"
-    ],
+    "schedule": ["at any time"],
     "minimumReleaseAge": null,
     "semanticCommitType": "fix",
     "semanticCommitScope": "security"
@@ -140,9 +105,7 @@
         "/(^|/)\\.renovaterc\\.json$/",
         "/(^|/)\\.renovaterc$/"
       ],
-      "matchStrings": [
-        "github>sbaerlocher/\\.github[^\"]*#(?<currentValue>\\d{4}-\\d{2}-\\d{2})"
-      ],
+      "matchStrings": ["github>sbaerlocher/\\.github[^\"]*#(?<currentValue>\\d{4}-\\d{2}-\\d{2})"],
       "depNameTemplate": "sbaerlocher/.github",
       "datasourceTemplate": "github-tags",
       "versioningTemplate": "regex:^(?<major>\\d{4})-(?<minor>\\d{2})-(?<patch>\\d{2})$"

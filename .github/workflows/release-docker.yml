@@ -183,17 +183,17 @@ jobs:
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
           image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
-          format: "sarif"
-          output: "trivy-image.sarif"
-          severity: "HIGH,CRITICAL"
+          format: 'sarif'
+          output: 'trivy-image.sarif'
+          severity: 'HIGH,CRITICAL'
         continue-on-error: true
 
       - name: Upload Trivy SARIF
         if: inputs.enable-trivy-scan && inputs.enable-sarif-upload
         uses: github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc # v4
         with:
-          sarif_file: "trivy-image.sarif"
-          category: "trivy-image"
+          sarif_file: 'trivy-image.sarif'
+          category: 'trivy-image'
         continue-on-error: true
 
       - name: Image build summary

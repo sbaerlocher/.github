@@ -75,7 +75,7 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ### Changed
 
-- **renovate-*.json**: Migrate deprecated options and simplify all 6 presets (#15)
+- **renovate-\*.json**: Migrate deprecated options and simplify all 6 presets (#15)
   - `stabilityDays` → `minimumReleaseAge` (26 occurrences across all presets)
   - `matchPackagePrefixes` → `matchPackageNames` with glob syntax (renovate-go.json)
   - `matchPackagePatterns` → `matchPackageNames` with regex syntax (renovate-js.json, renovate-docker.json)
