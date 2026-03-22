@@ -71,7 +71,7 @@
       "description": "Fleet Helm Charts in fleet.yaml (standard HTTP repos)",
       "managerFilePatterns": ["/(^|/)fleet\\.ya?ml$/"],
       "matchStrings": [
-        "repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?[\\s\\S]*?chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?[\\s\\S]*?version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?"
+        "repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?(?:[^r]|r[^e]|re[^p]|rep[^o]|repo[^:])*?chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?(?:[^r]|r[^e]|re[^p]|rep[^o]|repo[^:])*?version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?"
       ],
       "datasourceTemplate": "helm"
     },
