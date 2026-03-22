@@ -8,10 +8,14 @@ on:
         type: string
         default: 'pnpm'
         description: 'Package manager to use (npm, pnpm, yarn, bun)'
+      node-version:
+        type: string
+        default: ''
+        description: 'Node.js version to use (overrides node-version-file when set)'
       node-version-file:
         type: string
         default: '.nvmrc'
-        description: 'Node version file path'
+        description: 'Node version file path (used when node-version is not set)'
       working-directory:
         type: string
         default: '.'
@@ -128,6 +132,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
+          node-version: ${{ inputs.node-version }}
           node-version-file: ${{ inputs.node-version-file }}
 
       - name: Setup pnpm
@@ -382,6 +387,7 @@ jobs:
         if: matrix.scanner == 'dependency-audit'
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
+          node-version: ${{ inputs.node-version }}
           node-version-file: ${{ inputs.node-version-file }}
 
       - name: Setup pnpm

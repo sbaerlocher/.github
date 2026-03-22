@@ -17,6 +17,27 @@ This is a rolling release - changes are deployed continuously to `main`.
   - Validates YAML syntax, Fleet bundle configuration, and Kubernetes manifests
   - Checks `fleet.yaml` presence, Helm chart structure, and HelmRelease CRD usage
   - Consolidates all GitOps CI checks that were previously implemented locally per consumer repo
+- **ci-js.yml**: Add `node-version` input for explicit Node.js version selection
+  - Callers can now pass a specific version (`node-version: '20'`) to enable matrix testing
+  - Falls back to `node-version-file` (`.nvmrc`) when not set — fully backwards compatible
+
+### Fixed
+
+- **ai-claude-review.yml**: Enable inline comments in code review (#32)
+  - Remove `track_progress: true` which forced single-comment mode
+  - Add `classify_inline_comments: 'false'` to post inline comments immediately
+- **ai-claude-review.yml**: Add `Task`, `Agent`, `Read`, `Glob`, `Grep` to `allowedTools` (#33)
+  - The `code-review` plugin spawns parallel sub-agents and reads CLAUDE.md files
+  - Missing tools caused 4 permission denials per run, preventing inline comment posting
+- **ai-claude-review.yml**: Increase `--max-turns` from 30 to 100 (#34)
+  - Sub-agent workflow requires significantly more turns than single-agent mode
+- **renovate-kubernetes.json**: Replace RE2-incompatible lookahead in Fleet Helm chart regex (#35)
+  - `(?:(?!repo:)[\s\S])*?` used a negative lookahead unsupported by RE2
+  - Replaced with RE2-safe alternation `(?:[^r]|r[^e]|re[^p]|rep[^o]|repo[^:])*?`
+  - Preserves cross-block boundary guard without requiring lookahead support
+- **SETUP.md**: Clarify branch ruleset status check context format (#36)
+  - GitHub uses the job `name:` field, not the job ID, for context strings
+  - Reusable workflows show as `caller job name / job name`, not `caller-job / job`
 
 ### Removed
 
