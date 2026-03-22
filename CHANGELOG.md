@@ -6,6 +6,66 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-03-22
+
+### Added
+
+- **REVIEW.md**: Code review guidelines for this repository — required standard for all repos
+- **SETUP.md**: GitHub repository setup commands, branch ruleset JSON, and full setup script
+  (extracted from STANDARDS.md to keep standards focused on rules, not procedures)
+- **ci-gitops.yml**: New reusable workflow for GitOps/Fleet validation
+  - Validates YAML syntax, Fleet bundle configuration, and Kubernetes manifests
+  - Checks `fleet.yaml` presence, Helm chart structure, and HelmRelease CRD usage
+  - Consolidates all GitOps CI checks that were previously implemented locally per consumer repo
+
+### Removed
+
+- **drift-terraform.yml**: Deleted — was a pure wrapper around `deploy-terraform.yml` with `mode: drift`
+  - No functional difference; consumer repos call `deploy-terraform.yml` directly with `mode: drift`
+- **docs-terraform.yml**: Deleted — consumer repos implement `terraform-docs` locally
+- **helm-test.yml**: Deleted — covered by `ci-gitops.yml` and `e2e-docker.yml`
+- **notify-deployment.yml**: Deleted — non-generic Slack notification with hardcoded assumptions
+- **ops-drift-detection.yml**: Deleted — superseded by `deploy-terraform.yml` with `mode: drift`
+- **ops-sync-secrets.yml**: Deleted — Bitwarden → Cloudflare Workers secret sync was too repo-specific
+- **quality-benchmarks.yml**: Deleted — benchmark CI was not consumed by any active repo
+- **security-supply-chain.yml**: Deleted — SBOM generation and Cosign signing moved to `security-sbom.yml`
+
+### Changed
+
+- **ci-terraform.yml**: Remove `tfsec` job and `enable-tfsec` input
+  - Security scanning belongs in dedicated `security-config.yml`, not in CI
+  - Reduces CI scope to validation only (fmt, validate, tflint, docs check)
+- **ai-claude-review.yml**, **ai-claude.yml**: Add `id-token: write` permission
+  - Required for OIDC token fetching by `anthropics/claude-code-action`
+  - Without it, the action fails: "Could not fetch an OIDC token"
+- **Step summaries** (9 workflows): Refactor to runtime-result-only format
+  - Removed boilerplate sections ("Tools Used", "Best Practices", "Security Coverage")
+  - Each summary now contains: timestamp, repository context, status table, key config values
+  - Affected: `ci-js.yml`, `security-config.yml`, `security-containers.yml`, `security-code.yml`,
+    `security-deps.yml`, `security-secrets.yml`, `release-npm.yml`, `release-docker.yml`,
+    `deploy-cloudflare-workers.yml`
+- **STANDARDS.md**: Rewritten from 1549 → ~280 lines
+  - Removed long YAML/JSON examples, "Why?" explanations, Kubernetes/Monitoring details
+  - Removed `.claude/commands/` section — custom commands are no longer a standard requirement
+  - Added `REVIEW.md` as required file for all repositories
+  - Moved GitHub setup commands and branch ruleset JSON to new `SETUP.md`
+  - Kept: required files table, workflow matrix, SHA pinning rule, commit format, Renovate
+    preset mapping, secret rules, code quality table
+- **AGENTS.md**: Sync workflow categories with actual files
+  - Removed deleted workflows (`ops-drift-detection.yml`, `ops-sync-secrets.yml`)
+  - Added missing AI workflows section (`ai-claude-review.yml`, `ai-claude.yml`)
+  - Shortened workflow table file columns to filename-only
+  - Added `REVIEW.md` and `SETUP.md` to repo structure and related documentation
+- **renovate-docker.json**: Add `minimumReleaseAge: "5 days"` to additional image groups
+
+### Dependencies
+
+- **GitHub Actions** (PR #29): Update SHA digests
+  - `security-containers.yml`: `aquasecurity/trivy-action` SHA update
+  - `security-sbom.yml`: `anchore/sbom-action` and `sigstore/cosign-installer` SHA updates
+
+---
+
 ## 2026-03-21
 
 ### Changed
