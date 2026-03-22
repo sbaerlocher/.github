@@ -38,7 +38,7 @@ jobs:
       # Container Image SBOM
       - name: Generate SBOM for container image
         if: inputs.artifact-type == 'container'
-        uses: anchore/sbom-action@57aae528053a48a3f6235f2d9461b05fbcb7366d # v0.23.1
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
         with:
           image: ${{ inputs.artifact-ref }}
           format: ${{ inputs.sbom-format }}
@@ -47,7 +47,7 @@ jobs:
       # Filesystem SBOM
       - name: Generate SBOM for filesystem
         if: inputs.artifact-type == 'filesystem'
-        uses: anchore/sbom-action@57aae528053a48a3f6235f2d9461b05fbcb7366d # v0.23.1
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
         with:
           path: ${{ inputs.artifact-ref }}
           format: ${{ inputs.sbom-format }}
