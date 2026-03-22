@@ -80,6 +80,7 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
         run: |
           npm install -g @cyclonedx/cyclonedx-npm
+          npm ci
           cyclonedx-npm --output-file ../sbom-${{ inputs.artifact-type }}.json
 
       # Validate and upload SBOM
