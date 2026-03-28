@@ -6,6 +6,21 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-03-28
+
+### Changed
+
+- **ai-claude-review.yml**: Add two-phase review mode — full review on first pass,
+  follow-up replies on subsequent pushes (#44)
+  - Add `synchronize` to trigger types so the workflow re-runs when new commits are pushed to an open PR
+  - On first run (no previous `claude[bot]` comments): runs full `/code-review --comment` with detailed inline comments
+  - On follow-up runs (previous comments exist): fetches own comments and replies to each one via
+    `gh api repos/.../pulls/comments/<id>/replies` — marking issues as resolved or still open
+  - `mcp__github_inline_comment__create_inline_comment` does not support `in_reply_to`; replies use `gh api` directly
+  - Added `gh api repos/*/pulls/*/comments*` and `gh api repos/*/pulls/comments*` to `allowedTools`
+
+---
+
 ## 2026-03-22
 
 ### Added
