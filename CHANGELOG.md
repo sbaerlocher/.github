@@ -12,6 +12,12 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 - **ai-claude-review.yml**: Add two-phase review mode — full review on first pass,
   follow-up replies on subsequent pushes (#44)
+- **ai-claude-review.yml**: Add automatic PR approval and thread resolution after follow-up review (#45)
+  - When all previously raised issues are resolved: approves the PR and resolves all review threads
+  - When any issue is still open: no approval, threads remain unresolved
+  - PR approval via `gh pr review --approve`
+  - Thread resolution via GitHub GraphQL `resolveReviewThread` mutation
+  - Added `Bash(gh pr review:*)` and `Bash(gh api graphql:*)` to `allowedTools`
   - Add `synchronize` to trigger types so the workflow re-runs when new commits are pushed to an open PR
   - On first run (no previous `claude[bot]` comments): runs full `/code-review --comment` with detailed inline comments
   - On follow-up runs (previous comments exist): fetches own comments and replies to each one via

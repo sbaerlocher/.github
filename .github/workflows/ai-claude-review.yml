@@ -42,7 +42,7 @@ jobs:
           claude_args: |
             --max-turns 100
             --model claude-opus-4-6
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Task,Agent,Read,Glob,Grep,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh pr checks:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),Bash(git log:*),Bash(gh api repos/*/pulls/*/comments*),Bash(gh api repos/*/pulls/comments*)"
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Task,Agent,Read,Glob,Grep,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh pr checks:*),Bash(gh pr review:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),Bash(git log:*),Bash(gh api repos/*/pulls/*/comments*),Bash(gh api repos/*/pulls/comments*),Bash(gh api graphql:*)"
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
@@ -83,3 +83,36 @@ jobs:
                - **Still open** — explain what is still missing or incorrect
 
             4. Only add new inline comments (via the MCP tool) for issues not covered in your previous review
+
+            5. After replying to all previous comments, check whether all issues are now resolved:
+               - If ALL issues are resolved: approve the PR and resolve all review threads
+               - If ANY issue is still open: do NOT approve, leave the threads unresolved
+
+               Approve the PR:
+               ```
+               gh pr review ${{ github.event.pull_request.number }} --approve --body "All raised issues have been addressed."
+               ```
+
+               Resolve each thread via GraphQL (get thread IDs first, then resolve each):
+               ```
+               gh api graphql -f query='
+                 query {
+                   repository(owner: "${{ github.repository_owner }}", name: "${{ github.event.repository.name }}") {
+                     pullRequest(number: ${{ github.event.pull_request.number }}) {
+                       reviewThreads(first: 100) {
+                         nodes { id isResolved }
+                       }
+                     }
+                   }
+                 }
+               '
+               ```
+               ```
+               gh api graphql -f query='
+                 mutation {
+                   resolveReviewThread(input: {threadId: "<THREAD_ID>"}) {
+                     thread { isResolved }
+                   }
+                 }
+               '
+               ```
