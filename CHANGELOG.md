@@ -6,6 +6,19 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-04-09
+
+### Changed
+
+- **renovate-js.json**: Remove `enabledManagers` restriction
+  - Previously limited managers to `npm`, `nvm`, and `github-actions`
+  - Removing the restriction lets JS/TS repos inherit all managers from the base
+    preset (e.g., `dockerfile`, `docker-compose`), so non-JS files in JS repos are
+    also tracked by Renovate
+  - Package rules in this preset still scope JS-specific behavior correctly
+
+---
+
 ## 2026-03-28
 
 ### Changed
