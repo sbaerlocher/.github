@@ -6,6 +6,24 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-04-09
+
+### Fixed
+
+- **renovate-js.json**: Remove `enabledManagers` to fix silent allowlist clobbering
+  when multiple presets are extended
+  - `enabledManagers` is [non-mergeable by design](https://github.com/renovatebot/renovate/discussions/37059)
+    in Renovate — when multiple presets set it, the last one wins (no union)
+  - Consumers extending both `renovate-js` and `renovate-kubernetes` (e.g. a JS app
+    deployed via Helm) silently lost one allowlist depending on extends order
+  - Removing the allowlist here aligns `renovate-js.json` with `renovate-base.json`,
+    `renovate-docker.json`, and `renovate-go.json`, which already omit `enabledManagers`
+  - JS/TS scoping is already enforced via package rules in this preset
+  - Note: `renovate-kubernetes.json` and `renovate-terraform.json` still define
+    `enabledManagers` — this is intentional for now and tracked separately
+
+---
+
 ## 2026-03-28
 
 ### Changed

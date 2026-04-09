@@ -2,7 +2,6 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "JavaScript/TypeScript Renovate configuration for Node.js, pnpm, Astro, Vue, Cloudflare Workers",
   "extends": ["github>sbaerlocher/.github:renovate-base#main", ":preserveSemverRanges"],
-  "enabledManagers": ["npm", "nvm", "github-actions"],
   "packageRules": [
     {
       "description": "Node.js version updates - higher stability",
