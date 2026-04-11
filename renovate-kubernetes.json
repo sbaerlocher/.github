@@ -18,12 +18,15 @@
   },
   "packageRules": [
     {
-      "description": "Group Helm chart updates",
+      "description": "Group Helm chart updates. Strip major-N- prefix so co-dependent chart majors share one branch/PR.",
       "matchManagers": ["helm-values", "helmfile"],
       "matchDatasources": ["helm"],
       "groupName": "Helm charts",
       "semanticCommitScope": "helm",
-      "minimumReleaseAge": "5 days"
+      "minimumReleaseAge": "5 days",
+      "major": {
+        "additionalBranchPrefix": ""
+      }
     },
     {
       "description": "Container images - pin digests for production",

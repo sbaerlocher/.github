@@ -23,7 +23,7 @@
       "semanticCommitScope": "deps"
     },
     {
-      "description": "Go platform packages - gRPC, Kubernetes, Prometheus",
+      "description": "Go platform packages - gRPC, Kubernetes, Prometheus. Strip major-N- prefix so co-dependent k8s.io/* + sigs.k8s.io/* majors share one branch/PR.",
       "matchManagers": ["gomod"],
       "matchPackageNames": [
         "google.golang.org/**",
@@ -35,7 +35,10 @@
       "groupName": "Go platform packages",
       "semanticCommitScope": "platform",
       "minimumReleaseAge": "7 days",
-      "labels": ["platform"]
+      "labels": ["platform"],
+      "major": {
+        "additionalBranchPrefix": ""
+      }
     },
     {
       "description": "Go dev tooling - testing, linting, build tools",

@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "JavaScript/TypeScript Renovate configuration for Node.js, pnpm, Astro, Vue, Cloudflare Workers",
-  "extends": ["github>sbaerlocher/.github:renovate-base#main", ":preserveSemverRanges"],
+  "extends": ["github>sbaerlocher/.github:renovate-base#main"],
   "packageRules": [
     {
       "description": "Node.js version updates - higher stability",
@@ -25,88 +25,145 @@
       "labels": ["typescript"]
     },
     {
-      "description": "Code quality tools - ESLint and Prettier",
+      "description": "Code quality tools - ESLint, typescript-eslint and Prettier (must bump together due to peer deps). Strip major-N- prefix so co-dependent majors share one branch/PR.",
       "groupName": "Code quality tools",
       "semanticCommitScope": "lint",
       "matchPackageNames": [
-        "/^eslint/",
-        "/^@eslint//",
+        "/^eslint$/",
         "/^eslint-/",
-        "/^prettier/",
-        "/^@prettier//"
-      ]
+        "/^@eslint\\//",
+        "/^typescript-eslint$/",
+        "/^@typescript-eslint\\//",
+        "/^prettier$/",
+        "/^@prettier\\//"
+      ],
+      "major": {
+        "additionalBranchPrefix": ""
+      }
     },
     {
-      "description": "Testing tools - Vitest and Jest",
-      "groupName": "Testing tools",
+      "description": "Jest testing framework",
+      "groupName": "Jest",
       "semanticCommitScope": "test",
-      "matchPackageNames": ["/^vitest/", "/^@vitest//", "/^jest/", "/^@jest//"]
+      "matchPackageNames": ["/^jest$/", "/^jest-/", "/^@jest\\//", "/^ts-jest$/", "/^babel-jest$/"]
     },
     {
-      "description": "Group Vite packages",
-      "groupName": "Vite packages",
+      "description": "Build tooling - Vite + Vitest must bump together (peerDependency vite). Strip major-N- prefix so co-dependent majors share one branch/PR. 14 days release age for extra stability on ecosystem churn.",
+      "groupName": "Build tooling (Vite + Vitest)",
       "semanticCommitScope": "build",
-      "matchPackageNames": ["/^vite/", "/^@vitejs//"]
+      "minimumReleaseAge": "14 days",
+      "labels": ["build-tooling"],
+      "matchPackageNames": [
+        "/^vite$/",
+        "/^vite-/",
+        "/^@vitejs\\//",
+        "/^vitest$/",
+        "/^@vitest\\//",
+        "/^rollup$/",
+        "/^@rollup\\//"
+      ],
+      "major": {
+        "additionalBranchPrefix": ""
+      }
     },
     {
-      "description": "Group Astro packages",
+      "description": "Group Astro packages - core, integrations and adapters (peer deps on astro). Strip major-N- prefix so co-dependent majors share one branch/PR.",
       "groupName": "Astro packages",
       "semanticCommitScope": "astro",
       "minimumReleaseAge": "5 days",
       "labels": ["astro"],
-      "matchPackageNames": ["/^astro/", "/^@astrojs//"]
+      "matchPackageNames": ["/^astro$/", "/^astro-/", "/^@astrojs\\//"],
+      "major": {
+        "additionalBranchPrefix": ""
+      }
     },
     {
-      "description": "Group Vue packages",
+      "description": "Group Vue packages - vue core, ecosystem and vite plugin (peer deps on vue). Strip major-N- prefix so co-dependent majors share one branch/PR.",
       "groupName": "Vue packages",
       "semanticCommitScope": "vue",
       "minimumReleaseAge": "5 days",
       "labels": ["vue"],
-      "matchPackageNames": ["/^vue/", "/^@vue//"]
+      "matchPackageNames": [
+        "/^vue$/",
+        "/^vue-/",
+        "/^@vue\\//",
+        "/^pinia$/",
+        "/^@pinia\\//",
+        "/^@vitejs\\/plugin-vue/",
+        "/^@vue\\/eslint-config/"
+      ],
+      "major": {
+        "additionalBranchPrefix": ""
+      }
     },
     {
-      "description": "Group Svelte packages",
+      "description": "Group Svelte packages - svelte core, kit, and vite plugin (peer deps on svelte). Strip major-N- prefix so co-dependent majors share one branch/PR.",
       "groupName": "Svelte packages",
       "semanticCommitScope": "svelte",
       "minimumReleaseAge": "5 days",
       "labels": ["svelte"],
-      "matchPackageNames": ["/^svelte/", "/^@sveltejs//"]
+      "matchPackageNames": [
+        "/^svelte$/",
+        "/^svelte-/",
+        "/^@sveltejs\\//",
+        "/^@vitejs\\/plugin-svelte/"
+      ],
+      "major": {
+        "additionalBranchPrefix": ""
+      }
     },
     {
-      "description": "Group TailwindCSS packages",
+      "description": "Group TailwindCSS packages - core, plugins, postcss and vite integration. Strip major-N- prefix so co-dependent majors (v3→v4) share one branch/PR.",
       "groupName": "TailwindCSS packages",
       "semanticCommitScope": "tailwindcss",
-      "matchPackageNames": ["/^tailwindcss/", "/^@tailwindcss//"]
+      "matchPackageNames": ["/^tailwindcss$/", "/^tailwindcss-/", "/^@tailwindcss\\//"],
+      "major": {
+        "additionalBranchPrefix": ""
+      }
     },
     {
-      "description": "Group Cloudflare Workers packages",
+      "description": "Group Cloudflare Workers packages - wrangler and runtime types. Strip major-N- prefix so co-dependent majors share one branch/PR.",
       "groupName": "Cloudflare Workers packages",
       "semanticCommitScope": "workers",
       "labels": ["cloudflare"],
-      "matchPackageNames": ["/^@cloudflare//", "/^wrangler/"]
+      "matchPackageNames": ["/^@cloudflare\\//", "/^wrangler$/", "/^miniflare$/"],
+      "major": {
+        "additionalBranchPrefix": ""
+      }
     },
     {
-      "description": "Group Hono framework packages",
+      "description": "Group Hono framework packages. Strip major-N- prefix so co-dependent majors share one branch/PR.",
       "groupName": "Hono packages",
       "semanticCommitScope": "hono",
-      "matchPackageNames": ["/^hono/", "/^@hono//"]
+      "matchPackageNames": ["/^hono$/", "/^@hono\\//"],
+      "major": {
+        "additionalBranchPrefix": ""
+      }
     },
     {
-      "description": "Group GraphQL packages",
+      "description": "Group GraphQL packages - core, tools, codegen and apollo (must bump together). Strip major-N- prefix so co-dependent majors share one branch/PR.",
       "groupName": "GraphQL packages",
       "semanticCommitScope": "graphql",
       "matchPackageNames": [
-        "/^graphql/",
-        "/^@graphql-tools//",
-        "/^@graphql-codegen//",
-        "/^@apollo//"
-      ]
+        "/^graphql$/",
+        "/^graphql-/",
+        "/^@graphql-tools\\//",
+        "/^@graphql-codegen\\//",
+        "/^graphql-codegen-/",
+        "/^@apollo\\//"
+      ],
+      "major": {
+        "additionalBranchPrefix": ""
+      }
     },
     {
-      "description": "Group Turborepo",
+      "description": "Group Turborepo. Strip major-N- prefix so co-dependent majors share one branch/PR.",
       "groupName": "Turborepo",
       "semanticCommitScope": "turbo",
-      "matchPackageNames": ["turbo", "/^@turbo//"]
+      "matchPackageNames": ["/^turbo$/", "/^@turbo\\//"],
+      "major": {
+        "additionalBranchPrefix": ""
+      }
     },
     {
       "description": "Group pnpm package manager",
@@ -122,7 +179,7 @@
       "description": "Group @types packages",
       "groupName": "TypeScript definitions",
       "semanticCommitScope": "types",
-      "matchPackageNames": ["/^@types//"]
+      "matchPackageNames": ["/^@types\\//"]
     },
     {
       "description": "Workspace protocol - internal dependencies",
@@ -135,19 +192,31 @@
       "minimumReleaseAge": "14 days",
       "labels": ["framework", "major-update"],
       "matchPackageNames": [
-        "/^astro/",
-        "/^vue/",
-        "/^svelte/",
-        "/^@astrojs//",
-        "/^@vue//",
-        "/^@sveltejs//"
+        "/^astro$/",
+        "/^astro-/",
+        "/^@astrojs\\//",
+        "/^vue$/",
+        "/^vue-/",
+        "/^@vue\\//",
+        "/^pinia$/",
+        "/^svelte$/",
+        "/^svelte-/",
+        "/^@sveltejs\\//"
       ]
     },
     {
-      "description": "Major build tooling updates - extra stability",
+      "description": "Major build tooling updates - extra stability (Vite, Vitest, Rollup, Webpack)",
       "matchUpdateTypes": ["major"],
       "minimumReleaseAge": "14 days",
-      "matchPackageNames": ["/^vite/", "/^@vitejs//", "/^webpack/", "/^rollup/"]
+      "matchPackageNames": [
+        "/^vite$/",
+        "/^vitest$/",
+        "/^@vitejs\\//",
+        "/^@vitest\\//",
+        "/^webpack$/",
+        "/^rollup$/",
+        "/^@rollup\\//"
+      ]
     },
     {
       "description": "Production dependencies - extra stability",
