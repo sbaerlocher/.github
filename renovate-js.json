@@ -25,7 +25,7 @@
       "labels": ["typescript"]
     },
     {
-      "description": "Code quality tools - ESLint, typescript-eslint and Prettier (must bump together due to peer deps). Strip major-N- prefix so co-dependent majors share one branch/PR.",
+      "description": "Code quality tools - ESLint, typescript-eslint and Prettier (must bump together due to peer deps). separateMultipleMajor: false collapses groupSlug from major-N-code-quality-tools to major-code-quality-tools so co-dependent majors share one branch/PR.",
       "groupName": "Code quality tools",
       "semanticCommitScope": "lint",
       "matchPackageNames": [
@@ -37,9 +37,7 @@
         "/^prettier$/",
         "/^@prettier\\//"
       ],
-      "major": {
-        "additionalBranchPrefix": ""
-      }
+      "separateMultipleMajor": false
     },
     {
       "description": "Jest testing framework",
@@ -48,7 +46,7 @@
       "matchPackageNames": ["/^jest$/", "/^jest-/", "/^@jest\\//", "/^ts-jest$/", "/^babel-jest$/"]
     },
     {
-      "description": "Build tooling - Vite + Vitest must bump together (peerDependency vite). Strip major-N- prefix so co-dependent majors share one branch/PR. 14 days release age for extra stability on ecosystem churn.",
+      "description": "Build tooling - Vite + Vitest must bump together (peerDependency vite). separateMultipleMajor: false ensures all Vite/Vitest majors share one branch/PR. 14 days release age for extra stability on ecosystem churn.",
       "groupName": "Build tooling (Vite + Vitest)",
       "semanticCommitScope": "build",
       "minimumReleaseAge": "14 days",
@@ -62,23 +60,19 @@
         "/^rollup$/",
         "/^@rollup\\//"
       ],
-      "major": {
-        "additionalBranchPrefix": ""
-      }
+      "separateMultipleMajor": false
     },
     {
-      "description": "Group Astro packages - core, integrations and adapters (peer deps on astro). Strip major-N- prefix so co-dependent majors share one branch/PR.",
+      "description": "Group Astro packages - core, integrations and adapters (peer deps on astro). separateMultipleMajor: false so co-dependent majors share one branch/PR.",
       "groupName": "Astro packages",
       "semanticCommitScope": "astro",
       "minimumReleaseAge": "5 days",
       "labels": ["astro"],
       "matchPackageNames": ["/^astro$/", "/^astro-/", "/^@astrojs\\//"],
-      "major": {
-        "additionalBranchPrefix": ""
-      }
+      "separateMultipleMajor": false
     },
     {
-      "description": "Group Vue packages - vue core, ecosystem and vite plugin (peer deps on vue). Strip major-N- prefix so co-dependent majors share one branch/PR.",
+      "description": "Group Vue packages - vue core, ecosystem and vite plugin (peer deps on vue). separateMultipleMajor: false so co-dependent majors share one branch/PR.",
       "groupName": "Vue packages",
       "semanticCommitScope": "vue",
       "minimumReleaseAge": "5 days",
@@ -92,12 +86,10 @@
         "/^@vitejs\\/plugin-vue/",
         "/^@vue\\/eslint-config/"
       ],
-      "major": {
-        "additionalBranchPrefix": ""
-      }
+      "separateMultipleMajor": false
     },
     {
-      "description": "Group Svelte packages - svelte core, kit, and vite plugin (peer deps on svelte). Strip major-N- prefix so co-dependent majors share one branch/PR.",
+      "description": "Group Svelte packages - svelte core, kit, and vite plugin (peer deps on svelte). separateMultipleMajor: false so co-dependent majors share one branch/PR.",
       "groupName": "Svelte packages",
       "semanticCommitScope": "svelte",
       "minimumReleaseAge": "5 days",
@@ -108,40 +100,32 @@
         "/^@sveltejs\\//",
         "/^@vitejs\\/plugin-svelte/"
       ],
-      "major": {
-        "additionalBranchPrefix": ""
-      }
+      "separateMultipleMajor": false
     },
     {
-      "description": "Group TailwindCSS packages - core, plugins, postcss and vite integration. Strip major-N- prefix so co-dependent majors (v3→v4) share one branch/PR.",
+      "description": "Group TailwindCSS packages - core, plugins, postcss and vite integration. separateMultipleMajor: false so co-dependent majors (v3→v4) share one branch/PR.",
       "groupName": "TailwindCSS packages",
       "semanticCommitScope": "tailwindcss",
       "matchPackageNames": ["/^tailwindcss$/", "/^tailwindcss-/", "/^@tailwindcss\\//"],
-      "major": {
-        "additionalBranchPrefix": ""
-      }
+      "separateMultipleMajor": false
     },
     {
-      "description": "Group Cloudflare Workers packages - wrangler and runtime types. Strip major-N- prefix so co-dependent majors share one branch/PR.",
+      "description": "Group Cloudflare Workers packages - wrangler and runtime types. separateMultipleMajor: false so co-dependent majors share one branch/PR.",
       "groupName": "Cloudflare Workers packages",
       "semanticCommitScope": "workers",
       "labels": ["cloudflare"],
       "matchPackageNames": ["/^@cloudflare\\//", "/^wrangler$/", "/^miniflare$/"],
-      "major": {
-        "additionalBranchPrefix": ""
-      }
+      "separateMultipleMajor": false
     },
     {
-      "description": "Group Hono framework packages. Strip major-N- prefix so co-dependent majors share one branch/PR.",
+      "description": "Group Hono framework packages. separateMultipleMajor: false so co-dependent majors share one branch/PR.",
       "groupName": "Hono packages",
       "semanticCommitScope": "hono",
       "matchPackageNames": ["/^hono$/", "/^@hono\\//"],
-      "major": {
-        "additionalBranchPrefix": ""
-      }
+      "separateMultipleMajor": false
     },
     {
-      "description": "Group GraphQL packages - core, tools, codegen and apollo (must bump together). Strip major-N- prefix so co-dependent majors share one branch/PR.",
+      "description": "Group GraphQL packages - core, tools, codegen and apollo (must bump together). separateMultipleMajor: false so co-dependent majors share one branch/PR.",
       "groupName": "GraphQL packages",
       "semanticCommitScope": "graphql",
       "matchPackageNames": [
@@ -152,18 +136,14 @@
         "/^graphql-codegen-/",
         "/^@apollo\\//"
       ],
-      "major": {
-        "additionalBranchPrefix": ""
-      }
+      "separateMultipleMajor": false
     },
     {
-      "description": "Group Turborepo. Strip major-N- prefix so co-dependent majors share one branch/PR.",
+      "description": "Group Turborepo. separateMultipleMajor: false so co-dependent majors share one branch/PR.",
       "groupName": "Turborepo",
       "semanticCommitScope": "turbo",
       "matchPackageNames": ["/^turbo$/", "/^@turbo\\//"],
-      "major": {
-        "additionalBranchPrefix": ""
-      }
+      "separateMultipleMajor": false
     },
     {
       "description": "Group pnpm package manager",
