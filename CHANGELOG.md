@@ -25,15 +25,27 @@ This is a rolling release - changes are deployed continuously to `main`.
     - `@vitejs/plugin-svelte*` added to "Svelte packages" group
     - Legacy unscoped `graphql-codegen-*` added to "GraphQL packages" group
     - Testing tools group renamed to "Jest" (vitest moved out)
-  - **Branch-name collapsing** (`major.additionalBranchPrefix: ""`): Strip the
-    `major-N-` branch prefix for grouped major updates so co-dependent packages
-    with _different_ major version numbers (e.g. Vue 4 + plugin-vue 6) share one
-    branch/PR despite `separateMultipleMajor: true` in base
-    - Applied to: Code quality tools, Build tooling (Vite + Vitest), Astro, Vue,
-      Svelte, TailwindCSS, Cloudflare Workers, Hono, GraphQL, Turborepo
+  - **Branch-name collapsing** (`separateMultipleMajor: false` per group):
+    Collapse the `major-N-` segment that Renovate prepends to `groupSlug` for
+    grouped major updates, so co-dependent packages with _different_ major
+    version numbers (e.g. Vue 4 + plugin-vue 6) share one branch/PR despite
+    `separateMultipleMajor: true` in base
+    - Verified against Renovate source
+      ([`lib/workers/repository/updates/branch-name.ts`](https://github.com/renovatebot/renovate/blob/main/lib/workers/repository/updates/branch-name.ts)):
+      the `major-N-` prefix is mutated directly into `groupSlug`, not into
+      `additionalBranchPrefix`. With `separateMultipleMajor: false`,
+      `groupSlug` collapses to `major-<group>` (without the version number),
+      forcing all majors of the group onto a single branch
+    - Side effect (intended): Renovate creates one PR per group for the
+      latest major only, not one PR per intermediate major. For
+      peer-dep-critical groups this is desired — you want to land on a
+      consistent ecosystem state, not chain through broken intermediate
+      states
+    - Applied to: Code quality tools, Build tooling (Vite + Vitest), Astro,
+      Vue, Svelte, TailwindCSS, Cloudflare Workers, Hono, GraphQL, Turborepo
     - Applied to Helm charts group in `renovate-kubernetes.json`
-    - Applied to Go platform packages group in `renovate-go.json` (critical for
-      `k8s.io/*` + `sigs.k8s.io/*` major-version lock-step)
+    - Applied to Go platform packages group in `renovate-go.json` (critical
+      for `k8s.io/*` + `sigs.k8s.io/*` major-version lock-step)
   - **Regex precision**: All `matchPackageNames` patterns now use proper anchors
     (`/^pkg$/` instead of `/^pkg/`) and escaped slashes (`/^@scope\\//`) to
     prevent false-positive matches like `vuex-persist` landing in the Vue group
