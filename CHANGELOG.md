@@ -6,6 +6,53 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-04-11
+
+### Fixed
+
+- **renovate-js.json**, **renovate-kubernetes.json**, **renovate-go.json**: Ensure
+  co-dependent packages bump together in a single PR to prevent peer-dependency
+  CI failures
+  - **Peer-dependency grouping** (`renovate-js.json`): Co-dependent packages that
+    previously landed in separate PRs now share one group:
+    - `typescript-eslint` + `@typescript-eslint/*` added to "Code quality tools"
+      group (peer dep on `eslint` — ESLint 9→10 would otherwise split and fail)
+    - `vitest` + `@vitest/*` merged into "Build tooling (Vite + Vitest)" group
+      (Vitest has a hard peer dep on Vite; Vite major without Vitest breaks
+      `pnpm install`)
+    - `vue-router`, `pinia`, `@pinia/*`, `@vitejs/plugin-vue*` added to
+      "Vue packages" group (all have peer deps on `vue`)
+    - `@vitejs/plugin-svelte*` added to "Svelte packages" group
+    - Legacy unscoped `graphql-codegen-*` added to "GraphQL packages" group
+    - Testing tools group renamed to "Jest" (vitest moved out)
+  - **Branch-name collapsing** (`major.additionalBranchPrefix: ""`): Strip the
+    `major-N-` branch prefix for grouped major updates so co-dependent packages
+    with _different_ major version numbers (e.g. Vue 4 + plugin-vue 6) share one
+    branch/PR despite `separateMultipleMajor: true` in base
+    - Applied to: Code quality tools, Build tooling (Vite + Vitest), Astro, Vue,
+      Svelte, TailwindCSS, Cloudflare Workers, Hono, GraphQL, Turborepo
+    - Applied to Helm charts group in `renovate-kubernetes.json`
+    - Applied to Go platform packages group in `renovate-go.json` (critical for
+      `k8s.io/*` + `sigs.k8s.io/*` major-version lock-step)
+  - **Regex precision**: All `matchPackageNames` patterns now use proper anchors
+    (`/^pkg$/` instead of `/^pkg/`) and escaped slashes (`/^@scope\\//`) to
+    prevent false-positive matches like `vuex-persist` landing in the Vue group
+
+### Changed
+
+- **renovate-js.json**: Remove `:preserveSemverRanges` from `extends`
+  - `:preserveSemverRanges` sets `rangeStrategy: "replace"`, conflicting with
+    base's `rangeStrategy: "bump"`
+  - `bump` is the correct strategy for apps (always updates the version in
+    `package.json`, better for reproducibility)
+  - Library repos (e.g. `vue.aareguru`) can override locally if flexible ranges
+    are preferred
+- **renovate-js.json**: Add `minimumReleaseAge: "14 days"` to "Build tooling
+  (Vite + Vitest)" group for extra stability on ecosystem churn (previously
+  only applied to majors)
+
+---
+
 ## 2026-04-09
 
 ### Fixed
