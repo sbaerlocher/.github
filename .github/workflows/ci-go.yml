@@ -205,7 +205,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ inputs.artifact-name-prefix }}coverage-report
           path: coverage.html
@@ -250,7 +250,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:18-alpine@sha256:4da1a4828be12604092fa55311276f08f9224a74a62dcb4708bd7439e2a03911
+        image: postgres:18-alpine@sha256:52098013b4b64a746626437d38afc03cabff6cdeb4d3d92e2342aa95f0ce56ea
         env:
           POSTGRES_DB: ${{ inputs.postgres-db }}
           POSTGRES_USER: ${{ inputs.postgres-user }}
@@ -333,7 +333,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ inputs.artifact-name-prefix }}coverage-report
           path: coverage.html
@@ -426,7 +426,7 @@ jobs:
 
       - name: Upload SARIF file
         if: inputs.enable-sarif-upload && (matrix.scanner == 'gosec' || matrix.scanner == 'trivy-fs')
-        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4
+        uses: github/codeql-action/upload-sarif@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4
         with:
           sarif_file: ${{ matrix.scanner }}.sarif
           category: ${{ matrix.scanner }}
@@ -448,15 +448,15 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@c10b8064de6f491fea524254123dbe5e09572f13 # v4
+        uses: github/codeql-action/init@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4
         with:
           languages: go
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@c10b8064de6f491fea524254123dbe5e09572f13 # v4
+        uses: github/codeql-action/autobuild@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@c10b8064de6f491fea524254123dbe5e09572f13 # v4
+        uses: github/codeql-action/analyze@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4
         with:
           category: '/language:go'
 
