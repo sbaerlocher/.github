@@ -166,7 +166,7 @@ jobs:
           esac
 
       - name: Cache dependencies
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ steps.cache-dir.outputs.dir }}
           key: ${{ runner.os }}-${{ inputs.package-manager }}-${{ hashFiles('**/pnpm-lock.yaml', '**/package-lock.json', '**/yarn.lock', '**/bun.lockb') }}
@@ -175,7 +175,7 @@ jobs:
 
       - name: Cache Turborepo
         if: hashFiles('turbo.json') != ''
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: .turbo
           key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'package-lock.json', 'yarn.lock', 'bun.lockb') }}-${{ github.sha }}
@@ -340,7 +340,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: inputs.enable-coverage
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ inputs.artifact-name-prefix }}coverage-report
           path: ${{ inputs.working-directory }}/coverage
@@ -416,7 +416,7 @@ jobs:
 
       - name: Cache dependencies
         if: matrix.scanner == 'dependency-audit'
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ steps.cache-dir.outputs.dir }}
           key: ${{ runner.os }}-${{ inputs.package-manager }}-${{ hashFiles('**/pnpm-lock.yaml', '**/package-lock.json', '**/yarn.lock') }}
@@ -482,7 +482,7 @@ jobs:
 
       - name: Upload SARIF file
         if: inputs.enable-sarif-upload && matrix.scanner == 'trivy-fs'
-        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4
+        uses: github/codeql-action/upload-sarif@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4
         with:
           sarif_file: trivy-fs.sarif
           category: trivy-fs
