@@ -6,6 +6,24 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-04-23
+
+### Changed
+
+- **renovate-go.json**: Cleanup `customManagers` from 5 to 1
+  - Removed four managers with no matching files in any consumer repo:
+    `.go-version` parser, Makefile `GO_VERSION`, Makefile
+    `GOLANGCI_LINT_VERSION`, and the non-standard `# renovate: go-tool …`
+    comment format (the last is already covered by the base manager via
+    standard `# renovate: datasource=… depName=…` syntax)
+  - Kept the Dockerfile `RUN go install <module>@<version>` manager — only
+    Go-specific pattern in active use (tsmetrics); base manager cannot
+    handle it because it expects `key: value`, not `@version`
+  - Aligned remaining manager with base style: `[^\s]+` capture groups
+    and support for optional `versioning=` / `extractVersion=` hints
+
+---
+
 ## 2026-04-22
 
 ### Fixed
