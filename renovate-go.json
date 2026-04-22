@@ -74,38 +74,12 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Go version in .go-version files",
-      "managerFilePatterns": ["/(^|/)\\.go-version$/"],
-      "matchStrings": ["^(?<currentValue>\\d+\\.\\d+(?:\\.\\d+)?)$"],
-      "datasourceTemplate": "golang-version",
-      "depNameTemplate": "go"
-    },
-    {
-      "customType": "regex",
-      "description": "Go version in Makefiles",
-      "managerFilePatterns": ["/^Makefile$/", "/\\.mk$/"],
-      "matchStrings": ["GO_VERSION\\s*[:?]?=\\s*(?<currentValue>\\d+\\.\\d+(?:\\.\\d+)?)"],
-      "datasourceTemplate": "golang-version",
-      "depNameTemplate": "go"
-    },
-    {
-      "customType": "regex",
-      "description": "Go tools in Makefiles",
-      "managerFilePatterns": ["/^Makefile$/", "/\\.mk$/"],
-      "matchStrings": ["GOLANGCI_LINT_VERSION\\s*[:?]?=\\s*v?(?<currentValue>[^\\s]+)"],
-      "datasourceTemplate": "github-releases",
-      "depNameTemplate": "golangci/golangci-lint",
-      "versioningTemplate": "semver"
-    },
-    {
-      "customType": "regex",
-      "description": "Go tools versions in comments",
-      "managerFilePatterns": ["/\\.ya?ml$/", "/Dockerfile$/"],
+      "description": "Go tools installed via 'RUN go install <module>@<version>' in Dockerfiles. Version lives on the RUN line (single source of truth); the preceding '# renovate: datasource=... depName=...' comment tags the line for Renovate.",
+      "managerFilePatterns": ["/(^|/)Dockerfile[^/]*$/"],
       "matchStrings": [
-        "#\\s*renovate:\\s*go-tool\\s+(?<depName>[^\\s]+)\\s+(?<currentValue>[^\\s]+)"
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(\\s+versioning=(?<versioning>\\S+))?(\\s+extractVersion=(?<extractVersion>\\S+))?\\s+RUN\\s+go\\s+install\\s+\\S+@(?<currentValue>\\S+)"
       ],
-      "datasourceTemplate": "github-releases",
-      "versioningTemplate": "semver"
+      "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
     }
   ]
 }
