@@ -6,6 +6,29 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-04-22
+
+### Fixed
+
+- **ai-claude-review.yml**: Bump `--model` from `claude-opus-4-6` to `claude-opus-4-7`
+  - Align the parent review agent with the current latest Opus; plugin subagents
+    (haiku/sonnet/opus) are unaffected
+- **ci-js.yml**: Remove deprecated `allow-unknown-licenses` input from
+  `dependency-review-action` step (unsupported since v4.9.0, emitted a warning
+  on every PR CI run)
+
+### Changed
+
+- Dependency refreshes since 2026-04-11 (all via Renovate):
+  - `anthropics/claude-code-action` digest → `0d2971c` (#63)
+  - `bitwarden/sm-action` → v3 (#67)
+  - `softprops/action-gh-release` → v3 (#65)
+  - `pnpm/action-setup` → v6 (#62)
+  - `actions/github-script` → v9 (#61)
+  - Grouped GitHub Actions minor/patch bumps (#59, #60, #64, #66, #69)
+
+---
+
 ## 2026-04-11
 
 ### Fixed
