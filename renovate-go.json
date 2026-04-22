@@ -75,9 +75,9 @@
     {
       "customType": "regex",
       "description": "Go tools installed via 'RUN go install <module>@<version>' in Dockerfiles. Version lives on the RUN line (single source of truth); the preceding '# renovate: datasource=... depName=...' comment tags the line for Renovate.",
-      "managerFilePatterns": ["/(^|/)Dockerfile[^/]*$/"],
+      "managerFilePatterns": ["/(^|/)Dockerfile$/"],
       "matchStrings": [
-        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(\\s+versioning=(?<versioning>\\S+))?(\\s+extractVersion=(?<extractVersion>\\S+))?\\s+RUN\\s+go\\s+install\\s+\\S+@(?<currentValue>\\S+)"
+        "#\\s*renovate:\\s*datasource=(?<datasource>[^\\s]+)\\s+depName=(?<depName>[^\\s]+)(\\s+versioning=(?<versioning>[^\\s]+))?(\\s+extractVersion=(?<extractVersion>[^\\s]+))?\\s+RUN\\s+go\\s+install\\s+\\S+@(?<currentValue>[^\\s]+)"
       ],
       "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
     }

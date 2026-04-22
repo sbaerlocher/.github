@@ -19,9 +19,8 @@ This is a rolling release - changes are deployed continuously to `main`.
   - Kept the Dockerfile `RUN go install <module>@<version>` manager — only
     Go-specific pattern in active use (tsmetrics); base manager cannot
     handle it because it expects `key: value`, not `@version`
-  - Aligned remaining manager with base style: `\S+` capture groups,
-    support for optional `versioning=` / `extractVersion=` hints, and
-    broadened file pattern to `Dockerfile*` (covers `Dockerfile.dev` etc.)
+  - Aligned remaining manager with base style: `[^\s]+` capture groups
+    and support for optional `versioning=` / `extractVersion=` hints
 
 ---
 
