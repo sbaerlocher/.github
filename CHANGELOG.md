@@ -21,6 +21,8 @@ This is a rolling release - changes are deployed continuously to `main`.
     consumers still invoke type checking by default and therefore need
     the renamed `typecheck` script regardless of whether they set the
     input
+- Dependency refreshes since 2026-04-23 (all via Renovate):
+  - Grouped GitHub Actions SHA bumps (#72, #73, #74)
 
 ---
 
