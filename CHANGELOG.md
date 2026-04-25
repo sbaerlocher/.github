@@ -6,6 +6,24 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-04-25
+
+### Changed
+
+- **ci-js.yml** (BREAKING): Rename `enable-type-check` input to `enable-typecheck`
+  and switch invoked package script from `type-check` to `typecheck` for all
+  package managers (pnpm, bun, yarn, npm)
+  - Aligns with the de-facto JS ecosystem convention (`tsc --noEmit` scripts are
+    almost universally named `typecheck`, single word)
+  - Consumer action required: rename the `type-check` script in `package.json`
+    to `typecheck`, and rename the workflow input if explicitly set
+  - Input default value unchanged (`enable-typecheck: true`); existing
+    consumers still invoke type checking by default and therefore need
+    the renamed `typecheck` script regardless of whether they set the
+    input
+
+---
+
 ## 2026-04-23
 
 ### Changed
