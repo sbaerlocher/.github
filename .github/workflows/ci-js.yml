@@ -24,7 +24,7 @@ on:
         type: string
         default: '.'
         description: 'Working directory'
-      enable-type-check:
+      enable-typecheck:
         type: boolean
         default: true
         description: 'Enable TypeScript type checking'
@@ -202,21 +202,21 @@ jobs:
           esac
 
       - name: Type check
-        if: inputs.enable-type-check
+        if: inputs.enable-typecheck
         working-directory: ${{ inputs.working-directory }}
         run: |
           case "${{ inputs.package-manager }}" in
             pnpm)
-              pnpm type-check
+              pnpm typecheck
               ;;
             bun)
-              bun run type-check
+              bun run typecheck
               ;;
             yarn)
-              yarn type-check
+              yarn typecheck
               ;;
             npm)
-              npm run type-check
+              npm run typecheck
               ;;
           esac
 
