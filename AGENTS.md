@@ -3,7 +3,7 @@
 **Repository Type**: Centralized Workflow Repository
 **Purpose**: Provide reusable GitHub Actions workflows for all sbaerlocher projects
 **Visibility**: Public
-**Last Updated**: 2026-02-14
+**Last Updated**: 2026-04-26
 
 ---
 
@@ -43,7 +43,7 @@ directly impacting the CI/CD pipelines of multiple projects.
 - `release-*.yml` - Release workflows
 - `ops-*.yml` - Operational workflows
 - `ai-*.yml` - AI-assisted workflows
-- `docs-*.yml` - Documentation workflows
+- `e2e-*.yml` - End-to-end test workflows
 
 **Workflow Names** (`name:` field):
 
@@ -78,19 +78,23 @@ uses: actions/setup-node@v4.0.2
 
 ### Workflow Versioning
 
-**Recommended**: Use version tags (`@v1`) for stable references
+This repository uses a **rolling release** model with date-based tags
+(`YYYY-MM-DD`). There are no `v1`/`v2` semver tags.
 
 ```yaml
-# Consumer repository
-uses: sbaerlocher/.github/.github/workflows/ci-js.yml@v1
+# Consumer repository — pin to a specific release date
+uses: sbaerlocher/.github/.github/workflows/ci-js.yml@2026-04-25
 ```
 
-**Not Recommended**: Using `@main` (breaking changes affect all repos immediately)
+**Rules**:
 
-**Tagging Strategy**:
-
-- Major versions: `v1`, `v2` (updated via Renovate or manually)
-- Point releases: `v1.0.0`, `v1.1.0` (documented in CHANGELOG.md)
+- Consumers MUST reference workflows by date tag.
+- `@main` is forbidden in consumer repos — breaking changes would propagate
+  immediately to all of them.
+- New tags are cut from `main` after a batch of changes has settled. The
+  cadence is documented in `CHANGELOG.md`.
+- Renovate updates date tags in consumer repos automatically via the
+  custom manager defined in `renovate-base.json`.
 
 ---
 
@@ -131,7 +135,7 @@ uses: sbaerlocher/.github/.github/workflows/ci-js.yml@v1
 **Strategy**:
 
 - **PR**: CodeQL only (fast feedback)
-- **Weekly**: Deep scans (scheduled Monday 02:00 UTC)
+- **Weekly**: Deep scans (scheduled Monday 06:00 UTC)
 - **Public Repos**: SARIF upload to GitHub Security tab (free)
 - **Private Repos**: Artifact upload (JSON/Table format)
 
@@ -184,9 +188,9 @@ uses: sbaerlocher/.github/.github/workflows/ci-js.yml@v1
 
 **Purpose**: End-to-end testing with Docker Compose
 
-| Workflow   | File              | Description                     |
-| ---------- | ----------------- | ------------------------------- |
-| E2E Docker | `e2e-docker.yml` | E2E tests via Docker Compose    |
+| Workflow   | File             | Description                  |
+| ---------- | ---------------- | ---------------------------- |
+| E2E Docker | `e2e-docker.yml` | E2E tests via Docker Compose |
 
 ---
 
@@ -208,9 +212,10 @@ uses: sbaerlocher/.github/.github/workflows/ci-js.yml@v1
 **Process**:
 
 1. **Test First**: Create a test version (e.g., `ci-js-test.yml`)
-2. **Consumer Testing**: Test in 1-2 consumer repos with test workflow
-3. **Breaking Changes**: Increment major version tag (`v1` → `v2`)
-4. **Non-Breaking**: Can update existing version tag
+2. **Consumer Testing**: Test in 1-2 consumer repos pointing at `@main`
+3. **Breaking Changes**: Cut a new dated tag and call out the break in
+   `CHANGELOG.md` so consumers know not to bump until they migrate
+4. **Non-Breaking**: A regular dated tag is sufficient
 5. **Document**: Update CHANGELOG.md with all changes
 
 **Breaking Changes Include**:
@@ -302,7 +307,7 @@ on:
 
 jobs:
   ci:
-    uses: sbaerlocher/.github/.github/workflows/ci-js.yml@v1
+    uses: sbaerlocher/.github/.github/workflows/ci-js.yml@2026-04-25
     with:
       package-manager: pnpm
       enable-security-scans: true
@@ -334,7 +339,7 @@ Error: Unable to resolve action sbaerlocher/.github/.github/workflows/ci-js.yml@
 **Solution**: Check the nested path structure
 
 ```yaml
-uses: sbaerlocher/.github/.github/workflows/ci-js.yml@v1
+uses: sbaerlocher/.github/.github/workflows/ci-js.yml@2026-04-25
 #     ^^^^^^^^^^^ Repo      ^^^^^^^^^^^^^^^^ Nested .github directory
 ```
 
@@ -378,25 +383,28 @@ Ensure lock files are committed:
 .github/
 ├── .github/
 │   ├── workflows/           # 21 reusable workflows
-│   │   ├── ci-*.yml        # CI workflows
-│   │   ├── security-*.yml  # Security workflows
-│   │   ├── deploy-*.yml    # Deploy workflows
-│   │   ├── release-*.yml   # Release workflows
-│   │   ├── ops-*.yml       # Operations workflows
 │   │   ├── ai-*.yml        # AI workflows
-│   │   └── docs-*.yml      # Documentation workflows
-│   ├── actions/            # Custom composite actions
+│   │   ├── ci-*.yml        # CI workflows
+│   │   ├── deploy-*.yml    # Deploy workflows
+│   │   ├── e2e-*.yml       # End-to-end test workflows
+│   │   ├── ops-*.yml       # Operations workflows
+│   │   ├── release-*.yml   # Release workflows
+│   │   └── security-*.yml  # Security workflows
+│   ├── ISSUE_TEMPLATE/     # Org-default issue forms
 │   ├── CODEOWNERS          # Repository owners
+│   ├── pull_request_template.md
 │   └── renovate.json       # Renovate configuration
 ├── AGENTS.md               # AI agent documentation (this file)
 ├── CLAUDE.md               # Claude Code import
 ├── README.md               # Human-readable documentation
 ├── CHANGELOG.md            # Version history
+├── SECURITY.md             # Org-default security policy
 ├── STANDARDS.md            # Repository standards
 ├── SETUP.md                # GitHub repo setup commands & branch rulesets
 ├── REVIEW.md               # Code review guidelines for this repo
 ├── LICENSE                 # MIT License
 ├── .editorconfig           # Editor consistency
+├── .prettierrc             # Prettier configuration
 ├── .gitignore              # Git ignore patterns
 ├── renovate-*.json         # Shared Renovate presets
 └── renovate.json           # Main Renovate config
@@ -432,21 +440,22 @@ Ensure lock files are committed:
 
 ### What You Should NOT Do
 
-❌ **Breaking Changes Without Versioning**:
+❌ **Breaking Changes Without a New Date Tag**:
 
-- NEVER make breaking changes to existing workflows without incrementing version
-- NEVER remove inputs/outputs without deprecation notice
-- NEVER change default behavior without testing impact
+- NEVER ship a breaking change without cutting a new dated release tag and
+  noting the break in `CHANGELOG.md`
+- NEVER remove inputs/outputs without a deprecation notice
+- NEVER change default behavior without testing impact in a consumer repo
 
 ❌ **Security Anti-Patterns**:
 
-- NEVER use tag-only action references (`@v4`)
+- NEVER use tag-only action references (`@v4`) for third-party actions
 - NEVER log secrets or sensitive data
 - NEVER skip security scans without justification
 
 ❌ **Workflow Anti-Patterns**:
 
-- NEVER use `@main` for consumer references (use `@v1`)
+- NEVER use `@main` for consumer references (use a date tag like `@2026-04-25`)
 - NEVER duplicate logic across workflows (use composite actions)
 - NEVER hard-code values (use inputs)
 
@@ -464,15 +473,16 @@ Ensure lock files are committed:
 
 ## Renovate Preset Conventions
 
-**Gotchas beim Bearbeiten der Renovate-Presets**:
+**Gotchas when editing the Renovate presets**:
 
-- `renovate.json` (eigene Konfiguration dieses Repos) muss den `#main`-Suffix verwenden:
-  `github>sbaerlocher/.github:renovate-base#main` — ohne `#main` referenziert Renovate
-  ggf. einen alten gepinnten Commit von sich selbst
-- `lockFileMaintenance` gehört **nicht** in `packageRules` — Renovate behandelt es als
-  Top-Level-Scheduler, nicht als Package Rule
-- JS-Framework-Gruppenregeln (Svelte, Vue, React usw.) benötigen explizite
-  `matchPackageNames`-Einträge, damit Major-Updates korrekt abgefangen werden
+- This repo's own `renovate.json` MUST use the `#main` suffix when extending
+  its own presets: `github>sbaerlocher/.github:renovate-base#main`. Without
+  `#main`, Renovate may resolve to an older pinned commit of this repo.
+  Consumer repos should omit `#main` and use the default resolution.
+- `lockFileMaintenance` is a top-level scheduler, not a package rule —
+  it does **not** belong inside `packageRules`.
+- JS framework group rules (Svelte, Vue, React, …) need explicit
+  `matchPackageNames` entries; otherwise major updates are not captured.
 
 ---
 
@@ -505,5 +515,5 @@ Ensure lock files are committed:
 
 ---
 
-**Last Updated**: 2026-02-14
-**Version**: 1.1.0
+**Last Updated**: 2026-04-26
+**Version**: 1.2.0
