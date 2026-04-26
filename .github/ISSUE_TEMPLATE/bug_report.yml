@@ -1,0 +1,127 @@
+name: Bug Report
+description: Report a bug in any sbaerlocher repository
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report.
+
+        > **Security note:** if this is a security vulnerability, do **not**
+        > open a public issue. Use [GitHub Security Advisories](https://github.com/sbaerlocher/.github/security/advisories/new)
+        > or follow [SECURITY.md](https://github.com/sbaerlocher/.github/blob/main/SECURITY.md).
+        >
+        > **Before pasting logs**, redact any secrets, API tokens, credentials,
+        > or personal data. They cannot be removed once submitted.
+
+  - type: input
+    id: repository
+    attributes:
+      label: Affected repository
+      description: Which repository is affected? (org/repo)
+      placeholder: e.g. sbaerlocher/functions, sbaerlocher/.github
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: A clear and concise description of the bug.
+      placeholder: What happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+      placeholder: What should have happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: A minimal sequence that reproduces the bug.
+      placeholder: |
+        1. Go to '...'
+        2. Run '...'
+        3. See error
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this bug? (Triage may adjust.)
+      options:
+        - Low — cosmetic or minor inconvenience
+        - Medium — broken feature with workaround
+        - High — broken feature without workaround
+        - Critical — data loss, security, or production outage
+      default: 1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: regression
+    attributes:
+      label: Is this a regression?
+      description: Did this work in a previous version?
+      options:
+        - "No / not sure"
+        - "Yes — it worked before"
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error output / logs
+      description: |
+        Paste relevant error messages or logs.
+        ⚠️ Redact secrets, tokens, API keys, and personal data first.
+      render: shell
+      placeholder: Paste error output here
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Version, commit SHA, image tag, or workflow date tag.
+      placeholder: e.g. 1.2.3, abc1234, 2026-04-25
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS / runtime / browser / cluster — whatever is relevant.
+      placeholder: e.g. macOS 15.3, Node 22.11, Chrome 130, Kubernetes 1.32
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Anything else that helps diagnose the issue.
+      placeholder: Optional
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues to avoid duplicates
+          required: true
+        - label: I redacted secrets, tokens, and personal data from logs
+          required: true
+        - label: This is not a security vulnerability (use Security Advisories instead)
+          required: true
