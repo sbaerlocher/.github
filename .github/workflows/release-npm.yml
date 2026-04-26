@@ -378,12 +378,6 @@ jobs:
             fi
           done
 
-  # Inlined here intentionally: a previous version called
-  # `uses: ./.github/workflows/security-sbom.yml`, which only resolves inside
-  # this repo and silently broke for every consumer. The CycloneDX/npm logic
-  # below duplicates security-sbom.yml — when bumping CYCLONEDX_NPM_VERSION,
-  # update both files. Long-term TODO: extract into a composite action under
-  # `.github/actions/sbom-npm/` so both workflows can call it cross-repo.
   generate-sbom:
     name: Generate SBOM
     needs: [pre-release-checks, publish]
@@ -396,42 +390,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      # The composite action lives in this repo, but `uses: ./` in a reusable
+      # workflow resolves against the caller's checkout — not against this
+      # workflow's source repo. So we reference it absolutely. `@main` tracks
+      # the rolling release; Renovate's github-actions manager will pin this
+      # to the most recent date tag once one exists for the action.
+      - name: Generate npm SBOM
+        id: sbom
+        uses: sbaerlocher/.github/.github/actions/sbom-npm@main
         with:
+          package-manager: ${{ inputs.package-manager }}
+          working-directory: ${{ inputs.working-directory }}
           node-version-file: ${{ inputs.node-version-file }}
-
-      - name: Setup pnpm
-        if: inputs.package-manager == 'pnpm'
-        uses: pnpm/action-setup@903f9c1a6ebcba6cf41d87230be49611ac97822e # v6.0.3
-
-      - name: Setup Bun
-        if: inputs.package-manager == 'bun'
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-
-      - name: Install dependencies
-        working-directory: ${{ inputs.working-directory }}
-        run: |
-          case "${{ inputs.package-manager }}" in
-            pnpm) pnpm install --frozen-lockfile ;;
-            bun) bun install --frozen-lockfile ;;
-            yarn) yarn install --frozen-lockfile ;;
-            npm) npm ci ;;
-          esac
-
-      - name: Generate CycloneDX SBOM
-        working-directory: ${{ inputs.working-directory }}
-        run: |
-          npx --yes @cyclonedx/cyclonedx-npm@2.0.0 \
-            --output-format JSON \
-            --output-file sbom-npm-package.cdx.json
-          echo "✓ SBOM generated"
+          output-file: sbom-npm-package.cdx.json
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom-npm-package
-          path: ${{ inputs.working-directory }}/sbom-npm-package.cdx.json
+          path: ${{ steps.sbom.outputs.sbom-path }}
           retention-days: 90
           if-no-files-found: error
 
