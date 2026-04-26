@@ -39,6 +39,18 @@ permissions:
 
 ---
 
+## Private Vulnerability Reporting
+
+Enables the **"Report a vulnerability"** button on the repository's Security tab —
+the channel the org-default `bug_report.yml` form points reporters at. Without this,
+the button is hidden and reporters fall back to the SECURITY.md instructions.
+
+```bash
+gh api repos/{owner}/{repo}/private-vulnerability-reporting --method PUT
+```
+
+---
+
 ## Branch Ruleset (Personal Repo)
 
 ```bash
@@ -141,6 +153,8 @@ gh api "repos/$REPO" --method PATCH \
 gh api "repos/$REPO" --method PATCH \
   --field default_workflow_permissions=read \
   --field can_approve_pull_request_reviews=false
+
+gh api "repos/$REPO/private-vulnerability-reporting" --method PUT
 
 gh api "repos/$REPO/rulesets" --method POST --input - <<'EOF'
 {
