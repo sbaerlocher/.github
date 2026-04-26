@@ -10,8 +10,8 @@ body:
 
         > **Security note:** if this is a security vulnerability, do **not**
         > open a public issue. Use the **"Report a vulnerability"** button on
-        > this repository's Security tab, or follow the steps in this
-        > repository's `SECURITY.md`.
+        > this repository's Security tab *(if Private Vulnerability Reporting
+        > is enabled)*, or follow the steps in this repository's `SECURITY.md`.
         >
         > **Before pasting logs**, redact any secrets, API tokens, credentials,
         > or personal data. They cannot be removed once submitted.
