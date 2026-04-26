@@ -9,8 +9,9 @@ body:
         Thanks for taking the time to file a bug report.
 
         > **Security note:** if this is a security vulnerability, do **not**
-        > open a public issue. Use [GitHub Security Advisories](https://github.com/sbaerlocher/.github/security/advisories/new)
-        > or follow [SECURITY.md](https://github.com/sbaerlocher/.github/blob/main/SECURITY.md).
+        > open a public issue. Use the **"Report a vulnerability"** button on
+        > this repository's Security tab, or follow the steps in this
+        > repository's `SECURITY.md`.
         >
         > **Before pasting logs**, redact any secrets, API tokens, credentials,
         > or personal data. They cannot be removed once submitted.
