@@ -167,27 +167,43 @@
       "enabled": false
     },
     {
-      "description": "Major framework updates - extra stability",
+      "description": "Major Astro updates - extra stability",
       "matchUpdateTypes": ["major"],
+      "groupName": "Astro packages (major)",
       "minimumReleaseAge": "14 days",
       "labels": ["framework", "major-update"],
-      "matchPackageNames": [
-        "/^astro$/",
-        "/^astro-/",
-        "/^@astrojs\\//",
-        "/^vue$/",
-        "/^vue-/",
-        "/^@vue\\//",
-        "/^pinia$/",
-        "/^svelte$/",
-        "/^svelte-/",
-        "/^@sveltejs\\//"
-      ]
+      "matchPackageNames": ["/^astro$/", "/^astro-/", "/^@astrojs\\//"]
+    },
+    {
+      "description": "Major Vue updates - extra stability",
+      "matchUpdateTypes": ["major"],
+      "groupName": "Vue packages (major)",
+      "minimumReleaseAge": "14 days",
+      "labels": ["framework", "major-update"],
+      "matchPackageNames": ["/^vue$/", "/^vue-/", "/^@vue\\//", "/^pinia$/"]
+    },
+    {
+      "description": "Major Svelte updates - extra stability",
+      "matchUpdateTypes": ["major"],
+      "groupName": "Svelte packages (major)",
+      "minimumReleaseAge": "14 days",
+      "labels": ["framework", "major-update"],
+      "matchPackageNames": ["/^svelte$/", "/^svelte-/", "/^@sveltejs\\//"]
+    },
+    {
+      "description": "Major TailwindCSS updates - breaking config changes (v3 -> v4)",
+      "matchUpdateTypes": ["major"],
+      "groupName": "TailwindCSS packages (major)",
+      "minimumReleaseAge": "14 days",
+      "labels": ["framework", "major-update"],
+      "matchPackageNames": ["/^tailwindcss$/", "/^tailwindcss-/", "/^@tailwindcss\\//"]
     },
     {
       "description": "Major build tooling updates - extra stability (Vite, Vitest, Rollup, Webpack)",
       "matchUpdateTypes": ["major"],
+      "groupName": "Build tooling (major)",
       "minimumReleaseAge": "14 days",
+      "labels": ["build-tooling", "major-update"],
       "matchPackageNames": [
         "/^vite$/",
         "/^vitest$/",

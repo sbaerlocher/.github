@@ -11,7 +11,12 @@
     "github-actions"
   ],
   "kubernetes": {
-    "managerFilePatterns": ["/\\.ya?ml$/", "/^kustomization\\.ya?ml$/"]
+    "managerFilePatterns": [
+      "/(^|/)(deployment|statefulset|daemonset|cronjob|job|pod|service|configmap|secret|ingress|hpa|networkpolicy|serviceaccount|role|rolebinding|clusterrole|clusterrolebinding)[^/]*\\.ya?ml$/",
+      "/(^|/)manifests/[^/]+\\.ya?ml$/",
+      "/(^|/)k8s/[^/]+\\.ya?ml$/",
+      "/(^|/)kustomization\\.ya?ml$/"
+    ]
   },
   "helm-values": {
     "managerFilePatterns": ["/values\\.ya?ml$/", "/values-.+\\.ya?ml$/"]
