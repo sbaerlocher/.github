@@ -92,17 +92,14 @@ jobs:
 
       - name: Generate Trivy report
         if: always()
-        env:
-          # renovate: datasource=docker depName=aquasec/trivy
-          TRIVY_IMAGE_VERSION: '0.70.0'
-          SEVERITY: ${{ inputs.severity-threshold }}
-        run: |
-          echo "Generating detailed Trivy report..."
-          docker run --rm -v "$(pwd):/workspace" \
-            "aquasec/trivy:${TRIVY_IMAGE_VERSION}" config /workspace \
-            --severity "${SEVERITY},HIGH,CRITICAL" \
-            --format table \
-            | tee trivy-config-report.txt
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          severity: ${{ inputs.severity-threshold }},HIGH,CRITICAL
+          format: 'table'
+          output: 'trivy-config-report.txt'
+          exit-code: '0'
 
       - name: Upload Trivy artifacts
         if: always()
