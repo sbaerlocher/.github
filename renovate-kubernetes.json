@@ -63,12 +63,6 @@
       "automerge": false,
       "prPriority": 5,
       "labels": ["platform", "critical"]
-    },
-    {
-      "description": "Disable auto digest pinning for custom regex manager - Fleet/Helm stack does not universally support image@sha256: format. Manually add digests where supported; Renovate will track existing digests via currentDigest capture group.",
-      "matchManagers": ["custom.regex"],
-      "matchDatasources": ["docker"],
-      "pinDigests": false
     }
   ],
   "customManagers": [
