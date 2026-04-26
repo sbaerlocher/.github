@@ -74,9 +74,12 @@ runs:
         # renovate: datasource=npm depName=@cyclonedx/cyclonedx-npm
         CYCLONEDX_NPM_VERSION: '2.0.0'
         OUTPUT_FILE: ${{ inputs.output-file }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
       run: |
         npx --yes "@cyclonedx/cyclonedx-npm@${CYCLONEDX_NPM_VERSION}" \
           --output-format JSON \
           --output-file "${OUTPUT_FILE}"
-        echo "sbom-path=${{ inputs.working-directory }}/${OUTPUT_FILE}" >> "$GITHUB_OUTPUT"
-        echo "✓ SBOM generated at ${{ inputs.working-directory }}/${OUTPUT_FILE}"
+        # Strip a trailing slash so "app/" + "sbom.json" doesn't yield "app//sbom.json".
+        SBOM_PATH="${WORKING_DIRECTORY%/}/${OUTPUT_FILE}"
+        echo "sbom-path=${SBOM_PATH}" >> "$GITHUB_OUTPUT"
+        echo "✓ SBOM generated at ${SBOM_PATH}"

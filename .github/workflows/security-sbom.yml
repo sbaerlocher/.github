@@ -20,6 +20,14 @@ on:
         type: string
         default: 'cyclonedx-json'
         description: 'SBOM format (cyclonedx-json, spdx-json, syft-json)'
+      package-manager:
+        type: string
+        default: 'npm'
+        description: 'For artifact-type=npm-package: package manager (npm, pnpm, yarn, bun)'
+      node-version-file:
+        type: string
+        default: '.nvmrc'
+        description: 'For artifact-type=npm-package: Node.js version file'
 
 permissions:
   contents: write
@@ -83,22 +91,32 @@ jobs:
       # release; Renovate updates this once tagged versions exist.
       - name: Generate npm SBOM
         if: inputs.artifact-type == 'npm-package'
+        id: sbom-npm
         uses: sbaerlocher/.github/.github/actions/sbom-npm@main
         with:
+          package-manager: ${{ inputs.package-manager }}
           working-directory: ${{ inputs.working-directory }}
+          node-version-file: ${{ inputs.node-version-file }}
           output-file: sbom-${{ inputs.artifact-type }}.json
 
-      # Validate and upload SBOM
+      # Resolve the SBOM file path for downstream steps. The npm branch
+      # writes inside working-directory (and exposes its path as an output);
+      # the other artifact-types write to the repo root.
       - name: Validate SBOM
         id: sbom-output
+        env:
+          ARTIFACT_TYPE: ${{ inputs.artifact-type }}
+          NPM_SBOM_PATH: ${{ steps.sbom-npm.outputs.sbom-path }}
         run: |
-          SBOM_FILE="sbom-${{ inputs.artifact-type }}.json"
-          echo "file=$SBOM_FILE" >> $GITHUB_OUTPUT
+          if [ "$ARTIFACT_TYPE" = 'npm-package' ]; then
+            SBOM_FILE="$NPM_SBOM_PATH"
+          else
+            SBOM_FILE="sbom-${ARTIFACT_TYPE}.json"
+          fi
+          echo "file=$SBOM_FILE" >> "$GITHUB_OUTPUT"
 
           if [ -f "$SBOM_FILE" ]; then
             echo "✓ SBOM generated successfully: $SBOM_FILE"
-
-            # Show component count
             COMPONENTS=$(jq '[.components[] // .packages[]] | length' "$SBOM_FILE" 2>/dev/null || echo "unknown")
             echo "Components/Packages: $COMPONENTS"
           else
@@ -110,8 +128,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom-${{ inputs.artifact-type }}
-          path: sbom-${{ inputs.artifact-type }}.json
+          path: ${{ steps.sbom-output.outputs.file }}
           retention-days: 90
+          if-no-files-found: error
 
   sbom-report:
     name: Create Report
