@@ -278,10 +278,16 @@ jobs:
           curl --fail --silent --show-error --location -o "$tarball" "$base/$tarball"
           curl --fail --silent --show-error --location -o CHECKSUMS "$base/CHECKSUMS"
 
-          grep " $tarball\$" CHECKSUMS | sha256sum -c -
-          tar xzf "$tarball"
+          # CHECKSUMS is in GNU sha256sum text-mode format ("<hash>  <file>", two spaces).
+          # If upstream ever switches to binary mode ("<hash> *<file>"), the grep below
+          # would fail to find the line and pipefail aborts the step — fail-closed is
+          # the desired behaviour here.
+          grep -E "  ${tarball}\$" CHECKSUMS | sha256sum -c -
+
+          # Extract only the binary; LICENSE and other archive members are irrelevant.
+          tar -xzf "$tarball" kubeconform
           sudo install -m 0755 kubeconform /usr/local/bin/
-          rm -f kubeconform LICENSE "$tarball" CHECKSUMS
+          rm -f kubeconform "$tarball" CHECKSUMS
 
       - name: Validate Kubernetes manifests
         env:

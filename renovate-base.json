@@ -46,7 +46,7 @@
       "minimumReleaseAge": "7 days"
     },
     {
-      "description": "Pre-1.0 packages: minor bumps may be breaking, require review for major/minor only",
+      "description": "Pre-1.0 packages: SemVer does not guarantee backward compatibility; treat any non-patch bump as potentially breaking and require manual review.",
       "matchCurrentVersion": "/^0\\./",
       "matchUpdateTypes": ["major", "minor"],
       "automerge": false

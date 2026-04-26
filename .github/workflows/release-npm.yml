@@ -378,6 +378,12 @@ jobs:
             fi
           done
 
+  # Inlined here intentionally: a previous version called
+  # `uses: ./.github/workflows/security-sbom.yml`, which only resolves inside
+  # this repo and silently broke for every consumer. The CycloneDX/npm logic
+  # below duplicates security-sbom.yml — when bumping CYCLONEDX_NPM_VERSION,
+  # update both files. Long-term TODO: extract into a composite action under
+  # `.github/actions/sbom-npm/` so both workflows can call it cross-repo.
   generate-sbom:
     name: Generate SBOM
     needs: [pre-release-checks, publish]

@@ -122,35 +122,50 @@ jobs:
 
       - name: 'Pipeline Configuration'
         id: config
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+          PROJECT_NAME: ${{ inputs.project-name }}
+          DEFAULT_ENV: ${{ inputs.default-environment }}
+          DISPATCH_ENV: ${{ github.event.inputs.environment }}
+          TERRAFORM_CHANGED: ${{ steps.enhanced_changes.outputs.terraform }}
+          CONFIGURATION_CHANGED: ${{ steps.enhanced_changes.outputs.configuration }}
         run: |
-          case "${{ github.event_name }}" in
-            "push")
-              if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-                ENVIRONMENT="${{ inputs.default-environment }}"
+          set -euo pipefail
+          case "$EVENT_NAME" in
+            push)
+              if [ "$REF" = "refs/heads/main" ]; then
+                ENVIRONMENT="$DEFAULT_ENV"
                 DEPLOYMENT_MODE="production"
               else
+                echo "::error::push event on non-main ref ($REF) is not deployable"
                 exit 1
               fi
               ;;
-            "workflow_dispatch")
-              ENVIRONMENT="${{ github.event.inputs.environment || inputs.default-environment }}"
+            workflow_dispatch)
+              ENVIRONMENT="${DISPATCH_ENV:-$DEFAULT_ENV}"
               DEPLOYMENT_MODE="manual"
               ;;
             *)
+              echo "::error::unsupported event: $EVENT_NAME"
               exit 1
               ;;
           esac
 
-          WORKSPACE="${ENVIRONMENT}"
+          WORKSPACE="$ENVIRONMENT"
           SHOULD_DEPLOY="false"
 
           if [ "$DEPLOYMENT_MODE" = "validation" ]; then
             SHOULD_DEPLOY="false"
-          elif [ "${{ steps.enhanced_changes.outputs.terraform }}" = "true" ] || [ "${{ steps.enhanced_changes.outputs.configuration }}" = "true" ] || [ "$DEPLOYMENT_MODE" = "production" ] || [ "$DEPLOYMENT_MODE" = "manual" ]; then
+          elif [ "$TERRAFORM_CHANGED" = "true" ] \
+            || [ "$CONFIGURATION_CHANGED" = "true" ] \
+            || [ "$DEPLOYMENT_MODE" = "production" ] \
+            || [ "$DEPLOYMENT_MODE" = "manual" ]; then
             SHOULD_DEPLOY="true"
           fi
 
-          DEPLOYMENT_ID="${{ inputs.project-name }}-deploy-$(date +%Y%m%d-%H%M%S)-$(echo '${{ github.sha }}' | cut -c1-8)"
+          DEPLOYMENT_ID="${PROJECT_NAME}-deploy-$(date +%Y%m%d-%H%M%S)-${SHA:0:8}"
 
           {
             echo "environment=$ENVIRONMENT"

@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "GitOps Renovate configuration for Fleet, Helm, Kubernetes and Kustomize",
+  "description": "GitOps Renovate configuration for Fleet, Helm, Kubernetes and Kustomize. Helm templates under */templates/* are deliberately NOT matched by the kubernetes manager — they go through helm-values / helmv3 instead, which would otherwise double-process them.",
   "extends": ["github>sbaerlocher/.github:renovate-base#main"],
   "enabledManagers": [
     "kubernetes",
@@ -12,9 +12,9 @@
   ],
   "kubernetes": {
     "managerFilePatterns": [
-      "/(^|/)(deployment|statefulset|daemonset|cronjob|job|pod|service|configmap|secret|ingress|hpa|networkpolicy|serviceaccount|role|rolebinding|clusterrole|clusterrolebinding)[^/]*\\.ya?ml$/",
-      "/(^|/)manifests/[^/]+\\.ya?ml$/",
-      "/(^|/)k8s/[^/]+\\.ya?ml$/",
+      "/(^|/)(deployment|statefulset|daemonset|cronjob|job|pod|service|configmap|secret|ingress|hpa|networkpolicy|serviceaccount|role|rolebinding|clusterrole|clusterrolebinding|persistentvolume|persistentvolumeclaim|replicaset|endpoints|poddisruptionbudget|customresourcedefinition|gateway|httproute|virtualservice)[^/]*\\.ya?ml$/",
+      "/(^|/)manifests/.+\\.ya?ml$/",
+      "/(^|/)k8s/.+\\.ya?ml$/",
       "/(^|/)kustomization\\.ya?ml$/"
     ]
   },

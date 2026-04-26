@@ -230,11 +230,14 @@ jobs:
           # renovate: datasource=docker depName=kubesec/kubesec
           KUBESEC_IMAGE_VERSION: 'v2.14.2'
         run: |
-          # Glob expansion happens on the host, then files are bind-mounted via the workspace.
-          shopt -s globstar nullglob
-          mapfile -t manifests < <(printf '%s\n' **/*.yaml **/*.yml)
+          # Match the same scope the gating step established (find-manifests above):
+          # only files under */templates/*. This avoids feeding kubesec non-manifest
+          # YAML like Chart.yaml, values.yaml, kustomization.yaml or CI configs.
+          mapfile -t manifests < <(
+            find . -type f \( -name '*.yaml' -o -name '*.yml' \) -path '*/templates/*'
+          )
           if [ ${#manifests[@]} -eq 0 ]; then
-            echo "::notice::No YAML manifests found for kubesec"
+            echo "::notice::No Kubernetes manifests found under */templates/*"
             echo "[]" > kubesec-results.json
             exit 0
           fi
