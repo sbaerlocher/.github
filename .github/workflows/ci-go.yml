@@ -93,6 +93,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   setup:
     name: Setup
@@ -168,7 +172,8 @@ jobs:
       - name: Run staticcheck
         uses: dominikh/staticcheck-action@9716614d4101e79b4340dd97b10e54d68234e431 # v1.4.1
         with:
-          version: 'latest'
+          # renovate: datasource=github-releases depName=dominikh/go-tools
+          version: '2025.1.1'
           install-go: false
 
       - name: Set test environment variables
@@ -293,7 +298,8 @@ jobs:
       - name: Run staticcheck
         uses: dominikh/staticcheck-action@9716614d4101e79b4340dd97b10e54d68234e431 # v1.4.1
         with:
-          version: 'latest'
+          # renovate: datasource=github-releases depName=dominikh/go-tools
+          version: '2025.1.1'
           install-go: false
 
       - name: Set test environment variables
@@ -396,19 +402,25 @@ jobs:
 
       - name: Run gosec Security Scanner
         if: matrix.scanner == 'gosec'
+        env:
+          # renovate: datasource=github-releases depName=securego/gosec
+          GOSEC_VERSION: 'v2.22.10'
         run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          go install "github.com/securego/gosec/v2/cmd/gosec@${GOSEC_VERSION}"
           gosec -no-fail -fmt sarif -out gosec.sarif ./...
 
       - name: Run govulncheck
         if: matrix.scanner == 'govulncheck'
+        env:
+          # renovate: datasource=go depName=golang.org/x/vuln
+          GOVULNCHECK_VERSION: 'v1.1.4'
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}"
           govulncheck -json ./... | tee govulncheck.json
-          # Show summary
-          if [ -s govulncheck.json ]; then
+          # govulncheck always emits JSON (progress + findings); use exit code instead.
+          if grep -q '"finding"' govulncheck.json; then
             echo "::warning::Vulnerabilities detected by govulncheck"
-            jq -r '.message // empty' govulncheck.json | head -10
+            jq -r '.finding // empty | .osv' govulncheck.json | sort -u | head -10
           else
             echo "::notice::No vulnerabilities found by govulncheck"
           fi
@@ -426,7 +438,7 @@ jobs:
 
       - name: Upload SARIF file
         if: inputs.enable-sarif-upload && (matrix.scanner == 'gosec' || matrix.scanner == 'trivy-fs')
-        uses: github/codeql-action/upload-sarif@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4
+        uses: github/codeql-action/upload-sarif@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
         with:
           sarif_file: ${{ matrix.scanner }}.sarif
           category: ${{ matrix.scanner }}
@@ -448,15 +460,15 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4
+        uses: github/codeql-action/init@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
         with:
           languages: go
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4
+        uses: github/codeql-action/autobuild@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4
+        uses: github/codeql-action/analyze@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
         with:
           category: '/language:go'
 

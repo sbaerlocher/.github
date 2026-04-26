@@ -46,6 +46,13 @@ on:
         description: 'Terraform workspace name'
         value: ${{ jobs.orchestration.outputs.workspace }}
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   orchestration:
     name: Orchestrate Pipeline
@@ -70,55 +77,48 @@ jobs:
       - name: 'Detect Infrastructure Changes'
         id: enhanced_changes
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          FORCE_DEPLOY: ${{ github.event.inputs.force_deploy }}
+          FORCED_PUSH: ${{ github.event.forced }}
+          TF_PATTERN: ${{ inputs.terraform-patterns }}
+          CFG_PATTERN: ${{ inputs.config-patterns }}
         run: |
-          set -e
+          set -euo pipefail
 
-          # Initialize outputs
           terraform_changed="false"
           configuration_changed="false"
 
-          # Handle different event types
-          case "${{ github.event_name }}" in
-            "workflow_dispatch")
-              # For manual dispatch, assume changes if force_deploy is true
-              if [ "${{ github.event.inputs.force_deploy }}" = "true" ]; then
+          diff_changed() {
+            local pattern="$1"
+            git diff --name-only HEAD~1 HEAD | grep -E -- "$pattern" >/dev/null
+          }
+
+          case "$EVENT_NAME" in
+            workflow_dispatch)
+              if [ "$FORCE_DEPLOY" = "true" ]; then
                 terraform_changed="true"
                 configuration_changed="true"
               else
-                # Check against HEAD~1 for manual dispatch
-                if git diff --name-only HEAD~1 HEAD | grep -E '${{ inputs.terraform-patterns }}' > /dev/null; then
-                  terraform_changed="true"
-                fi
-                if git diff --name-only HEAD~1 HEAD | grep -E '${{ inputs.config-patterns }}' > /dev/null; then
-                  configuration_changed="true"
-                fi
+                if diff_changed "$TF_PATTERN"; then terraform_changed="true"; fi
+                if diff_changed "$CFG_PATTERN"; then configuration_changed="true"; fi
               fi
               ;;
-            "push")
-              # For push events, check if we can diff against the previous commit
-              if [ "${{ github.event.forced }}" = "true" ] || ! git rev-parse HEAD~1 >/dev/null 2>&1; then
-                # Force push or no previous commit - assume everything changed
-                echo "Force push detected or no previous commit available, assuming all changes"
+            push)
+              if [ "$FORCED_PUSH" = "true" ] || ! git rev-parse HEAD~1 >/dev/null 2>&1; then
+                echo "Force push or no previous commit — assuming all changes"
                 terraform_changed="true"
                 configuration_changed="true"
               else
-                # Normal push - check changes against previous commit
-                if git diff --name-only HEAD~1 HEAD | grep -E '${{ inputs.terraform-patterns }}' > /dev/null; then
-                  terraform_changed="true"
-                fi
-                if git diff --name-only HEAD~1 HEAD | grep -E '${{ inputs.config-patterns }}' > /dev/null; then
-                  configuration_changed="true"
-                fi
+                if diff_changed "$TF_PATTERN"; then terraform_changed="true"; fi
+                if diff_changed "$CFG_PATTERN"; then configuration_changed="true"; fi
               fi
               ;;
           esac
 
           echo "terraform=$terraform_changed" >> "$GITHUB_OUTPUT"
           echo "configuration=$configuration_changed" >> "$GITHUB_OUTPUT"
-
-          echo "Infrastructure change detection results:"
-          echo "  Terraform: $terraform_changed"
-          echo "  Configuration: $configuration_changed"
+          echo "Detection: terraform=$terraform_changed configuration=$configuration_changed"
 
       - name: 'Pipeline Configuration'
         id: config
