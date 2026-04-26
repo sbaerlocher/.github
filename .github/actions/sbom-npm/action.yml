@@ -1,0 +1,82 @@
+---
+name: 'Generate npm SBOM'
+description: |
+  Generate a CycloneDX Software Bill of Materials for an npm/pnpm/yarn/bun
+  project. Single source of truth for npm SBOM generation across the
+  release-npm.yml and security-sbom.yml reusable workflows.
+author: 'sbaerlocher'
+
+inputs:
+  package-manager:
+    description: 'Package manager to use (npm, pnpm, yarn, bun)'
+    required: false
+    default: 'npm'
+  working-directory:
+    description: 'Working directory containing package.json'
+    required: false
+    default: '.'
+  node-version-file:
+    description: 'Path to a Node.js version file (e.g. .nvmrc, package.json)'
+    required: false
+    default: '.nvmrc'
+  output-file:
+    description: 'SBOM output file path, relative to working-directory'
+    required: false
+    default: 'sbom-npm-package.cdx.json'
+  install-dependencies:
+    description: |
+      Whether the action should install dependencies before generating the
+      SBOM. Set to "false" if the calling job already installed them.
+    required: false
+    default: 'true'
+
+outputs:
+  sbom-path:
+    description: 'Resolved path to the generated SBOM file'
+    value: ${{ steps.generate.outputs.sbom-path }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      with:
+        node-version-file: ${{ inputs.node-version-file }}
+
+    - name: Setup pnpm
+      if: inputs.package-manager == 'pnpm'
+      uses: pnpm/action-setup@903f9c1a6ebcba6cf41d87230be49611ac97822e # v6.0.3
+
+    - name: Setup Bun
+      if: inputs.package-manager == 'bun'
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+    - name: Install dependencies
+      if: inputs.install-dependencies == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        PM: ${{ inputs.package-manager }}
+      run: |
+        case "$PM" in
+          pnpm) pnpm install --frozen-lockfile ;;
+          bun)  bun install --frozen-lockfile ;;
+          yarn) yarn install --frozen-lockfile ;;
+          npm)  npm ci ;;
+          *)    echo "::error::unsupported package manager: $PM" ; exit 1 ;;
+        esac
+
+    - name: Generate CycloneDX SBOM
+      id: generate
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        # renovate: datasource=npm depName=@cyclonedx/cyclonedx-npm
+        CYCLONEDX_NPM_VERSION: '2.0.0'
+        OUTPUT_FILE: ${{ inputs.output-file }}
+      run: |
+        npx --yes "@cyclonedx/cyclonedx-npm@${CYCLONEDX_NPM_VERSION}" \
+          --output-format JSON \
+          --output-file "${OUTPUT_FILE}"
+        echo "sbom-path=${{ inputs.working-directory }}/${OUTPUT_FILE}" >> "$GITHUB_OUTPUT"
+        echo "✓ SBOM generated at ${{ inputs.working-directory }}/${OUTPUT_FILE}"
