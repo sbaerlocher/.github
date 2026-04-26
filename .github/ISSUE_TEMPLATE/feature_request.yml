@@ -1,0 +1,96 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature. Please describe the idea
+        in enough detail that a maintainer can decide on scope and approach.
+
+  - type: input
+    id: repository
+    attributes:
+      label: Affected repository
+      description: Which repository is this feature for? (org/repo)
+      placeholder: e.g. sbaerlocher/functions, sbaerlocher/.github
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Feature type
+      options:
+        - New functionality
+        - Enhancement to existing feature
+        - New configuration option
+        - New platform support
+        - Performance improvement
+        - Documentation improvement
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: Which problem does this feature solve, and for whom?
+      placeholder: Today, when I try to ..., I run into ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the change you'd like to see.
+      placeholder: I would like to ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What does "done" look like? List measurable, verifiable criteria.
+      placeholder: |
+        - [ ] Workflow accepts a new `foo` input with default `bar`
+        - [ ] Documentation in STANDARDS.md updated
+        - [ ] CHANGELOG entry added
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you evaluated and why they were dismissed.
+      placeholder: Optional
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Screenshots, links, prior art, related issues.
+      placeholder: Optional
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I would be willing to submit a pull request for this feature
+          required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues to avoid duplicates
+          required: true
+        - label: This feature is in scope for the affected repository
+          required: true

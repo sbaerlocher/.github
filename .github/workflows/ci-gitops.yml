@@ -18,9 +18,10 @@ on:
         required: false
         default: '4.1.3'
       kubeconform-version:
-        description: 'kubeconform version'
+        description: 'kubeconform version (without v prefix)'
         type: string
         required: false
+        # renovate: datasource=github-releases depName=yannh/kubeconform extractVersion=^v(?<version>.+)$
         default: '0.7.0'
       enable-yaml-lint:
         description: 'Run YAML syntax validation'
@@ -44,6 +45,16 @@ on:
         default: true
       enable-k8s-validation:
         description: 'Validate Kubernetes manifests with kubeconform'
+        type: boolean
+        required: false
+        default: true
+      yaml-lint-strict:
+        description: 'Fail the job when yamllint reports any issue'
+        type: boolean
+        required: false
+        default: true
+      k8s-validation-strict:
+        description: 'Fail the job when kubeconform reports invalid manifests'
         type: boolean
         required: false
         default: true
@@ -93,7 +104,18 @@ jobs:
 
       - name: Validate YAML files
         run: |
-          find . -name "*.yaml" -o -name "*.yml" | xargs yamllint -c .yamllint.yml || true
+          set -euo pipefail
+          if [ ! -f .yamllint.yml ]; then
+            echo "::warning::.yamllint.yml not found - using default config"
+          fi
+          # -print0 / xargs -0 to survive paths with spaces
+          if [ "${{ inputs.yaml-lint-strict }}" = "true" ]; then
+            find . \( -name '*.yaml' -o -name '*.yml' \) -print0 \
+              | xargs -0 yamllint ${{ hashFiles('.yamllint.yml') != '' && '-c .yamllint.yml' || '' }} -f parsable
+          else
+            find . \( -name '*.yaml' -o -name '*.yml' \) -print0 \
+              | xargs -0 yamllint ${{ hashFiles('.yamllint.yml') != '' && '-c .yamllint.yml' || '' }} -f parsable || true
+          fi
 
   validate-fleet-configs:
     name: Validate Fleet Configurations
@@ -246,16 +268,51 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install kubeconform
+        env:
+          KUBECONFORM_VERSION: ${{ inputs.kubeconform-version }}
         run: |
-          curl -L https://github.com/yannh/kubeconform/releases/download/v${{ inputs.kubeconform-version }}/kubeconform-linux-amd64.tar.gz | tar xz
-          sudo mv kubeconform /usr/local/bin/
+          set -euo pipefail
+          tarball="kubeconform-linux-amd64.tar.gz"
+          base="https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}"
+
+          curl --fail --silent --show-error --location -o "$tarball" "$base/$tarball"
+          curl --fail --silent --show-error --location -o CHECKSUMS "$base/CHECKSUMS"
+
+          # CHECKSUMS is in GNU sha256sum text-mode format ("<hash>  <file>", two spaces).
+          # If upstream ever switches to binary mode ("<hash> *<file>"), the grep below
+          # would fail to find the line and pipefail aborts the step — fail-closed is
+          # the desired behaviour here.
+          grep -E "  ${tarball}\$" CHECKSUMS | sha256sum -c -
+
+          # Extract only the binary; LICENSE and other archive members are irrelevant.
+          tar -xzf "$tarball" kubeconform
+          sudo install -m 0755 kubeconform /usr/local/bin/
+          rm -f kubeconform "$tarball" CHECKSUMS
 
       - name: Validate Kubernetes manifests
+        env:
+          FLEET_PATHS: ${{ inputs.fleet-paths }}
+          STRICT: ${{ inputs.k8s-validation-strict }}
         run: |
+          set -euo pipefail
           echo "Validating Kubernetes manifests with kubeconform..."
-          find ${{ inputs.fleet-paths }} -name "*.yaml" -o -name "*.yml" | \
-            grep -E "(templates|manifests)" | \
-            xargs kubeconform -summary -output json -ignore-missing-schemas || true
+
+          mapfile -t manifests < <(
+            find ${FLEET_PATHS} \( -name '*.yaml' -o -name '*.yml' \) \
+              | grep -E '(templates|manifests)' \
+              || true
+          )
+
+          if [ ${#manifests[@]} -eq 0 ]; then
+            echo "::notice::No Kubernetes manifests found under: ${FLEET_PATHS}"
+            exit 0
+          fi
+
+          if [ "$STRICT" = "true" ]; then
+            kubeconform -summary -output json -ignore-missing-schemas "${manifests[@]}"
+          else
+            kubeconform -summary -output json -ignore-missing-schemas "${manifests[@]}" || true
+          fi
 
   check-documentation:
     name: Check Documentation

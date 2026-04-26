@@ -67,6 +67,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   pre-release-checks:
     name: Validate Package
@@ -374,15 +378,62 @@ jobs:
             fi
           done
 
+  # Inlined here intentionally: a previous version called
+  # `uses: ./.github/workflows/security-sbom.yml`, which only resolves inside
+  # this repo and silently broke for every consumer. The CycloneDX/npm logic
+  # below duplicates security-sbom.yml — when bumping CYCLONEDX_NPM_VERSION,
+  # update both files. Long-term TODO: extract into a composite action under
+  # `.github/actions/sbom-npm/` so both workflows can call it cross-repo.
   generate-sbom:
     name: Generate SBOM
     needs: [pre-release-checks, publish]
     if: inputs.enable-sbom && needs.pre-release-checks.outputs.should-publish == 'true' && !inputs.dry-run
-    uses: ./.github/workflows/security-sbom.yml
-    with:
-      artifact-type: npm-package
-      artifact-ref: ${{ inputs.working-directory }}
-      sbom-format: cyclonedx-json
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: ${{ inputs.node-version-file }}
+
+      - name: Setup pnpm
+        if: inputs.package-manager == 'pnpm'
+        uses: pnpm/action-setup@903f9c1a6ebcba6cf41d87230be49611ac97822e # v6.0.3
+
+      - name: Setup Bun
+        if: inputs.package-manager == 'bun'
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Install dependencies
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          case "${{ inputs.package-manager }}" in
+            pnpm) pnpm install --frozen-lockfile ;;
+            bun) bun install --frozen-lockfile ;;
+            yarn) yarn install --frozen-lockfile ;;
+            npm) npm ci ;;
+          esac
+
+      - name: Generate CycloneDX SBOM
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          npx --yes @cyclonedx/cyclonedx-npm@2.0.0 \
+            --output-format JSON \
+            --output-file sbom-npm-package.cdx.json
+          echo "✓ SBOM generated"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom-npm-package
+          path: ${{ inputs.working-directory }}/sbom-npm-package.cdx.json
+          retention-days: 90
+          if-no-files-found: error
 
   github-release:
     name: Create Release
@@ -443,7 +494,7 @@ jobs:
 
       - name: Create GitHub Release
         id: create-release
-        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           tag_name: v${{ needs.pre-release-checks.outputs.version }}
           name: Release v${{ needs.pre-release-checks.outputs.version }}

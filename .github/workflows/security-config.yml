@@ -49,6 +49,10 @@ permissions:
   contents: read
   security-events: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   trivy-config-scan:
     name: Trivy Config Scan
@@ -72,7 +76,7 @@ jobs:
         if: |
           inputs.enable-sarif && always() &&
           github.event.repository.visibility == 'public'
-        uses: github/codeql-action/upload-sarif@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4
+        uses: github/codeql-action/upload-sarif@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
         with:
           sarif_file: 'trivy-config-results.sarif'
           category: 'trivy-config'
@@ -88,11 +92,15 @@ jobs:
 
       - name: Generate Trivy report
         if: always()
+        env:
+          # renovate: datasource=docker depName=aquasec/trivy
+          TRIVY_IMAGE_VERSION: '0.59.1'
+          SEVERITY: ${{ inputs.severity-threshold }}
         run: |
           echo "Generating detailed Trivy report..."
           docker run --rm -v "$(pwd):/workspace" \
-            aquasec/trivy:0.35.0 config /workspace \
-            --severity ${{ inputs.severity-threshold }},HIGH,CRITICAL \
+            "aquasec/trivy:${TRIVY_IMAGE_VERSION}" config /workspace \
+            --severity "${SEVERITY},HIGH,CRITICAL" \
             --format table \
             | tee trivy-config-report.txt
 
@@ -142,7 +150,7 @@ jobs:
           inputs.enable-sarif && always() &&
           steps.sarif_check.outputs.exists == 'true' &&
           github.event.repository.visibility == 'public'
-        uses: github/codeql-action/upload-sarif@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4
+        uses: github/codeql-action/upload-sarif@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
         with:
           sarif_file: 'trivy-results.sarif'
           category: 'trivy-terraform'
@@ -218,9 +226,23 @@ jobs:
       - name: Run Kubesec
         if: steps.find-manifests.outputs.found == 'true'
         working-directory: ${{ inputs.kubernetes-path }}
+        env:
+          # renovate: datasource=docker depName=kubesec/kubesec
+          KUBESEC_IMAGE_VERSION: 'v2.14.2'
         run: |
-          docker run --rm -v "$(pwd):/workspace" \
-            kubesec/kubesec:v2 scan /workspace/**/*.yaml \
+          # Match the same scope the gating step established (find-manifests above):
+          # only files under */templates/*. This avoids feeding kubesec non-manifest
+          # YAML like Chart.yaml, values.yaml, kustomization.yaml or CI configs.
+          mapfile -t manifests < <(
+            find . -type f \( -name '*.yaml' -o -name '*.yml' \) -path '*/templates/*'
+          )
+          if [ ${#manifests[@]} -eq 0 ]; then
+            echo "::notice::No Kubernetes manifests found under */templates/*"
+            echo "[]" > kubesec-results.json
+            exit 0
+          fi
+          docker run --rm -v "$(pwd):/workspace" -w /workspace \
+            "kubesec/kubesec:${KUBESEC_IMAGE_VERSION}" scan "${manifests[@]}" \
             | tee kubesec-results.json
 
           # Check for critical issues
@@ -277,8 +299,18 @@ jobs:
           python-version: '3.12'
 
       - name: Install Ansible and ansible-lint
+        env:
+          # renovate: datasource=pypi depName=ansible
+          ANSIBLE_VERSION: '11.10.0'
+          # renovate: datasource=pypi depName=ansible-lint
+          ANSIBLE_LINT_VERSION: '25.11.0'
+          # renovate: datasource=pypi depName=yamllint
+          YAMLLINT_VERSION: '1.37.1'
         run: |
-          pip install ansible ansible-lint yamllint
+          pip install \
+            "ansible==${ANSIBLE_VERSION}" \
+            "ansible-lint==${ANSIBLE_LINT_VERSION}" \
+            "yamllint==${YAMLLINT_VERSION}"
 
       - name: Run ansible-lint
         working-directory: ${{ inputs.ansible-path }}

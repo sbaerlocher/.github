@@ -87,12 +87,19 @@ Files that do NOT belong in every repo: `docs/`, `SECURITY.md`, issue/PR templat
 
 ## Workflows
 
-All reusable workflows live in `sbaerlocher/.github/.github/workflows/`. Reference with a
-date-based version tag for reproducibility:
+All reusable workflows live in `sbaerlocher/.github/.github/workflows/`.
+
+**Versioning model:** rolling release with date-based tags (`YYYY-MM-DD`).
+Consumer repositories MUST reference workflows by date tag — never `@main`,
+never `@v1` (those tags do not exist). Renovate updates these tags
+automatically via the shared `renovate-base` custom manager.
 
 ```yaml
-uses: sbaerlocher/.github/.github/workflows/ci-terraform.yml@2026-02-14
+uses: sbaerlocher/.github/.github/workflows/ci-terraform.yml@2026-04-25
 ```
+
+The current set of tags is visible at
+<https://github.com/sbaerlocher/.github/tags>.
 
 ### Required Workflows by Repo Type
 
@@ -183,16 +190,21 @@ not on PRs, and would block every merge.
 
 Shared presets in `sbaerlocher/.github`. Each repo extends exactly one:
 
-| Repo type       | Preset               |
-| --------------- | -------------------- |
-| JS/TS           | `renovate-js`        |
-| Terraform/IaC   | `renovate-terraform` |
-| GitOps/Helm     | `renovate-gitops`    |
-| Everything else | `renovate-base`      |
+| Repo type       | Preset                |
+| --------------- | --------------------- |
+| JS/TS           | `renovate-js`         |
+| Terraform/IaC   | `renovate-terraform`  |
+| GitOps/Helm     | `renovate-kubernetes` |
+| Everything else | `renovate-base`       |
 
 ```json
-{ "extends": ["github>sbaerlocher/.github:renovate/renovate-base"] }
+{ "extends": ["github>sbaerlocher/.github:renovate-base"] }
 ```
+
+The preset name is the JSON file basename without `.json` (e.g. `renovate-base.json`
+→ `renovate-base`). No slash between repo and preset name. Append `#main` only when
+the preset references *itself* (see `renovate.json` in this repo) — consumer repos
+should omit the suffix to use Renovate's default resolution.
 
 Project-specific rules go in `packageRules` — never duplicate base config inline.
 

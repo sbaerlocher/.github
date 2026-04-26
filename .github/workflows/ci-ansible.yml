@@ -32,6 +32,10 @@ on:
         type: boolean
         default: false
         description: 'Run yamllint on YAML files'
+      yamllint-strict:
+        type: boolean
+        default: true
+        description: 'Fail the job when yamllint reports any issue'
       ansible-lint-strict:
         type: boolean
         default: false
@@ -39,6 +43,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validation:
@@ -157,5 +165,9 @@ jobs:
         run: |
           echo "::group::Run yamllint"
           echo "Linting YAML files in ${{ inputs.working-directory }}..."
-          yamllint -f parsable . || true
+          if [ "${{ inputs.yamllint-strict }}" = "true" ]; then
+            yamllint -f parsable .
+          else
+            yamllint -f parsable . || true
+          fi
           echo "::endgroup::"

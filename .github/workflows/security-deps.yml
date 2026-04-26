@@ -40,6 +40,10 @@ permissions:
   pull-requests: write
   security-events: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   dependency-review:
     name: Dependency Review (GitHub)
@@ -77,13 +81,24 @@ jobs:
       # Vulnerability scanning
       - name: Run govulncheck
         working-directory: ${{ inputs.working-directory }}
+        env:
+          # renovate: datasource=go depName=golang.org/x/vuln
+          GOVULNCHECK_VERSION: 'v1.1.4'
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}"
+          # govulncheck exits 3 on findings; under the runner's `bash -eo pipefail`
+          # the pipe would abort before we summarise, so disable -e for the run.
+          set +e
           govulncheck -json ./... | tee govulncheck.json
-
-          if [ -s govulncheck.json ]; then
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then
+            echo "::error::govulncheck failed (exit $rc)"
+            exit "$rc"
+          fi
+          if grep -q '"finding"' govulncheck.json; then
             echo "::warning::Vulnerabilities detected by govulncheck"
-            jq -r '.message // empty' govulncheck.json | head -10
+            jq -r '.finding // empty | .osv' govulncheck.json | sort -u | head -10
           else
             echo "::notice::No vulnerabilities found"
           fi
@@ -92,10 +107,14 @@ jobs:
       - name: Check Go licenses
         if: inputs.enable-license-check
         working-directory: ${{ inputs.working-directory }}
+        env:
+          # renovate: datasource=go depName=github.com/google/go-licenses
+          GO_LICENSES_VERSION: 'v1.6.0'
+          ALLOWED_LICENSES: ${{ inputs.allowed-licenses }}
         run: |
-          go install github.com/google/go-licenses@latest
+          go install "github.com/google/go-licenses@${GO_LICENSES_VERSION}"
           echo "Checking Go dependency licenses..."
-          go-licenses check ./... --allowed_licenses=${{ inputs.allowed-licenses }} 2>&1 | tee go-licenses.txt || true
+          go-licenses check ./... --allowed_licenses="${ALLOWED_LICENSES}" 2>&1 | tee go-licenses.txt || true
           go-licenses csv ./... > go-licenses.csv 2>&1 || true
 
       - name: Upload audit results
@@ -167,13 +186,16 @@ jobs:
       - name: Check JavaScript licenses
         if: inputs.enable-license-check
         working-directory: ${{ inputs.working-directory }}
+        env:
+          # renovate: datasource=npm depName=license-checker
+          LICENSE_CHECKER_VERSION: '25.0.1'
+          DENIED: ${{ inputs.denied-licenses }}
         run: |
-          npm install -g license-checker
+          npm install -g "license-checker@${LICENSE_CHECKER_VERSION}"
           echo "Checking JavaScript dependency licenses..."
           license-checker --json > js-licenses.json 2>&1 || true
           license-checker --summary > js-licenses-summary.txt 2>&1 || true
 
-          DENIED="${{ inputs.denied-licenses }}"
           if [ -n "$DENIED" ]; then
             license-checker --failOn "$DENIED" 2>&1 | tee js-licenses-violations.txt || true
           fi
@@ -216,8 +238,11 @@ jobs:
       # Vulnerability scanning
       - name: Install and run safety
         working-directory: ${{ inputs.working-directory }}
+        env:
+          # renovate: datasource=pypi depName=safety
+          SAFETY_VERSION: '3.6.2'
         run: |
-          pip install safety
+          pip install "safety==${SAFETY_VERSION}"
           if [ -f requirements.txt ]; then
             safety check --file requirements.txt --json > safety-results.json || true
           fi
@@ -226,8 +251,11 @@ jobs:
       - name: Check Python licenses
         if: inputs.enable-license-check
         working-directory: ${{ inputs.working-directory }}
+        env:
+          # renovate: datasource=pypi depName=pip-licenses
+          PIP_LICENSES_VERSION: '5.0.0'
         run: |
-          pip install pip-licenses
+          pip install "pip-licenses==${PIP_LICENSES_VERSION}"
           echo "Checking Python dependency licenses..."
           pip-licenses --format=json > python-licenses.json 2>&1 || true
           pip-licenses --format=markdown > python-licenses.md 2>&1 || true

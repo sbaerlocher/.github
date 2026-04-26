@@ -24,6 +24,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   generate-sbom:
     name: Generate SBOM
@@ -64,9 +68,13 @@ jobs:
       - name: Generate SBOM for Go binary
         if: inputs.artifact-type == 'go-binary'
         working-directory: ${{ inputs.working-directory }}
+        env:
+          # renovate: datasource=github-releases depName=CycloneDX/cyclonedx-gomod
+          CYCLONEDX_GOMOD_VERSION: 'v1.10.0'
+          ARTIFACT_TYPE: ${{ inputs.artifact-type }}
         run: |
-          go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest
-          cyclonedx-gomod mod -json -output ../sbom-${{ inputs.artifact-type }}.json
+          go install "github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@${CYCLONEDX_GOMOD_VERSION}"
+          cyclonedx-gomod mod -json -output "../sbom-${ARTIFACT_TYPE}.json"
 
       # NPM Package SBOM
       - name: Setup Node.js
@@ -78,10 +86,14 @@ jobs:
       - name: Generate SBOM for NPM package
         if: inputs.artifact-type == 'npm-package'
         working-directory: ${{ inputs.working-directory }}
+        env:
+          # renovate: datasource=npm depName=@cyclonedx/cyclonedx-npm
+          CYCLONEDX_NPM_VERSION: '2.0.0'
+          ARTIFACT_TYPE: ${{ inputs.artifact-type }}
         run: |
-          npm install -g @cyclonedx/cyclonedx-npm
+          npm install -g "@cyclonedx/cyclonedx-npm@${CYCLONEDX_NPM_VERSION}"
           npm ci
-          cyclonedx-npm --output-file ../sbom-${{ inputs.artifact-type }}.json
+          cyclonedx-npm --output-file "../sbom-${ARTIFACT_TYPE}.json"
 
       # Validate and upload SBOM
       - name: Validate SBOM

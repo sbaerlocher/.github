@@ -20,7 +20,10 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   TF_IN_AUTOMATION: 'true'
@@ -88,7 +91,8 @@ jobs:
       - name: Setup TFLint
         uses: terraform-linters/setup-tflint@b480b8fcdaa6f2c577f8e4fa799e89e756bb7c93 # v6.2.2
         with:
-          tflint_version: latest
+          # renovate: datasource=github-releases depName=terraform-linters/tflint
+          tflint_version: 'v0.59.1'
 
       - name: TFLint Init
         working-directory: ${{ inputs.working-directory }}
@@ -147,7 +151,7 @@ jobs:
 
       - name: Upload Trivy SARIF to GitHub Security
         if: ${{ inputs.enable-sarif-upload }}
-        uses: github/codeql-action/upload-sarif@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4
+        uses: github/codeql-action/upload-sarif@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
         with:
           sarif_file: 'trivy-results.sarif'
           category: 'trivy'

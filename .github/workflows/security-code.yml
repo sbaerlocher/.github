@@ -78,7 +78,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4
+        uses: github/codeql-action/init@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
         with:
           languages: ${{ matrix.language }}
           queries: ${{ inputs.queries }}
@@ -102,7 +102,7 @@ jobs:
       # Setup language-specific environments
       - name: Install pnpm
         if: matrix.language == 'javascript-typescript' && steps.detect-pm.outputs.manager == 'pnpm'
-        uses: pnpm/action-setup@903f9c1a6ebcba6cf41d87230be49611ac97822e # v6
+        uses: pnpm/action-setup@903f9c1a6ebcba6cf41d87230be49611ac97822e # v6.0.3
 
       - name: Setup Node.js
         if: matrix.language == 'javascript-typescript'
@@ -156,10 +156,10 @@ jobs:
 
       - name: Autobuild
         if: inputs.build-command == '' && matrix.language != 'javascript-typescript' && matrix.language != 'python'
-        uses: github/codeql-action/autobuild@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4
+        uses: github/codeql-action/autobuild@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4
+        uses: github/codeql-action/analyze@95e58e9a2cdfd71adc6e0353d5c52f41a045d225 # v4.35.2
         with:
           category: '/language:${{ matrix.language }}'
           upload: ${{ inputs.enable-sarif-upload && 'always' || 'never' }}
@@ -167,7 +167,7 @@ jobs:
 
       - name: Upload SARIF as artifact
         if: ${{ !inputs.enable-sarif-upload }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: codeql-sarif-${{ matrix.language }}
           path: codeql-results/*.sarif

@@ -8,7 +8,8 @@
   "assigneesFromCodeOwners": true,
   "reviewersFromCodeOwners": true,
   "prConcurrentLimit": 5,
-  "prHourlyLimit": 0,
+  "prHourlyLimit": 4,
+  "osvVulnerabilityAlerts": true,
   "platformAutomerge": true,
   "automergeType": "pr",
   "automergeStrategy": "squash",
@@ -45,8 +46,9 @@
       "minimumReleaseAge": "7 days"
     },
     {
-      "description": "Pre-release versions require manual review",
+      "description": "Pre-1.0 packages: SemVer does not guarantee backward compatibility; treat any non-patch bump as potentially breaking and require manual review.",
       "matchCurrentVersion": "/^0\\./",
+      "matchUpdateTypes": ["major", "minor"],
       "automerge": false
     },
     {
