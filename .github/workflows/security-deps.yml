@@ -109,7 +109,7 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
         env:
           # renovate: datasource=go depName=github.com/google/go-licenses
-          GO_LICENSES_VERSION: 'v1.6.0'
+          GO_LICENSES_VERSION: 'v2.0.1'
           ALLOWED_LICENSES: ${{ inputs.allowed-licenses }}
         run: |
           go install "github.com/google/go-licenses@${GO_LICENSES_VERSION}"
