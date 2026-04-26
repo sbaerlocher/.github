@@ -83,7 +83,7 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
         env:
           # renovate: datasource=go depName=golang.org/x/vuln
-          GOVULNCHECK_VERSION: 'v1.1.4'
+          GOVULNCHECK_VERSION: 'v1.3.0'
         run: |
           go install "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}"
           # govulncheck exits 3 on findings; under the runner's `bash -eo pipefail`
@@ -240,7 +240,7 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
         env:
           # renovate: datasource=pypi depName=safety
-          SAFETY_VERSION: '3.6.2'
+          SAFETY_VERSION: '3.7.0'
         run: |
           pip install "safety==${SAFETY_VERSION}"
           if [ -f requirements.txt ]; then
@@ -253,7 +253,7 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
         env:
           # renovate: datasource=pypi depName=pip-licenses
-          PIP_LICENSES_VERSION: '5.0.0'
+          PIP_LICENSES_VERSION: '5.5.5'
         run: |
           pip install "pip-licenses==${PIP_LICENSES_VERSION}"
           echo "Checking Python dependency licenses..."

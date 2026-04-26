@@ -94,7 +94,7 @@ jobs:
         if: always()
         env:
           # renovate: datasource=docker depName=aquasec/trivy
-          TRIVY_IMAGE_VERSION: '0.59.1'
+          TRIVY_IMAGE_VERSION: '0.70.0'
           SEVERITY: ${{ inputs.severity-threshold }}
         run: |
           echo "Generating detailed Trivy report..."
@@ -301,11 +301,11 @@ jobs:
       - name: Install Ansible and ansible-lint
         env:
           # renovate: datasource=pypi depName=ansible
-          ANSIBLE_VERSION: '12.2.0'
+          ANSIBLE_VERSION: '12.3.0'
           # renovate: datasource=pypi depName=ansible-lint
-          ANSIBLE_LINT_VERSION: '25.11.0'
+          ANSIBLE_LINT_VERSION: '25.12.2'
           # renovate: datasource=pypi depName=yamllint
-          YAMLLINT_VERSION: '1.37.1'
+          YAMLLINT_VERSION: '1.38.0'
         run: |
           pip install \
             "ansible==${ANSIBLE_VERSION}" \

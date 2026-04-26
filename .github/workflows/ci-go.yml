@@ -404,7 +404,7 @@ jobs:
         if: matrix.scanner == 'gosec'
         env:
           # renovate: datasource=github-releases depName=securego/gosec
-          GOSEC_VERSION: 'v2.22.10'
+          GOSEC_VERSION: 'v2.25.0'
         run: |
           go install "github.com/securego/gosec/v2/cmd/gosec@${GOSEC_VERSION}"
           gosec -no-fail -fmt sarif -out gosec.sarif ./...
@@ -413,7 +413,7 @@ jobs:
         if: matrix.scanner == 'govulncheck'
         env:
           # renovate: datasource=go depName=golang.org/x/vuln
-          GOVULNCHECK_VERSION: 'v1.1.4'
+          GOVULNCHECK_VERSION: 'v1.3.0'
         run: |
           go install "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}"
           # govulncheck exits 3 on findings; under the runner's `bash -eo pipefail`
