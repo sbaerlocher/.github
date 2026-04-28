@@ -105,8 +105,8 @@ jobs:
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: ${{ inputs.node-version }}
-          cache: ${{ inputs.package-manager != 'bun' && inputs.package-manager || '' }}
-          cache-dependency-path: ${{ inputs.playwright-directory }}/${{ inputs.package-manager == 'pnpm' && 'pnpm-lock.yaml' || inputs.package-manager == 'yarn' && 'yarn.lock' || inputs.package-manager == 'bun' && 'bun.lockb' || 'package-lock.json' }}
+          cache: ${{ inputs.package-manager }}
+          cache-dependency-path: ${{ inputs.playwright-directory }}/${{ inputs.package-manager == 'pnpm' && 'pnpm-lock.yaml' || inputs.package-manager == 'yarn' && 'yarn.lock' || inputs.package-manager == 'bun' && 'bun.lock' || 'package-lock.json' }}
 
       - name: Setup pnpm
         if: inputs.package-manager == 'pnpm'
@@ -155,10 +155,22 @@ jobs:
       # ----- Failure diagnostics & teardown -----
       - name: Save dde logs
         if: failure() && inputs.upload-artifacts
-        working-directory: ${{ inputs.project-directory }}
+        env:
+          PROJECT_DIR: ${{ inputs.project-directory }}
         run: |
-          dde project:logs > "${{ runner.temp }}/dde-logs.txt" 2>&1 || true
-          dde project:ps > "${{ runner.temp }}/dde-ps.txt" 2>&1 || true
+          if ! command -v dde >/dev/null 2>&1; then
+            echo "dde was never installed — see project-up step output" \
+              | tee "$RUNNER_TEMP/dde-logs.txt" "$RUNNER_TEMP/dde-ps.txt"
+            exit 0
+          fi
+          if [ ! -d "$PROJECT_DIR" ]; then
+            echo "project-directory '$PROJECT_DIR' does not exist" \
+              | tee "$RUNNER_TEMP/dde-logs.txt" "$RUNNER_TEMP/dde-ps.txt"
+            exit 0
+          fi
+          cd "$PROJECT_DIR"
+          dde project:logs > "$RUNNER_TEMP/dde-logs.txt" 2>&1 || true
+          dde project:ps   > "$RUNNER_TEMP/dde-ps.txt"   2>&1 || true
 
       - name: Upload Playwright report
         if: inputs.upload-artifacts && always()
@@ -191,8 +203,19 @@ jobs:
 
       - name: Stop dde project
         if: always()
-        working-directory: ${{ inputs.project-directory }}
-        run: dde project:down || true
+        env:
+          PROJECT_DIR: ${{ inputs.project-directory }}
+        run: |
+          if ! command -v dde >/dev/null 2>&1; then
+            echo "dde was never installed — nothing to tear down"
+            exit 0
+          fi
+          if [ ! -d "$PROJECT_DIR" ] || [ ! -f "$PROJECT_DIR/.dde/config.yml" ]; then
+            echo "project-directory '$PROJECT_DIR' missing or not a dde project — skipping project:down"
+            exit 0
+          fi
+          cd "$PROJECT_DIR"
+          dde project:down || true
 
   # PR comment runs as a separate job so the test job stays at
   # contents:read. pull-requests:write is scoped to this job only.

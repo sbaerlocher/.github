@@ -72,9 +72,13 @@ runs:
       run: |
         set -euo pipefail
         if [ "$REQUESTED" = "latest" ]; then
-          # Use /releases?per_page=1 (not /releases/latest) so this works
-          # while the project only ships pre-releases — /releases/latest
-          # excludes pre-releases and would 404.
+          # Use /releases (not /releases/latest) so this works while the
+          # project only ships pre-releases — /releases/latest excludes
+          # pre-releases and would 404. /releases is sorted by `created_at`
+          # descending; we filter out drafts and take the first non-draft
+          # release. Pre-releases ARE included by design (whatwedo/dde is
+          # currently alpha). Pin `version` to an exact tag if you need a
+          # stronger contract than "newest non-draft tag".
           auth_args=()
           if [ -n "${GH_TOKEN:-}" ]; then
             auth_args=(-H "Authorization: Bearer $GH_TOKEN")
@@ -82,8 +86,8 @@ runs:
           version=$(curl -fsSL \
             "${auth_args[@]}" \
             -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${REPO}/releases?per_page=1" \
-            | jq -r '.[0].tag_name // empty')
+            "https://api.github.com/repos/${REPO}/releases?per_page=10" \
+            | jq -r '[.[] | select(.draft == false)][0].tag_name // empty')
         else
           case "$REQUESTED" in
             v*) version="$REQUESTED" ;;

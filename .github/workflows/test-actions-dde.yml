@@ -32,7 +32,6 @@ jobs:
           - ubuntu-latest
           - ubuntu-24.04-arm
           - macos-latest
-          - macos-13
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -64,17 +63,17 @@ jobs:
         run: echo "Installed dde ${{ steps.dde.outputs.version }}"
 
   # project-up's full path requires Docker for `dde system:install`, which
-  # is only available on ubuntu-* hosted runners. The smoke test asserts
-  # the fail-fast path with `system-install: 'false'` so the runner host
-  # is not mutated (no Traefik containers, no systemd-resolved rewrite).
-  # A full E2E test belongs in a consuming repo with a real `.dde/config.yml`.
-  smoke-project-up-missing-config:
-    name: project-up fails fast without .dde/config.yml
+  # is only available on ubuntu-* hosted runners. Both smoke jobs use
+  # `system-install: 'false'` so the runner host is not mutated (no Traefik
+  # containers, no systemd-resolved rewrite). A full E2E test belongs in a
+  # consuming repo with a real `.dde/config.yml`.
+  smoke-project-up-missing-dir:
+    name: project-up fails fast on missing working-directory
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Run project-up in empty directory (expected to fail)
+      - name: Run project-up against non-existent dir (expected to fail)
         id: project-up
         continue-on-error: true
         uses: ./.github/actions/project-up
@@ -83,13 +82,7 @@ jobs:
           system-install: 'false'
           install-mkcert: 'false'
 
-      # Two-part assertion:
-      # 1. outcome must be `failure` (not `cancelled`/`skipped`)
-      # 2. dde must still be on PATH — proves the nested
-      #    `uses: ./.github/actions/setup-dde` resolved correctly and we
-      #    actually reached the `Bring project up` step (rather than failing
-      #    earlier in action resolution).
-      - name: Assert project-up failed at the right step
+      - name: Assert project-up failed at working-directory check
         shell: bash
         run: |
           set -euo pipefail
@@ -102,4 +95,37 @@ jobs:
             exit 1
           fi
           dde --version
-          echo "project-up correctly failed at the .dde/config.yml check (setup-dde nested action resolved)"
+          echo "project-up correctly failed at the working-directory existence check"
+
+  smoke-project-up-missing-config:
+    name: project-up fails fast without .dde/config.yml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create empty project directory
+        run: mkdir -p empty-project
+
+      - name: Run project-up in empty directory (expected to fail)
+        id: project-up
+        continue-on-error: true
+        uses: ./.github/actions/project-up
+        with:
+          working-directory: ./empty-project
+          system-install: 'false'
+          install-mkcert: 'false'
+
+      - name: Assert project-up failed at .dde/config.yml check
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.project-up.outcome }}" != "failure" ]; then
+            echo "::error::project-up should have failed but reported '${{ steps.project-up.outcome }}'"
+            exit 1
+          fi
+          if ! command -v dde >/dev/null 2>&1; then
+            echo "::error::dde is not on PATH — setup-dde did not run"
+            exit 1
+          fi
+          dde --version
+          echo "project-up correctly failed at the .dde/config.yml check"

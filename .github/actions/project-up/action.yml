@@ -65,13 +65,21 @@ runs:
         github-token: ${{ inputs.github-token }}
         repository: ${{ inputs.repository }}
 
+    # cd is done inside the script (not via working-directory:) so that a
+    # missing/typo'd working-directory produces our friendly ::error::
+    # instead of the runner's generic ENOENT before the script runs.
     - name: Bring project up
       shell: bash
-      working-directory: ${{ inputs.working-directory }}
       env:
         BINARY: ${{ steps.setup.outputs.binary-path }}
+        WD: ${{ inputs.working-directory }}
       run: |
         set -euo pipefail
+        if [ ! -d "$WD" ]; then
+          echo "::error::working-directory '$WD' does not exist."
+          exit 1
+        fi
+        cd "$WD"
         if [ ! -f .dde/config.yml ]; then
           echo "::error::No .dde/config.yml found in $(pwd). Set 'working-directory' to the project root."
           exit 1

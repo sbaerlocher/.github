@@ -94,7 +94,11 @@ not supported.
 2. `cd $working-directory && dde project:up` — fails fast if
    `.dde/config.yml` is missing.
 3. If `wait-url` is set: `curl -k` poll loop with 2s interval and 5s
-   per-request timeout, until 2xx/3xx or `wait-timeout` expires.
+   per-request timeout, until 2xx/3xx or `wait-timeout` expires. The
+   `sleep 2` is a hard floor between attempts, so a slow first request
+   plus the sleep yields ~25 attempts in 180s. The deadline check happens
+   after each sleep, so wall-clock can overshoot `wait-timeout` by up to
+   2 seconds before the action errors out.
 
 The relative `uses: ./.github/actions/setup-dde` from inside this composite
 action resolves against the action's own repository (not the caller's

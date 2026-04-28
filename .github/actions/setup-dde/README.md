@@ -73,6 +73,18 @@ unauthenticated rate limits.
 | `macos-13`         | Supported (`darwin-amd64`).                                  |
 | `windows-*`        | Not supported — dde does not ship a Windows binary.          |
 
+## Notes on `mkcert`
+
+If `mkcert` is already on `PATH` (e.g. preinstalled on the runner image),
+the action **skips** the apt/Homebrew install. On Linux, this means the
+action does not separately ensure that `libnss3-tools` is present — the
+package is only installed alongside `mkcert` via apt. On hosted GitHub
+runners this never matters (the apt path always runs because `mkcert` is
+not preinstalled), but on self-hosted Linux runners with a non-apt mkcert
+build, `mkcert -install` (called by `dde system:install`) may silently
+fail to update the system NSS database. If that applies, install
+`libnss3-tools` in your runner image.
+
 ## Notes for `system-install: true`
 
 `dde system:install` performs host-level configuration (writes
