@@ -6,6 +6,49 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-04-28
+
+### Added
+
+- **`e2e-dde.yml`**: Reusable E2E workflow using whatwedo `dde` for stack
+  management instead of Docker Compose. Mirrors the Playwright/Node setup
+  surface of `e2e-docker.yml`; replaces `compose-file` / `compose-profile`
+  with `project-directory` / `wait-url`. Linux-only (Docker is required by
+  `dde system:install`). PR-comment step is split into a separate job so
+  the test job runs at `contents: read` only; `pull-requests: write` is
+  scoped to the comment job. `cache-dependency-path` is selected based on
+  the `package-manager` input (npm / pnpm / yarn / bun), and
+  `playwright-browsers` / `test-command` flow through `env:` to prevent
+  shell injection from caller-supplied input. Migration: consumers running
+  `e2e-docker.yml` against a dde-compatible project can switch by
+  replacing the workflow reference and renaming inputs accordingly.
+- **`.github/actions/setup-dde/`**: Composite action that installs the
+  [whatwedo dde](https://github.com/whatwedo/dde) CLI, verifies the binary
+  against the release `checksums.txt`, and places it on `PATH`. Optional
+  `mkcert` install and `dde system:install`.
+- **`.github/actions/project-up/`**: Composite action that wraps
+  `setup-dde` + `system:install` + `dde project:up` plus an optional
+  `wait-url` poll loop. Intended for ad-hoc E2E pipelines that don't use
+  `e2e-dde.yml`. New `system-install` input (default `true`) lets unit-style
+  tests skip host provisioning. `wait-timeout` default is `180` (matches
+  `e2e-dde.yml`).
+- **`test-actions-dde.yml`**: Internal self-test workflow for the dde
+  composite actions. Not reusable. Smoke test for `setup-dde` covers
+  `ubuntu-latest`, `ubuntu-24.04-arm`, `macos-latest`, and `macos-13`
+  (darwin-amd64 coverage). The `project-up` smoke test uses
+  `system-install: 'false'` so it does not mutate the runner host.
+
+### Changed
+
+- **README.md / AGENTS.md**: Document the `Composite Actions` surface;
+  introduce `test-*.yml` as the filename prefix for internal self-test
+  workflows that are not consumer-callable.
+- **STANDARDS.md**: Annotate `setup-dde` and `project-up` as whatwedo-only;
+  clarify `sbom-npm` is an internal helper for `release-npm.yml` and
+  `security-sbom.yml`.
+
+---
+
 ## 2026-04-25
 
 ### Changed

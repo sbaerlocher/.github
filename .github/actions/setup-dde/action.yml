@@ -1,0 +1,169 @@
+name: 'Setup dde'
+description: 'Install the whatwedo dde CLI on a GitHub Actions runner'
+author: 'sbaerlocher'
+
+branding:
+  icon: 'box'
+  color: 'orange'
+
+inputs:
+  version:
+    description: 'dde version to install (e.g. v2.0.0-alpha.5) or "latest"'
+    required: false
+    default: 'latest'
+  install-mkcert:
+    description: 'Install mkcert (and libnss3-tools on Linux) so dde can issue local TLS certs'
+    required: false
+    default: 'true'
+  system-install:
+    description: 'Run `dde system:install` after installing the binary. Requires sudo and Docker.'
+    required: false
+    default: 'false'
+  github-token:
+    description: 'Token used to query the GitHub API (avoids unauthenticated rate limits when resolving "latest")'
+    required: false
+    default: ${{ github.token }}
+  repository:
+    description: 'GitHub repository slug to download dde releases from. Override for forks or staging mirrors.'
+    required: false
+    default: 'whatwedo/dde'
+
+outputs:
+  version:
+    description: 'Resolved version that was installed (e.g. v2.0.0-alpha.5)'
+    value: ${{ steps.resolve.outputs.version }}
+  binary-path:
+    description: 'Absolute path to the installed dde binary'
+    value: ${{ steps.install.outputs.binary-path }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Detect platform
+      id: platform
+      shell: bash
+      run: |
+        set -euo pipefail
+        case "$RUNNER_OS" in
+          Linux) os=linux ;;
+          macOS) os=darwin ;;
+          *)
+            echo "::error::dde does not ship a binary for $RUNNER_OS"
+            exit 1
+            ;;
+        esac
+        case "$RUNNER_ARCH" in
+          X64)   arch=amd64 ;;
+          ARM64) arch=arm64 ;;
+          *)
+            echo "::error::dde does not ship a binary for $RUNNER_ARCH"
+            exit 1
+            ;;
+        esac
+        echo "asset=dde-${os}-${arch}" >> "$GITHUB_OUTPUT"
+
+    - name: Resolve version
+      id: resolve
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        REPO: ${{ inputs.repository }}
+        REQUESTED: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        if [ "$REQUESTED" = "latest" ]; then
+          # Use /releases?per_page=1 (not /releases/latest) so this works
+          # while the project only ships pre-releases — /releases/latest
+          # excludes pre-releases and would 404.
+          auth_args=()
+          if [ -n "${GH_TOKEN:-}" ]; then
+            auth_args=(-H "Authorization: Bearer $GH_TOKEN")
+          fi
+          version=$(curl -fsSL \
+            "${auth_args[@]}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/releases?per_page=1" \
+            | jq -r '.[0].tag_name // empty')
+        else
+          case "$REQUESTED" in
+            v*) version="$REQUESTED" ;;
+            *)  version="v$REQUESTED" ;;
+          esac
+        fi
+        if [ -z "$version" ]; then
+          echo "::error::Could not resolve dde version (input: $REQUESTED, repo: $REPO)"
+          exit 1
+        fi
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+        echo "Resolved dde version: $version"
+
+    - name: Install dde binary
+      id: install
+      shell: bash
+      env:
+        VERSION: ${{ steps.resolve.outputs.version }}
+        ASSET: ${{ steps.platform.outputs.asset }}
+        REPO: ${{ inputs.repository }}
+      run: |
+        set -euo pipefail
+        dl="$RUNNER_TEMP/dde-download"
+        bin_dir="$RUNNER_TEMP/dde-bin"
+        mkdir -p "$dl" "$bin_dir"
+
+        base="https://github.com/${REPO}/releases/download/${VERSION}"
+        echo "Downloading $base/$ASSET"
+        curl -fsSL --retry 3 "$base/$ASSET" -o "$dl/$ASSET"
+        curl -fsSL --retry 3 "$base/checksums.txt" -o "$dl/checksums.txt"
+
+        # GoReleaser writes "<sha>  <filename>" (two spaces). Match any
+        # whitespace run so we don't break if the format ever switches to a
+        # tab. Extract the line first, fail with a clear message if missing,
+        # then pipe to shasum so the verification error path stays clean.
+        echo "Verifying SHA256 for $ASSET"
+        if ! grep -E "[[:space:]]+${ASSET}\$" "$dl/checksums.txt" > "$dl/expected.sum"; then
+          echo "::error::Asset '${ASSET}' not listed in checksums.txt for ${VERSION}"
+          echo "checksums.txt contents:" && cat "$dl/checksums.txt"
+          exit 1
+        fi
+        ( cd "$dl" && shasum -a 256 -c expected.sum )
+
+        install -m 0755 "$dl/$ASSET" "$bin_dir/dde"
+        echo "$bin_dir" >> "$GITHUB_PATH"
+        echo "binary-path=$bin_dir/dde" >> "$GITHUB_OUTPUT"
+
+        "$bin_dir/dde" --version
+
+    - name: Install mkcert
+      if: inputs.install-mkcert == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        if command -v mkcert >/dev/null 2>&1; then
+          echo "mkcert already installed: $(mkcert -version 2>&1 || true)"
+          exit 0
+        fi
+        case "$RUNNER_OS" in
+          Linux)
+            sudo apt-get update -y
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends mkcert libnss3-tools
+            ;;
+          macOS)
+            brew install mkcert nss
+            ;;
+        esac
+        mkcert -version
+
+    - name: Run dde system:install
+      if: inputs.system-install == 'true'
+      shell: bash
+      env:
+        BINARY: ${{ steps.install.outputs.binary-path }}
+      run: |
+        set -euo pipefail
+        # Preserve HOME so mkcert installs the local CA into the runner
+        # user's trust store (otherwise sudo resets HOME to /root and the
+        # CA ends up where dde-as-runner-user can't find it).
+        # DDE_CONFIG_DIR / DDE_DATA_DIR are forwarded so callers can
+        # isolate state into a temp directory if they wish.
+        sudo --preserve-env=HOME,USER,DDE_CONFIG_DIR,DDE_DATA_DIR \
+          "$BINARY" system:install

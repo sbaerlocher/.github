@@ -1,0 +1,112 @@
+name: 'dde project:up'
+description: 'Install dde, run system:install, and bring a project up. Designed for E2E test pipelines.'
+author: 'sbaerlocher'
+
+branding:
+  icon: 'play'
+  color: 'orange'
+
+inputs:
+  version:
+    description: 'dde version to install (e.g. v2.0.0-alpha.5) or "latest"'
+    required: false
+    default: 'latest'
+  working-directory:
+    description: 'Directory containing .dde/config.yml. Defaults to the repository root.'
+    required: false
+    default: '.'
+  install-mkcert:
+    description: 'Install mkcert (and libnss3-tools on Linux) — required for TLS certs'
+    required: false
+    default: 'true'
+  system-install:
+    description: 'Run `dde system:install` to set up host (Traefik, mkcert CA, dnsmasq). Disable for unit-style tests that exercise project commands without provisioning the host.'
+    required: false
+    default: 'true'
+  wait-url:
+    description: 'If set, the action polls this URL until it returns 2xx/3xx (or wait-timeout expires). TLS errors are ignored.'
+    required: false
+    default: ''
+  wait-timeout:
+    description: 'Maximum seconds to wait for wait-url to respond'
+    required: false
+    default: '180'
+  github-token:
+    description: 'Token used to query the GitHub API when resolving "latest"'
+    required: false
+    default: ${{ github.token }}
+  repository:
+    description: 'GitHub repository slug to download dde releases from'
+    required: false
+    default: 'whatwedo/dde'
+
+outputs:
+  version:
+    description: 'Resolved dde version that was installed'
+    value: ${{ steps.setup.outputs.version }}
+  binary-path:
+    description: 'Absolute path to the installed dde binary'
+    value: ${{ steps.setup.outputs.binary-path }}
+
+runs:
+  using: 'composite'
+  steps:
+    # `uses: ./...` from inside a composite action resolves against the
+    # action's own repository (not the caller's workspace), so this works
+    # both when project-up is consumed from another repo and when it runs
+    # from this repo's self-test workflow.
+    - name: Setup dde
+      id: setup
+      uses: ./.github/actions/setup-dde
+      with:
+        version: ${{ inputs.version }}
+        install-mkcert: ${{ inputs.install-mkcert }}
+        system-install: ${{ inputs.system-install }}
+        github-token: ${{ inputs.github-token }}
+        repository: ${{ inputs.repository }}
+
+    - name: Bring project up
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        BINARY: ${{ steps.setup.outputs.binary-path }}
+      run: |
+        set -euo pipefail
+        if [ ! -f .dde/config.yml ]; then
+          echo "::error::No .dde/config.yml found in $(pwd). Set 'working-directory' to the project root."
+          exit 1
+        fi
+        "$BINARY" project:up
+
+    - name: Wait for URL
+      if: inputs.wait-url != ''
+      shell: bash
+      env:
+        URL: ${{ inputs.wait-url }}
+        TIMEOUT: ${{ inputs.wait-timeout }}
+      run: |
+        # `-e` is intentionally omitted: the loop below tolerates curl
+        # failures (DNS, TCP refused, timeout) and exits explicitly when the
+        # deadline is reached or a 2xx/3xx is observed.
+        set -uo pipefail
+        if ! [[ "$TIMEOUT" =~ ^[0-9]+$ ]] || [ "$TIMEOUT" -le 0 ]; then
+          echo "::error::wait-timeout must be a positive integer (got: '$TIMEOUT')"
+          exit 1
+        fi
+        deadline=$(( $(date +%s) + TIMEOUT ))
+        echo "Polling $URL until 2xx/3xx (timeout: ${TIMEOUT}s, ignoring TLS errors)"
+        attempt=0
+        status=""
+        while [ "$(date +%s)" -lt "$deadline" ]; do
+          attempt=$((attempt + 1))
+          status=$(curl -ksS -o /dev/null -w '%{http_code}' --max-time 5 "$URL" 2>/dev/null || true)
+          case "$status" in
+            2*|3*)
+              echo "Got HTTP $status after $attempt attempt(s) — ready"
+              exit 0
+              ;;
+          esac
+          sleep 2
+        done
+        echo "::error::Timed out after ${TIMEOUT}s waiting for $URL (last status: ${status:-no-response}, attempts: $attempt)"
+        exit 1

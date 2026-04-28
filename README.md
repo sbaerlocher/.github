@@ -5,8 +5,8 @@ Centralized CI/CD building blocks for all repositories under
 each workflow by date tag and let Renovate keep them current.
 
 - **Model:** rolling release with date tags (`YYYY-MM-DD`)
-- **Total workflows:** 21
-- **Last updated:** 2026-04-26
+- **Total workflows:** 22
+- **Last updated:** 2026-04-28
 
 See [STANDARDS.md](./STANDARDS.md) for repository conventions and
 [AGENTS.md](./AGENTS.md) for AI-agent context.
@@ -124,11 +124,40 @@ All files live in [.github/workflows/](./.github/workflows/).
 - [`ai-claude-review.yml`](./.github/workflows/ai-claude-review.yml)
   — Automatic code review on PRs (uses REVIEW.md as context)
 
-### E2E (1)
+### E2E (2)
 
-| File                                                   | Purpose                             |
-| ------------------------------------------------------ | ----------------------------------- |
-| [`e2e-docker.yml`](./.github/workflows/e2e-docker.yml) | End-to-end tests via Docker Compose |
+| File                                                   | Purpose                                              |
+| ------------------------------------------------------ | ---------------------------------------------------- |
+| [`e2e-docker.yml`](./.github/workflows/e2e-docker.yml) | End-to-end tests via Docker Compose + Playwright     |
+| [`e2e-dde.yml`](./.github/workflows/e2e-dde.yml)       | End-to-end tests via whatwedo dde + Playwright       |
+
+---
+
+## Composite Actions
+
+In addition to reusable workflows, this repo ships composite actions under
+[.github/actions/](./.github/actions/) for use from any consumer workflow.
+
+| Action                                            | Purpose                                                          |
+| ------------------------------------------------- | ---------------------------------------------------------------- |
+| [`setup-dde`](./.github/actions/setup-dde/)       | Install the [whatwedo dde](https://github.com/whatwedo/dde) CLI  |
+| [`project-up`](./.github/actions/project-up/)     | Install dde + `system:install` + `dde project:up` for E2E in CI  |
+| [`sbom-npm`](./.github/actions/sbom-npm/)         | CycloneDX SBOM for npm/pnpm/yarn/bun projects (internal)         |
+
+For a complete Playwright + dde E2E job, use the
+[`e2e-dde.yml`](./.github/workflows/e2e-dde.yml) reusable workflow — it
+wires `project-up` together with Node, browser install, artifacts, and PR
+commenting. Reach for the composite actions directly only when you need a
+custom test surface that the workflow doesn't cover.
+
+Reference an action from a consumer repository (Renovate keeps the date
+tag up to date):
+
+```yaml
+- uses: sbaerlocher/.github/.github/actions/project-up@2026-04-28
+  with:
+    wait-url: https://myproject.test/healthz
+```
 
 ---
 

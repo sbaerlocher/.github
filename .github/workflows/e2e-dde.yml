@@ -1,0 +1,246 @@
+---
+name: E2E Tests (dde)
+
+on:
+  workflow_call:
+    inputs:
+      # dde Configuration
+      dde-version:
+        type: string
+        required: false
+        default: 'latest'
+        description: 'dde version to install (e.g. v2.0.0-alpha.5) or "latest"'
+      project-directory:
+        type: string
+        required: false
+        default: '.'
+        description: 'Directory containing .dde/config.yml'
+      wait-url:
+        type: string
+        required: false
+        default: ''
+        description: 'If set, poll this URL until 2xx/3xx before running tests (TLS errors ignored)'
+      wait-timeout:
+        type: number
+        required: false
+        default: 180
+        description: 'Maximum seconds to wait for wait-url to respond'
+
+      # Playwright Configuration
+      node-version:
+        type: string
+        required: false
+        default: '20'
+        description: 'Node.js version for Playwright'
+      package-manager:
+        type: string
+        required: false
+        default: 'npm'
+        description: 'Package manager (npm, pnpm, yarn, bun)'
+      playwright-directory:
+        type: string
+        required: false
+        default: './client'
+        description: 'Directory containing Playwright tests'
+      test-command:
+        type: string
+        required: false
+        default: 'test:e2e'
+        description: 'Playwright test command'
+      playwright-browsers:
+        type: string
+        required: false
+        default: 'chromium'
+        description: 'Playwright browsers (chromium, firefox, webkit, all)'
+
+      # Artifact Configuration
+      upload-artifacts:
+        type: boolean
+        required: false
+        default: true
+        description: 'Upload test artifacts and logs'
+      artifact-retention-days:
+        type: number
+        required: false
+        default: 30
+        description: 'Artifact retention days'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-dde:
+    name: E2E (dde)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      dde-version: ${{ steps.dde.outputs.version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Bring dde project up
+        id: dde
+        uses: sbaerlocher/.github/.github/actions/project-up@2026-04-28
+        with:
+          version: ${{ inputs.dde-version }}
+          working-directory: ${{ inputs.project-directory }}
+          wait-url: ${{ inputs.wait-url }}
+          wait-timeout: ${{ inputs.wait-timeout }}
+
+      - name: Show running services
+        working-directory: ${{ inputs.project-directory }}
+        continue-on-error: true
+        run: dde project:ps
+
+      # ----- Playwright -----
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: ${{ inputs.package-manager != 'bun' && inputs.package-manager || '' }}
+          cache-dependency-path: ${{ inputs.playwright-directory }}/${{ inputs.package-manager == 'pnpm' && 'pnpm-lock.yaml' || inputs.package-manager == 'yarn' && 'yarn.lock' || inputs.package-manager == 'bun' && 'bun.lockb' || 'package-lock.json' }}
+
+      - name: Setup pnpm
+        if: inputs.package-manager == 'pnpm'
+        uses: pnpm/action-setup@903f9c1a6ebcba6cf41d87230be49611ac97822e # v6.0.3
+
+      - name: Setup Bun
+        if: inputs.package-manager == 'bun'
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Install dependencies
+        working-directory: ${{ inputs.playwright-directory }}
+        env:
+          PM: ${{ inputs.package-manager }}
+        run: |
+          case "$PM" in
+            pnpm) pnpm install --frozen-lockfile ;;
+            bun) bun install --frozen-lockfile ;;
+            yarn) yarn install --frozen-lockfile ;;
+            npm) npm ci ;;
+          esac
+
+      - name: Install Playwright browsers
+        working-directory: ${{ inputs.playwright-directory }}
+        env:
+          BROWSERS: ${{ inputs.playwright-browsers }}
+        run: |
+          if [ "$BROWSERS" = "all" ]; then
+            npx playwright install --with-deps
+          else
+            npx playwright install --with-deps "$BROWSERS"
+          fi
+
+      - name: Run Playwright tests
+        working-directory: ${{ inputs.playwright-directory }}
+        env:
+          PM: ${{ inputs.package-manager }}
+          TEST_CMD: ${{ inputs.test-command }}
+        run: |
+          case "$PM" in
+            pnpm) pnpm "$TEST_CMD" ;;
+            bun) bun run "$TEST_CMD" ;;
+            yarn) yarn "$TEST_CMD" ;;
+            npm) npm run "$TEST_CMD" ;;
+          esac
+
+      # ----- Failure diagnostics & teardown -----
+      - name: Save dde logs
+        if: failure() && inputs.upload-artifacts
+        working-directory: ${{ inputs.project-directory }}
+        run: |
+          dde project:logs > "${{ runner.temp }}/dde-logs.txt" 2>&1 || true
+          dde project:ps > "${{ runner.temp }}/dde-ps.txt" 2>&1 || true
+
+      - name: Upload Playwright report
+        if: inputs.upload-artifacts && always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report
+          path: ${{ inputs.playwright-directory }}/playwright-report/
+          retention-days: ${{ inputs.artifact-retention-days }}
+          if-no-files-found: ignore
+
+      - name: Upload test results
+        if: inputs.upload-artifacts && always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-results
+          path: ${{ inputs.playwright-directory }}/test-results/
+          retention-days: ${{ inputs.artifact-retention-days }}
+          if-no-files-found: ignore
+
+      - name: Upload dde logs
+        if: failure() && inputs.upload-artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dde-logs
+          path: |
+            ${{ runner.temp }}/dde-logs.txt
+            ${{ runner.temp }}/dde-ps.txt
+          retention-days: ${{ inputs.artifact-retention-days }}
+          if-no-files-found: ignore
+
+      - name: Stop dde project
+        if: always()
+        working-directory: ${{ inputs.project-directory }}
+        run: dde project:down || true
+
+  # PR comment runs as a separate job so the test job stays at
+  # contents:read. pull-requests:write is scoped to this job only.
+  # Skipped on fork PRs: GITHUB_TOKEN is read-only there, so createComment
+  # would 403 and fail the job.
+  comment:
+    name: Comment PR
+    needs: e2e-dde
+    runs-on: ubuntu-latest
+    if: >
+      always()
+      && github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Comment PR with test results
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PROJECT_DIRECTORY: ${{ inputs.project-directory }}
+          DDE_VERSION: ${{ needs.e2e-dde.outputs.dde-version }}
+          JOB_STATUS: ${{ needs.e2e-dde.result }}
+        with:
+          script: |
+            const projectDir = process.env.PROJECT_DIRECTORY;
+            const ddeVersion = process.env.DDE_VERSION;
+            const jobStatus = process.env.JOB_STATUS;
+
+            let comment = '## 🎭 E2E Test Results (dde)\n\n';
+            comment += `**Project**: \`${projectDir}\`\n`;
+            comment += `**dde**: \`${ddeVersion}\`\n\n`;
+
+            const runUrl = `${context.payload.repository.html_url}/actions/runs/${context.runId}`;
+
+            if (jobStatus === 'success') {
+              comment += '✅ All tests passed!\n';
+            } else if (jobStatus === 'failure') {
+              comment += '❌ Tests failed!\n\n';
+              comment += `View the [Playwright report](${runUrl}) for details.\n`;
+            } else {
+              comment += `⚠️ Tests completed with status: ${jobStatus}\n\n`;
+              comment += `View the [test results](${runUrl}) for details.\n`;
+            }
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
