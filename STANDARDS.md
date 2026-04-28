@@ -137,6 +137,22 @@ The current set of tags is visible at
 | AI       | `ai-claude-review.yml`            | Auto code review (reads REVIEW.md) |
 | AI       | `ai-claude.yml`                   | On-demand @claude mentions         |
 | E2E      | `e2e-docker.yml`                  | E2E tests via Docker Compose       |
+| E2E      | `e2e-dde.yml`                     | E2E tests via whatwedo dde         |
+
+### Available Composite Actions
+
+Composite actions live in `sbaerlocher/.github/.github/actions/<name>/`
+and are referenced with the same date-tag scheme as reusable workflows:
+
+```yaml
+uses: sbaerlocher/.github/.github/actions/setup-dde@2026-04-28
+```
+
+| Action       | Description                                                                                        |
+| ------------ | -------------------------------------------------------------------------------------------------- |
+| `setup-dde`  | Install whatwedo dde CLI; optional mkcert + `system:install` *(whatwedo projects only)*            |
+| `project-up` | Install dde + `system:install` + `dde project:up` (E2E one-shot) *(whatwedo projects only)*        |
+| `sbom-npm`   | CycloneDX SBOM for npm/pnpm/yarn/bun (internal helper for `release-npm.yml` / `security-sbom.yml`) |
 
 ### Action SHA Pinning
 

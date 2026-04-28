@@ -1,0 +1,131 @@
+# Self-test workflow for the dde-related actions in this repo
+# (.github/actions/setup-dde, .github/actions/project-up).
+# Not a reusable workflow — runs only when the dde action sources change.
+
+name: Test dde actions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/actions/setup-dde/**'
+      - '.github/actions/project-up/**'
+      - '.github/workflows/test-actions-dde.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/actions/setup-dde/**'
+      - '.github/actions/project-up/**'
+      - '.github/workflows/test-actions-dde.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-setup-dde:
+    name: setup-dde on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+          - macos-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install dde via setup-dde
+        id: dde
+        uses: ./.github/actions/setup-dde
+        with:
+          version: latest
+          install-mkcert: 'true'
+          system-install: 'false'
+
+      - name: Verify dde is on PATH
+        shell: bash
+        run: |
+          set -euo pipefail
+          which dde
+          dde --version
+          test "$(command -v dde)" = "${{ steps.dde.outputs.binary-path }}"
+
+      - name: Verify mkcert is on PATH
+        shell: bash
+        run: |
+          set -euo pipefail
+          which mkcert
+          mkcert -version
+
+      - name: Echo resolved version
+        shell: bash
+        run: echo "Installed dde ${{ steps.dde.outputs.version }}"
+
+  # project-up's full path requires Docker for `dde system:install`, which
+  # is only available on ubuntu-* hosted runners. Both smoke jobs use
+  # `system-install: 'false'` so the runner host is not mutated (no Traefik
+  # containers, no systemd-resolved rewrite). A full E2E test belongs in a
+  # consuming repo with a real `.dde/config.yml`.
+  smoke-project-up-missing-dir:
+    name: project-up fails fast on missing working-directory
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run project-up against non-existent dir (expected to fail)
+        id: project-up
+        continue-on-error: true
+        uses: ./.github/actions/project-up
+        with:
+          working-directory: ./does-not-exist
+          system-install: 'false'
+          install-mkcert: 'false'
+
+      - name: Assert project-up failed at working-directory check
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.project-up.outcome }}" != "failure" ]; then
+            echo "::error::project-up should have failed but reported '${{ steps.project-up.outcome }}'"
+            exit 1
+          fi
+          if ! command -v dde >/dev/null 2>&1; then
+            echo "::error::dde is not on PATH — setup-dde did not run, suggesting nested 'uses:' resolution broke"
+            exit 1
+          fi
+          dde --version
+          echo "project-up correctly failed at the working-directory existence check"
+
+  smoke-project-up-missing-config:
+    name: project-up fails fast without .dde/config.yml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create empty project directory
+        run: mkdir -p empty-project
+
+      - name: Run project-up in empty directory (expected to fail)
+        id: project-up
+        continue-on-error: true
+        uses: ./.github/actions/project-up
+        with:
+          working-directory: ./empty-project
+          system-install: 'false'
+          install-mkcert: 'false'
+
+      - name: Assert project-up failed at .dde/config.yml check
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.project-up.outcome }}" != "failure" ]; then
+            echo "::error::project-up should have failed but reported '${{ steps.project-up.outcome }}'"
+            exit 1
+          fi
+          if ! command -v dde >/dev/null 2>&1; then
+            echo "::error::dde is not on PATH — setup-dde did not run"
+            exit 1
+          fi
+          dde --version
+          echo "project-up correctly failed at the .dde/config.yml check"

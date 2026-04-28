@@ -3,7 +3,7 @@
 **Repository Type**: Centralized Workflow Repository
 **Purpose**: Provide reusable GitHub Actions workflows for all sbaerlocher projects
 **Visibility**: Public
-**Last Updated**: 2026-04-26
+**Last Updated**: 2026-04-28
 
 ---
 
@@ -24,8 +24,8 @@ directly impacting the CI/CD pipelines of multiple projects.
 
 **Current Statistics**:
 
-- **Total Workflows**: 21 reusable workflows (see [.github/workflows/](./.github/workflows/))
-- **Categories**: CI (5), Security (6), Deploy (2), Release (4), Operations (1), AI (2), E2E (1)
+- **Total Workflows**: 22 reusable workflows (see [.github/workflows/](./.github/workflows/))
+- **Categories**: CI (5), Security (6), Deploy (2), Release (4), Operations (1), AI (2), E2E (2)
 - **Consumers**: applications, infrastructure, authentication, observability, functions,
   sbaerlocher.ch, tsmetrics, and more
 
@@ -44,6 +44,8 @@ directly impacting the CI/CD pipelines of multiple projects.
 - `ops-*.yml` - Operational workflows
 - `ai-*.yml` - AI-assisted workflows
 - `e2e-*.yml` - End-to-end test workflows
+- `test-*.yml` - **Internal self-test workflows for actions in this repo
+  (NOT reusable — `paths:` filtered to a specific action's source files)**
 
 **Workflow Names** (`name:` field):
 
@@ -184,13 +186,71 @@ uses: sbaerlocher/.github/.github/workflows/ci-js.yml@2026-04-25
 | Code Review | `ai-claude-review.yml` | Auto code review (reads REVIEW.md) |
 | On-demand   | `ai-claude.yml`        | On-demand @claude mentions         |
 
-### E2E - End-to-End Tests (1)
+### E2E - End-to-End Tests (2)
 
-**Purpose**: End-to-end testing with Docker Compose
+**Purpose**: End-to-end testing with Docker Compose or whatwedo dde
 
-| Workflow   | File             | Description                  |
-| ---------- | ---------------- | ---------------------------- |
-| E2E Docker | `e2e-docker.yml` | E2E tests via Docker Compose |
+| Workflow   | File             | Description                                                     |
+| ---------- | ---------------- | --------------------------------------------------------------- |
+| E2E Docker | `e2e-docker.yml` | E2E tests via Docker Compose + Playwright                       |
+| E2E dde    | `e2e-dde.yml`    | E2E tests via whatwedo `dde project:up` + Playwright (Linux)    |
+
+`e2e-dde.yml` is the dde-native counterpart to `e2e-docker.yml`. Inputs
+overlap (Playwright/Node setup is identical); the stack-management surface
+swaps `compose-file` / `compose-profile` for `project-directory` /
+`wait-url`. Linux-only (`dde system:install` requires Docker, which hosted
+macOS runners don't ship).
+
+### Internal Self-Tests (1)
+
+**Purpose**: Smoke-test composite actions in this repo when their sources
+change. Not reusable from consumer repos.
+
+| Workflow         | File                     | Description                            |
+| ---------------- | ------------------------ | -------------------------------------- |
+| Test dde actions | `test-actions-dde.yml`   | Smoke-test `setup-dde` on Linux/macOS  |
+
+---
+
+## Composite Actions
+
+Located under [`.github/actions/`](./.github/actions/). Consume from any
+workflow via `sbaerlocher/.github/.github/actions/<name>@<DATE-TAG>`.
+
+| Action       | File                            | Purpose                                                       |
+| ------------ | ------------------------------- | ------------------------------------------------------------- |
+| `setup-dde`  | `.github/actions/setup-dde/`    | Install whatwedo dde CLI; optional mkcert + `system:install`  |
+| `project-up` | `.github/actions/project-up/`   | Install dde + `system:install` + `dde project:up` for E2E     |
+| `sbom-npm`   | `.github/actions/sbom-npm/`     | CycloneDX SBOM for npm/pnpm/yarn/bun (internal helper)        |
+
+### dde actions (`setup-dde`, `project-up`)
+
+`setup-dde` downloads the dde binary from
+[`whatwedo/dde`](https://github.com/whatwedo/dde) GitHub releases, verifies
+SHA256 against `checksums.txt`, places it on `PATH`, and optionally installs
+`mkcert` and runs `sudo --preserve-env=HOME,USER,DDE_CONFIG_DIR,DDE_DATA_DIR dde
+system:install` (HOME preserved so mkcert installs the CA into the runner
+user's trust store, not `/root`).
+
+`project-up` is a thin wrapper: it `uses: ./.github/actions/setup-dde` with
+`system-install: 'true'`, then runs `dde project:up` in the supplied
+`working-directory`, then optionally polls `wait-url`. The relative `uses:`
+inside a composite action resolves against the action's own repo, so this
+works both for cross-repo consumers and for this repo's self-test workflow.
+
+Reusable workflows (`e2e-dde.yml`) reference the actions via the full
+versioned path (`sbaerlocher/.github/.github/actions/project-up@<DATE-TAG>`)
+because a reusable workflow's `uses: ./...` resolves against the caller's
+workspace, not the workflow's repo.
+
+Composite actions have no `post:` hook, so cleanup is always an explicit
+`if: always() run: dde project:down` step in the consumer workflow.
+
+### sbom-npm
+
+Generates a CycloneDX SBOM for JavaScript/TypeScript projects. Consumed by
+`release-npm.yml` and `security-sbom.yml`; not intended as a standalone
+public action.
 
 ---
 
@@ -382,14 +442,15 @@ Ensure lock files are committed:
 ```text
 .github/
 ├── .github/
-│   ├── workflows/           # 21 reusable workflows
+│   ├── workflows/           # 22 reusable workflows + 1 internal self-test
 │   │   ├── ai-*.yml        # AI workflows
 │   │   ├── ci-*.yml        # CI workflows
 │   │   ├── deploy-*.yml    # Deploy workflows
 │   │   ├── e2e-*.yml       # End-to-end test workflows
 │   │   ├── ops-*.yml       # Operations workflows
 │   │   ├── release-*.yml   # Release workflows
-│   │   └── security-*.yml  # Security workflows
+│   │   ├── security-*.yml  # Security workflows
+│   │   └── test-*.yml      # Internal self-tests (NOT reusable)
 │   ├── ISSUE_TEMPLATE/     # Org-default issue forms
 │   ├── CODEOWNERS          # Repository owners
 │   ├── pull_request_template.md
@@ -515,5 +576,5 @@ Ensure lock files are committed:
 
 ---
 
-**Last Updated**: 2026-04-26
-**Version**: 1.2.0
+**Last Updated**: 2026-04-28
+**Version**: 1.3.0
