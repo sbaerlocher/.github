@@ -52,12 +52,14 @@ runs:
   using: 'composite'
   steps:
     # `uses: ./...` from inside a composite action resolves against the
-    # action's own repository (not the caller's workspace), so this works
-    # both when project-up is consumed from another repo and when it runs
-    # from this repo's self-test workflow.
+    # caller's GITHUB_WORKSPACE, NOT against this action's own repo — see
+    # https://github.com/actions/runner/issues/2185. Reference setup-dde via
+    # the full repo path with a date tag so the action keeps working when
+    # consumed from any repository. Renovate keeps this ref in sync with new
+    # rolling-release tags via the github-actions manager.
     - name: Setup dde
       id: setup
-      uses: ./.github/actions/setup-dde
+      uses: sbaerlocher/.github/.github/actions/setup-dde@2026-04-28
       with:
         version: ${{ inputs.version }}
         install-mkcert: ${{ inputs.install-mkcert }}

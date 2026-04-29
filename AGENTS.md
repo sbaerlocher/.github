@@ -232,16 +232,26 @@ SHA256 against `checksums.txt`, places it on `PATH`, and optionally installs
 system:install` (HOME preserved so mkcert installs the CA into the runner
 user's trust store, not `/root`).
 
-`project-up` is a thin wrapper: it `uses: ./.github/actions/setup-dde` with
+`project-up` is a thin wrapper: it calls `setup-dde` with
 `system-install: 'true'`, then runs `dde project:up` in the supplied
-`working-directory`, then optionally polls `wait-url`. The relative `uses:`
-inside a composite action resolves against the action's own repo, so this
-works both for cross-repo consumers and for this repo's self-test workflow.
+`working-directory`, then optionally polls `wait-url`. Both reusable
+workflows (`e2e-dde.yml`) and composite actions (`project-up`) must
+reference sibling actions via the full versioned path
+(`sbaerlocher/.github/.github/actions/<name>@<DATE-TAG>`), because
+`uses: ./...` always resolves against the caller's `GITHUB_WORKSPACE`,
+never against the action/workflow's own repo
+(see [actions/runner#2185](https://github.com/actions/runner/issues/2185)).
+Renovate keeps the inner ref in `project-up/action.yml` aligned with new
+date tags via the standard github-actions manager.
 
-Reusable workflows (`e2e-dde.yml`) reference the actions via the full
-versioned path (`sbaerlocher/.github/.github/actions/project-up@<DATE-TAG>`)
-because a reusable workflow's `uses: ./...` resolves against the caller's
-workspace, not the workflow's repo.
+The self-test workflow (`test-actions-dde.yml`) is the one place `./...`
+is safe — it's a normal workflow that runs `actions/checkout` first, so
+the workspace coincidentally matches the action's repo. Side-effect of
+the full-path pin: the `smoke-project-up-*` jobs exercise the *tagged*
+`setup-dde`, not the in-PR copy, so changes to `setup-dde/action.yml`
+are only validated end-to-end through `project-up` once a new date tag
+has been cut. Direct changes to `setup-dde` are still covered by the
+`smoke-setup-dde` matrix in the same workflow.
 
 Composite actions have no `post:` hook, so cleanup is always an explicit
 `if: always() run: dde project:down` step in the consumer workflow.
