@@ -8,6 +8,18 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ## 2026-04-30
 
+### Removed
+
+- **`STANDARDS.md` and `SETUP.md`**: Deleted without replacement.
+  `STANDARDS.md` documented org-wide repo conventions (required files,
+  required workflows per repo type, Renovate preset map, Conventional
+  Commits, GitHub repo settings) and `SETUP.md` carried the `gh repo
+  edit` / branch-ruleset bootstrap script. Neither doc is being relocated
+  — the conventions still apply but are now enforced via templates,
+  reusable workflows, and the Renovate presets in this repo, not via a
+  central spec. Issue forms (`config.yml`, `feature_request.yml`) and
+  the PR template were updated to drop the dangling links.
+
 ### Changed (BREAKING)
 
 - **`actions/project-up/` → `actions/project/`**: Renamed and generalised.
@@ -667,7 +679,7 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ### Repository Status
 
-✅ Fully compliant with [STANDARDS.md](./STANDARDS.md)
+✅ Fully compliant with STANDARDS.md
 ✅ All required files for public repository present
 ✅ All 27 workflows documented
 ✅ AI-ready with comprehensive AGENTS.md
