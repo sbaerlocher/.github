@@ -58,7 +58,7 @@ body:
       description: What does "done" look like? List measurable, verifiable criteria.
       placeholder: |
         - [ ] Workflow accepts a new `foo` input with default `bar`
-        - [ ] Documentation in STANDARDS.md updated
+        - [ ] Documentation updated (README.md / AGENTS.md)
         - [ ] CHANGELOG entry added
     validations:
       required: true

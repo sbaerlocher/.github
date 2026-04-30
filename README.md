@@ -8,8 +8,7 @@ each workflow by date tag and let Renovate keep them current.
 - **Total workflows:** 22
 - **Last updated:** 2026-04-30
 
-See [STANDARDS.md](./STANDARDS.md) for repository conventions and
-[AGENTS.md](./AGENTS.md) for AI-agent context.
+See [AGENTS.md](./AGENTS.md) for AI-agent context.
 
 ---
 
@@ -258,8 +257,6 @@ its default `false` and rely on artifact uploads instead.
 
 ## Related Documentation
 
-- [STANDARDS.md](./STANDARDS.md) — repository standards & conventions
-- [SETUP.md](./SETUP.md) — `gh` commands to bootstrap a new repo
 - [REVIEW.md](./REVIEW.md) — code review guidelines for this repo
 - [CHANGELOG.md](./CHANGELOG.md) — release history
 - [AGENTS.md](./AGENTS.md) — AI agent context
