@@ -3,7 +3,7 @@
 **Repository Type**: Centralized Workflow Repository
 **Purpose**: Provide reusable GitHub Actions workflows for all sbaerlocher projects
 **Visibility**: Public
-**Last Updated**: 2026-04-28
+**Last Updated**: 2026-04-30
 
 ---
 
@@ -591,5 +591,5 @@ Ensure lock files are committed:
 
 ---
 
-**Last Updated**: 2026-04-28
+**Last Updated**: 2026-04-30
 **Version**: 1.3.0

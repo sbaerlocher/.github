@@ -26,13 +26,27 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ### Fixed
 
+- **`project-up` (now `project`)**: Reference `setup-dde` via the full
+  cross-repo path
+  (`sbaerlocher/.github/.github/actions/setup-dde@<DATE-TAG>`) instead
+  of `./.github/actions/setup-dde`. `uses: ./...` from inside a
+  composite action resolves against the caller's `GITHUB_WORKSPACE`,
+  not against the action's own repo (see
+  [actions/runner#2185](https://github.com/actions/runner/issues/2185)),
+  so the relative path 404'd for any consumer outside this repo. The
+  self-test happened to pass because `actions/checkout` of
+  `sbaerlocher/.github` coincidentally landed `setup-dde` into the
+  workspace. AGENTS.md and the `e2e-dde.yml` workflow were updated
+  alongside; `renovate.json` `github-actions` `managerFilePatterns`
+  was extended to include `actions/<name>/action.yml` so the new
+  cross-repo pin gets bumped automatically.
 - **`setup-dde`**: Drop the `sudo --preserve-env=...` wrapper around
   `dde system:install`. dde escalates internally (passwordless sudo) for
   the individual steps that need root, so wrapping the whole call left
   `~/.dde/data/...` files root-owned and broke subsequent unprivileged
-  `dde project:*` calls. Surfaced once the action-resolution bug fixed
-  in #93 stopped masking it. Caller-visible changes: none for the happy
-  path; the `system-install` input description and the `setup-dde` /
+  `dde project:*` calls. Surfaced once the action-resolution bug above
+  stopped masking it. Caller-visible changes: none for the happy path;
+  the `system-install` input description and the `setup-dde` /
   `project-up` / AGENTS.md notes were aligned with the new behavior.
 
 ---
