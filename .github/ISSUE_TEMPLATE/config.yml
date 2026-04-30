@@ -1,5 +1,1 @@
 blank_issues_enabled: false
-contact_links:
-  - name: Repository Standards
-    url: https://github.com/sbaerlocher/.github/blob/main/STANDARDS.md
-    about: Conventions, required files, and workflow patterns shared across all sbaerlocher repositories.

@@ -475,8 +475,6 @@ Ensure lock files are committed:
 ├── README.md               # Human-readable documentation
 ├── CHANGELOG.md            # Version history
 ├── SECURITY.md             # Org-default security policy
-├── STANDARDS.md            # Repository standards
-├── SETUP.md                # GitHub repo setup commands & branch rulesets
 ├── REVIEW.md               # Code review guidelines for this repo
 ├── LICENSE                 # MIT License
 ├── .editorconfig           # Editor consistency
@@ -540,7 +538,6 @@ Ensure lock files are committed:
 ## Related Documentation
 
 - **[README.md](./README.md)** - User-facing workflow documentation
-- **[STANDARDS.md](./STANDARDS.md)** - Repository standards for all projects
 - **[CHANGELOG.md](./CHANGELOG.md)** - Version history and changes
 - **[REVIEW.md](./REVIEW.md)** - Code review guidelines for this repository
 - **Renovate Presets**: `renovate-*.json` files in repository root

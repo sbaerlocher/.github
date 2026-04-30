@@ -2,7 +2,6 @@
 PR title MUST follow Conventional Commits: <type>(<scope>): <subject>
 Allowed types: feat, fix, chore, docs, refactor, perf, test, ci, build, style
 Scopes are project-specific (e.g. functions/github-stats, infrastructure/platform).
-See STANDARDS.md for details.
 -->
 
 ## Description
