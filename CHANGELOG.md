@@ -8,6 +8,22 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ## 2026-04-30
 
+### Changed (BREAKING)
+
+- **`actions/project-up/` → `actions/project/`**: Renamed and generalised.
+  The action now accepts a `command` input (default `up`) and runs
+  `dde project:<command>`, so the same action covers `up`, `down`,
+  `restart`, `update`, etc. `system-install` and `wait-url` are only
+  applied when `command: up` and silently ignored for other commands —
+  callers can pass them unconditionally if a matrix re-uses the same
+  `with:` block. Migration: replace
+  `sbaerlocher/.github/.github/actions/project-up@<TAG>` with
+  `sbaerlocher/.github/.github/actions/project@<TAG>`. Existing usages
+  pick up the new default `command: up` automatically. Teardown that
+  used to be `run: dde project:down` can become a second `uses: project`
+  step with `command: down`. The breaking surface is the action path —
+  inputs, outputs, and behaviour for the previous up flow are unchanged.
+
 ### Fixed
 
 - **`setup-dde`**: Drop the `sudo --preserve-env=...` wrapper around

@@ -148,11 +148,11 @@ and are referenced with the same date-tag scheme as reusable workflows:
 uses: sbaerlocher/.github/.github/actions/setup-dde@2026-04-28
 ```
 
-| Action       | Description                                                                                        |
-| ------------ | -------------------------------------------------------------------------------------------------- |
-| `setup-dde`  | Install whatwedo dde CLI; optional mkcert + `system:install` *(whatwedo projects only)*            |
-| `project-up` | Install dde + `system:install` + `dde project:up` (E2E one-shot) *(whatwedo projects only)*        |
-| `sbom-npm`   | CycloneDX SBOM for npm/pnpm/yarn/bun (internal helper for `release-npm.yml` / `security-sbom.yml`) |
+| Action      | Description                                                                                        |
+| ----------- | -------------------------------------------------------------------------------------------------- |
+| `setup-dde` | Install whatwedo dde CLI; optional mkcert + `system:install` *(whatwedo projects only)*            |
+| `project`   | Install dde + run any `dde project:<command>` (default `up`) *(whatwedo projects only)*            |
+| `sbom-npm`  | CycloneDX SBOM for npm/pnpm/yarn/bun (internal helper for `release-npm.yml` / `security-sbom.yml`) |
 
 ### Action SHA Pinning
 

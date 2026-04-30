@@ -217,13 +217,13 @@ change. Not reusable from consumer repos.
 Located under [`.github/actions/`](./.github/actions/). Consume from any
 workflow via `sbaerlocher/.github/.github/actions/<name>@<DATE-TAG>`.
 
-| Action       | File                            | Purpose                                                       |
-| ------------ | ------------------------------- | ------------------------------------------------------------- |
-| `setup-dde`  | `.github/actions/setup-dde/`    | Install whatwedo dde CLI; optional mkcert + `system:install`  |
-| `project-up` | `.github/actions/project-up/`   | Install dde + `system:install` + `dde project:up` for E2E     |
-| `sbom-npm`   | `.github/actions/sbom-npm/`     | CycloneDX SBOM for npm/pnpm/yarn/bun (internal helper)        |
+| Action      | File                          | Purpose                                                       |
+| ----------- | ----------------------------- | ------------------------------------------------------------- |
+| `setup-dde` | `.github/actions/setup-dde/`  | Install whatwedo dde CLI; optional mkcert + `system:install`  |
+| `project`   | `.github/actions/project/`    | Install dde + run any `dde project:<command>` (default `up`)  |
+| `sbom-npm`  | `.github/actions/sbom-npm/`   | CycloneDX SBOM for npm/pnpm/yarn/bun (internal helper)        |
 
-### dde actions (`setup-dde`, `project-up`)
+### dde actions (`setup-dde`, `project`)
 
 `setup-dde` downloads the dde binary from
 [`whatwedo/dde`](https://github.com/whatwedo/dde) GitHub releases, verifies
@@ -234,29 +234,32 @@ individual steps that need root — wrapping the whole call in `sudo` would
 leave the state files in `~/.dde/data/` root-owned and break the subsequent
 unprivileged `dde project:*` calls.
 
-`project-up` is a thin wrapper: it calls `setup-dde` with
-`system-install: 'true'`, then runs `dde project:up` in the supplied
-`working-directory`, then optionally polls `wait-url`. Both reusable
-workflows (`e2e-dde.yml`) and composite actions (`project-up`) must
-reference sibling actions via the full versioned path
+`project` is a thin wrapper around `setup-dde` plus a single
+`dde project:<command>` invocation. The `command` input (default `up`)
+selects the lifecycle step; `system-install` and `wait-url` are only
+applied when `command: up` and silently ignored otherwise, so callers
+can pass them unconditionally. Both reusable workflows (`e2e-dde.yml`)
+and composite actions (`project`) must reference sibling actions via
+the full versioned path
 (`sbaerlocher/.github/.github/actions/<name>@<DATE-TAG>`), because
 `uses: ./...` always resolves against the caller's `GITHUB_WORKSPACE`,
 never against the action/workflow's own repo
 (see [actions/runner#2185](https://github.com/actions/runner/issues/2185)).
-Renovate keeps the inner ref in `project-up/action.yml` aligned with new
+Renovate keeps the inner ref in `project/action.yml` aligned with new
 date tags via the standard github-actions manager.
 
 The self-test workflow (`test-actions-dde.yml`) is the one place `./...`
 is safe — it's a normal workflow that runs `actions/checkout` first, so
 the workspace coincidentally matches the action's repo. Side-effect of
-the full-path pin: the `smoke-project-up-*` jobs exercise the *tagged*
+the full-path pin: the `smoke-project-*` jobs exercise the *tagged*
 `setup-dde`, not the in-PR copy, so changes to `setup-dde/action.yml`
-are only validated end-to-end through `project-up` once a new date tag
+are only validated end-to-end through `project` once a new date tag
 has been cut. Direct changes to `setup-dde` are still covered by the
 `smoke-setup-dde` matrix in the same workflow.
 
 Composite actions have no `post:` hook, so cleanup is always an explicit
-`if: always() run: dde project:down` step in the consumer workflow.
+`if: always()` step in the consumer workflow — typically a re-use of
+`project` with `command: down`, or a plain `run: dde project:down`.
 
 ### sbom-npm
 

@@ -88,8 +88,9 @@ jobs:
 
       - name: Bring dde project up
         id: dde
-        uses: sbaerlocher/.github/.github/actions/project-up@2026-04-28
+        uses: sbaerlocher/.github/.github/actions/project@2026-04-30
         with:
+          command: up
           version: ${{ inputs.dde-version }}
           working-directory: ${{ inputs.project-directory }}
           wait-url: ${{ inputs.wait-url }}
@@ -159,7 +160,7 @@ jobs:
           PROJECT_DIR: ${{ inputs.project-directory }}
         run: |
           if ! command -v dde >/dev/null 2>&1; then
-            echo "dde was never installed — see project-up step output" \
+            echo "dde was never installed — see 'Bring dde project up' step output" \
               | tee "$RUNNER_TEMP/dde-logs.txt" "$RUNNER_TEMP/dde-ps.txt"
             exit 0
           fi

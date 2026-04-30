@@ -1,5 +1,5 @@
 # Self-test workflow for the dde-related actions in this repo
-# (.github/actions/setup-dde, .github/actions/project-up).
+# (.github/actions/setup-dde, .github/actions/project).
 # Not a reusable workflow — runs only when the dde action sources change.
 
 name: Test dde actions
@@ -9,13 +9,13 @@ on:
     branches: [main]
     paths:
       - '.github/actions/setup-dde/**'
-      - '.github/actions/project-up/**'
+      - '.github/actions/project/**'
       - '.github/workflows/test-actions-dde.yml'
   pull_request:
     branches: [main]
     paths:
       - '.github/actions/setup-dde/**'
-      - '.github/actions/project-up/**'
+      - '.github/actions/project/**'
       - '.github/workflows/test-actions-dde.yml'
 
 permissions:
@@ -62,32 +62,32 @@ jobs:
         shell: bash
         run: echo "Installed dde ${{ steps.dde.outputs.version }}"
 
-  # project-up's full path requires Docker for `dde system:install`, which
+  # project's full path requires Docker for `dde system:install`, which
   # is only available on ubuntu-* hosted runners. Both smoke jobs use
   # `system-install: 'false'` so the runner host is not mutated (no Traefik
   # containers, no systemd-resolved rewrite). A full E2E test belongs in a
   # consuming repo with a real `.dde/config.yml`.
-  smoke-project-up-missing-dir:
-    name: project-up fails fast on missing working-directory
+  smoke-project-missing-dir:
+    name: project fails fast on missing working-directory
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Run project-up against non-existent dir (expected to fail)
-        id: project-up
+      - name: Run project against non-existent dir (expected to fail)
+        id: project
         continue-on-error: true
-        uses: ./.github/actions/project-up
+        uses: ./.github/actions/project
         with:
           working-directory: ./does-not-exist
           system-install: 'false'
           install-mkcert: 'false'
 
-      - name: Assert project-up failed at working-directory check
+      - name: Assert project failed at working-directory check
         shell: bash
         run: |
           set -euo pipefail
-          if [ "${{ steps.project-up.outcome }}" != "failure" ]; then
-            echo "::error::project-up should have failed but reported '${{ steps.project-up.outcome }}'"
+          if [ "${{ steps.project.outcome }}" != "failure" ]; then
+            echo "::error::project should have failed but reported '${{ steps.project.outcome }}'"
             exit 1
           fi
           if ! command -v dde >/dev/null 2>&1; then
@@ -95,10 +95,10 @@ jobs:
             exit 1
           fi
           dde --version
-          echo "project-up correctly failed at the working-directory existence check"
+          echo "project correctly failed at the working-directory existence check"
 
-  smoke-project-up-missing-config:
-    name: project-up fails fast without .dde/config.yml
+  smoke-project-missing-config:
+    name: project fails fast without .dde/config.yml
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -106,21 +106,21 @@ jobs:
       - name: Create empty project directory
         run: mkdir -p empty-project
 
-      - name: Run project-up in empty directory (expected to fail)
-        id: project-up
+      - name: Run project in empty directory (expected to fail)
+        id: project
         continue-on-error: true
-        uses: ./.github/actions/project-up
+        uses: ./.github/actions/project
         with:
           working-directory: ./empty-project
           system-install: 'false'
           install-mkcert: 'false'
 
-      - name: Assert project-up failed at .dde/config.yml check
+      - name: Assert project failed at .dde/config.yml check
         shell: bash
         run: |
           set -euo pipefail
-          if [ "${{ steps.project-up.outcome }}" != "failure" ]; then
-            echo "::error::project-up should have failed but reported '${{ steps.project-up.outcome }}'"
+          if [ "${{ steps.project.outcome }}" != "failure" ]; then
+            echo "::error::project should have failed but reported '${{ steps.project.outcome }}'"
             exit 1
           fi
           if ! command -v dde >/dev/null 2>&1; then
@@ -128,4 +128,30 @@ jobs:
             exit 1
           fi
           dde --version
-          echo "project-up correctly failed at the .dde/config.yml check"
+          echo "project correctly failed at the .dde/config.yml check"
+
+  smoke-project-empty-command:
+    name: project fails fast on empty command
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run project with empty command (expected to fail)
+        id: project
+        continue-on-error: true
+        uses: ./.github/actions/project
+        with:
+          command: ''
+          working-directory: .
+          system-install: 'false'
+          install-mkcert: 'false'
+
+      - name: Assert project failed at command-validation check
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.project.outcome }}" != "failure" ]; then
+            echo "::error::project should have failed on empty command but reported '${{ steps.project.outcome }}'"
+            exit 1
+          fi
+          echo "project correctly failed on empty command"
