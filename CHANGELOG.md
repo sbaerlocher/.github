@@ -6,6 +6,21 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-04-30
+
+### Fixed
+
+- **`setup-dde`**: Drop the `sudo --preserve-env=...` wrapper around
+  `dde system:install`. dde escalates internally (passwordless sudo) for
+  the individual steps that need root, so wrapping the whole call left
+  `~/.dde/data/...` files root-owned and broke subsequent unprivileged
+  `dde project:*` calls. Surfaced once the action-resolution bug fixed
+  in #93 stopped masking it. Caller-visible changes: none for the happy
+  path; the `system-install` input description and the `setup-dde` /
+  `project-up` / AGENTS.md notes were aligned with the new behavior.
+
+---
+
 ## 2026-04-28
 
 ### Added

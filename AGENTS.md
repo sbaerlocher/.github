@@ -228,9 +228,11 @@ workflow via `sbaerlocher/.github/.github/actions/<name>@<DATE-TAG>`.
 `setup-dde` downloads the dde binary from
 [`whatwedo/dde`](https://github.com/whatwedo/dde) GitHub releases, verifies
 SHA256 against `checksums.txt`, places it on `PATH`, and optionally installs
-`mkcert` and runs `sudo --preserve-env=HOME,USER,DDE_CONFIG_DIR,DDE_DATA_DIR dde
-system:install` (HOME preserved so mkcert installs the CA into the runner
-user's trust store, not `/root`).
+`mkcert` and runs `dde system:install` as the runner user. dde escalates
+internally (passwordless sudo, which GitHub-hosted runners provide) for the
+individual steps that need root — wrapping the whole call in `sudo` would
+leave the state files in `~/.dde/data/` root-owned and break the subsequent
+unprivileged `dde project:*` calls.
 
 `project-up` is a thin wrapper: it calls `setup-dde` with
 `system-install: 'true'`, then runs `dde project:up` in the supplied

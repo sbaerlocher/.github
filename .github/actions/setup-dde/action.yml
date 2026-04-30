@@ -16,7 +16,7 @@ inputs:
     required: false
     default: 'true'
   system-install:
-    description: 'Run `dde system:install` after installing the binary. Requires sudo and Docker.'
+    description: 'Run `dde system:install` after installing the binary. Requires Docker; dde escalates internally (passwordless sudo) for steps that need root.'
     required: false
     default: 'false'
   github-token:
@@ -164,10 +164,10 @@ runs:
         BINARY: ${{ steps.install.outputs.binary-path }}
       run: |
         set -euo pipefail
-        # Preserve HOME so mkcert installs the local CA into the runner
-        # user's trust store (otherwise sudo resets HOME to /root and the
-        # CA ends up where dde-as-runner-user can't find it).
-        # DDE_CONFIG_DIR / DDE_DATA_DIR are forwarded so callers can
-        # isolate state into a temp directory if they wish.
-        sudo --preserve-env=HOME,USER,DDE_CONFIG_DIR,DDE_DATA_DIR \
-          "$BINARY" system:install
+        # Run as the runner user, not under sudo. dde escalates internally
+        # for the steps that need root (mkcert CA, DNS resolver), and that
+        # path relies on passwordless sudo, which GitHub-hosted runners
+        # provide. Wrapping the whole command in `sudo` would leave dde's
+        # state files (~/.dde/data/...) root-owned, breaking the
+        # subsequent unprivileged `dde project:*` calls.
+        "$BINARY" system:install

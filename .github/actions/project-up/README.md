@@ -89,7 +89,8 @@ not supported.
 ## What runs under the hood
 
 1. **`uses: setup-dde` with `system-install: 'true'`** — install + verify
-   the binary, install `mkcert`, and run `sudo dde system:install`. See
+   the binary, install `mkcert`, and run `dde system:install` as the
+   runner user (dde escalates internally for steps that need root). See
    [`setup-dde`](../setup-dde/) for the underlying steps.
 2. `cd $working-directory && dde project:up` — fails fast if
    `.dde/config.yml` is missing.

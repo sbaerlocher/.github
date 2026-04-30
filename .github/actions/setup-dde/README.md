@@ -48,7 +48,7 @@ sibling [`project-up`](../project-up/) action instead.
 |------------------|----------------|--------------------------------------------------------------------------|
 | `version`        | `latest`       | Tag to install (`v2.0.0-alpha.5`, `2.0.0-alpha.5`, or `latest`).         |
 | `install-mkcert` | `true`         | Install `mkcert` (and `libnss3-tools` on Linux) for local TLS certs.     |
-| `system-install` | `false`        | Run `sudo dde system:install` (required for `dde project:up`).           |
+| `system-install` | `false`        | Run `dde system:install` (required for `dde project:up`).                |
 | `github-token`   | `github.token` | Token for the GitHub API call that resolves `latest`.                    |
 | `repository`     | `whatwedo/dde` | Source repository. Override for forks or staging mirrors.                |
 
@@ -90,15 +90,14 @@ fail to update the system NSS database. If that applies, install
 `dde system:install` performs host-level configuration (writes
 `/etc/systemd/resolved.conf.d/dde-test.conf` on Linux, restarts
 `systemd-resolved`) and starts the global Traefik, dnsmasq and SSH-Agent
-containers. The action invokes it via:
+containers. The action invokes it as the runner user — dde escalates
+internally (passwordless sudo, which GitHub-hosted runners provide) for
+the individual steps that need root. Wrapping the whole call in `sudo`
+would leave dde's state files (`~/.dde/data/...`) root-owned and break
+the subsequent unprivileged `dde project:*` calls.
 
-```bash
-sudo --preserve-env=HOME,USER,DDE_CONFIG_DIR,DDE_DATA_DIR dde system:install
-```
-
-`HOME` is preserved so `mkcert` installs its local CA into the runner
-user's trust store rather than `/root`. `DDE_CONFIG_DIR` / `DDE_DATA_DIR`
-are forwarded so the caller can isolate dde state into a temp directory:
+`DDE_CONFIG_DIR` / `DDE_DATA_DIR` propagate naturally, so the caller
+can isolate dde state into a temp directory:
 
 ```yaml
 - uses: sbaerlocher/.github/.github/actions/setup-dde@2026-04-28
