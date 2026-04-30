@@ -138,25 +138,30 @@ All files live in [.github/workflows/](./.github/workflows/).
 In addition to reusable workflows, this repo ships composite actions under
 [.github/actions/](./.github/actions/) for use from any consumer workflow.
 
-| Action                                            | Purpose                                                          |
-| ------------------------------------------------- | ---------------------------------------------------------------- |
-| [`setup-dde`](./.github/actions/setup-dde/)       | Install the [whatwedo dde](https://github.com/whatwedo/dde) CLI  |
-| [`project-up`](./.github/actions/project-up/)     | Install dde + `system:install` + `dde project:up` for E2E in CI  |
-| [`sbom-npm`](./.github/actions/sbom-npm/)         | CycloneDX SBOM for npm/pnpm/yarn/bun projects (internal)         |
+| Action                                      | Purpose                                                                |
+| ------------------------------------------- | ---------------------------------------------------------------------- |
+| [`setup-dde`](./.github/actions/setup-dde/) | Install the [whatwedo dde](https://github.com/whatwedo/dde) CLI        |
+| [`project`](./.github/actions/project/)     | Install dde + run any `dde project:<command>` (default `up`) for E2E   |
+| [`sbom-npm`](./.github/actions/sbom-npm/)   | CycloneDX SBOM for npm/pnpm/yarn/bun projects (internal)               |
 
 For a complete Playwright + dde E2E job, use the
 [`e2e-dde.yml`](./.github/workflows/e2e-dde.yml) reusable workflow — it
-wires `project-up` together with Node, browser install, artifacts, and PR
-commenting. Reach for the composite actions directly only when you need a
-custom test surface that the workflow doesn't cover.
+wires `project` together with Node, browser install, artifacts, and PR
+commenting. Reach for the composite actions directly only when you need
+a custom test surface that the workflow doesn't cover.
 
 Reference an action from a consumer repository (Renovate keeps the date
 tag up to date):
 
 ```yaml
-- uses: sbaerlocher/.github/.github/actions/project-up@2026-04-28
+- uses: sbaerlocher/.github/.github/actions/project@2026-04-30
   with:
     wait-url: https://myproject.test/healthz
+
+- if: always()
+  uses: sbaerlocher/.github/.github/actions/project@2026-04-30
+  with:
+    command: down
 ```
 
 ---

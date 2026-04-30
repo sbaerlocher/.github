@@ -39,8 +39,9 @@ Pick the most recent date tag from
   run: dde project:down
 ```
 
-For the higher-level "install + system:install + project:up" flow, use the
-sibling [`project-up`](../project-up/) action instead.
+For the higher-level "install + system:install + project:up" flow (or any
+other `dde project:<command>`), use the sibling
+[`project`](../project/) action instead.
 
 ## Inputs
 

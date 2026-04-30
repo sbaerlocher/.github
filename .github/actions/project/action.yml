@@ -1,5 +1,5 @@
-name: 'dde project:up'
-description: 'Install dde, run system:install, and bring a project up. Designed for E2E test pipelines.'
+name: 'dde project'
+description: 'Install dde and run a `dde project:<command>` (default: up). Designed for E2E pipelines and ad-hoc lifecycle steps.'
 author: 'sbaerlocher'
 
 branding:
@@ -7,6 +7,10 @@ branding:
   color: 'orange'
 
 inputs:
+  command:
+    description: 'dde project subcommand to run (up, down, restart, update, ...). Determines whether `system-install` and `wait-url` apply.'
+    required: false
+    default: 'up'
   version:
     description: 'dde version to install (e.g. v2.0.0-alpha.5) or "latest"'
     required: false
@@ -20,11 +24,11 @@ inputs:
     required: false
     default: 'true'
   system-install:
-    description: 'Run `dde system:install` to set up host (Traefik, mkcert CA, dnsmasq). Disable for unit-style tests that exercise project commands without provisioning the host.'
+    description: 'Run `dde system:install` to set up the host (Traefik, mkcert CA, dnsmasq). Only applied when `command: up`; ignored otherwise.'
     required: false
     default: 'true'
   wait-url:
-    description: 'If set, the action polls this URL until it returns 2xx/3xx (or wait-timeout expires). TLS errors are ignored.'
+    description: 'If set, polls this URL until it returns 2xx/3xx (or wait-timeout expires). TLS errors are ignored. Only applied when `command: up`; ignored otherwise.'
     required: false
     default: ''
   wait-timeout:
@@ -51,30 +55,49 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    # Validate `command` before anything with side effects (downloading the
+    # dde binary, running system:install, ...). An empty command is almost
+    # always a typo or a forgotten with-block — fail fast with no I/O.
+    - name: Validate inputs
+      shell: bash
+      env:
+        COMMAND: ${{ inputs.command }}
+      run: |
+        set -euo pipefail
+        if [ -z "$COMMAND" ]; then
+          echo "::error::'command' input must not be empty."
+          exit 1
+        fi
+
     # `uses: ./...` from inside a composite action resolves against the
     # caller's GITHUB_WORKSPACE, NOT against this action's own repo — see
     # https://github.com/actions/runner/issues/2185. Reference setup-dde via
     # the full repo path with a date tag so the action keeps working when
     # consumed from any repository. Renovate keeps this ref in sync with new
     # rolling-release tags via the github-actions manager.
+    #
+    # `system-install` is only meaningful before `project:up`; for any other
+    # command (down/restart/update/...), force it to 'false' so we don't
+    # re-provision the host on every lifecycle step.
     - name: Setup dde
       id: setup
       uses: sbaerlocher/.github/.github/actions/setup-dde@2026-04-28
       with:
         version: ${{ inputs.version }}
         install-mkcert: ${{ inputs.install-mkcert }}
-        system-install: ${{ inputs.system-install }}
+        system-install: ${{ inputs.command == 'up' && inputs.system-install || 'false' }}
         github-token: ${{ inputs.github-token }}
         repository: ${{ inputs.repository }}
 
     # cd is done inside the script (not via working-directory:) so that a
     # missing/typo'd working-directory produces our friendly ::error::
     # instead of the runner's generic ENOENT before the script runs.
-    - name: Bring project up
+    - name: Run dde project command
       shell: bash
       env:
         BINARY: ${{ steps.setup.outputs.binary-path }}
         WD: ${{ inputs.working-directory }}
+        COMMAND: ${{ inputs.command }}
       run: |
         set -euo pipefail
         if [ ! -d "$WD" ]; then
@@ -86,10 +109,13 @@ runs:
           echo "::error::No .dde/config.yml found in $(pwd). Set 'working-directory' to the project root."
           exit 1
         fi
-        "$BINARY" project:up
+        "$BINARY" "project:$COMMAND"
 
+    # wait-url polling only makes sense after `up` brought services online.
+    # Skip silently for any other command so callers can pass wait-url
+    # unconditionally without producing misleading log noise.
     - name: Wait for URL
-      if: inputs.wait-url != ''
+      if: inputs.command == 'up' && inputs.wait-url != ''
       shell: bash
       env:
         URL: ${{ inputs.wait-url }}
