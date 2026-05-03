@@ -3,7 +3,7 @@
 **Repository Type**: Centralized Workflow Repository
 **Purpose**: Provide reusable GitHub Actions workflows for all sbaerlocher projects
 **Visibility**: Public
-**Last Updated**: 2026-04-30
+**Last Updated**: 2026-05-03
 
 ---
 
@@ -24,14 +24,37 @@ directly impacting the CI/CD pipelines of multiple projects.
 
 **Current Statistics**:
 
-- **Total Workflows**: 22 reusable workflows (see [.github/workflows/](./.github/workflows/))
-- **Categories**: CI (5), Security (6), Deploy (2), Release (4), Operations (1), AI (2), E2E (2)
+- **Total Workflows**: 24 reusable workflows (see [.github/workflows/](./.github/workflows/))
+- **Categories**: CI (5), Security (6), Deploy (2), Release (4), Operations (3), AI (2), E2E (2)
 - **Consumers**: applications, infrastructure, authentication, observability, functions,
   sbaerlocher.ch, tsmetrics, and more
 
 ---
 
 ## Important Standards & Conventions
+
+### Workflow Layering
+
+Consumer repositories follow a strict three-layer split:
+
+1. **Repo workflow** contains only `on:`, `permissions:`, and `uses:` —
+   never a multi-line `run:` step. It is a thin trigger hull.
+2. **Reusable workflow** in `sbaerlocher/.github` owns the pipeline logic
+   (job sequences, tool calls, reporting, notification) and exposes it via
+   `inputs:` / `outputs:` / `secrets:`.
+3. **Composite action** in `.github/actions/` owns single tool-bootstrap
+   steps when the same shell logic appears in more than one reusable.
+
+**Concurrency is owned by the reusable**, never by both the repo workflow
+and the reusable for the same logical group. If a reusable declares its
+own `concurrency:` block, the calling repo workflow must not set one for
+the same scope. Where a reusable supports it (e.g. `deploy-terraform.yml`
+via `cancel-in-progress` + `concurrency-suffix` inputs), the caller picks
+the cancellation policy and group suffix per call.
+
+This rule eliminates the "two limiters in series" pattern that previously
+caused queue pile-ups and surprise cancellations when consumer repos
+wrapped a reusable with their own `concurrency:` block.
 
 ### Workflow Naming Convention
 
@@ -97,6 +120,69 @@ uses: sbaerlocher/.github/.github/workflows/ci-js.yml@2026-04-25
   cadence is documented in `CHANGELOG.md`.
 - Renovate updates date tags in consumer repos automatically via the
   custom manager defined in `renovate-base.json`.
+
+### Concurrency Convention
+
+Every reusable workflow exposes the same two inputs so consumers can adjust
+concurrency without forking the workflow:
+
+```yaml
+inputs:
+  cancel-in-progress:
+    type: boolean
+    required: false
+    default: <per-workflow-default>  # CI/security/e2e: true; deploy/release/ops: false
+    description: Cancel in-progress runs in the same group.
+  concurrency-suffix:
+    type: string
+    required: false
+    default: ''
+    description: Suffix appended as `-<suffix>` to the concurrency group.
+```
+
+The concurrency block always renders as:
+
+```yaml
+concurrency:
+  group: >-
+    <base-group>${{
+      inputs.concurrency-suffix != '' && format('-{0}', inputs.concurrency-suffix) || ''
+    }}
+  cancel-in-progress: ${{ inputs.cancel-in-progress }}
+```
+
+**Defaults — and when to override:**
+
+- **CI / Security / E2E**: default `cancel-in-progress: true`. The latest push
+  supersedes the previous run. Override to `false` for matrix legs that must
+  all complete (e.g. compliance reports).
+- **Deploy / Release / Ops**: default `cancel-in-progress: false`. A
+  half-applied deploy or half-uploaded artifact is worse than waiting.
+  Override to `true` for drift / scan use-cases where the latest invocation
+  should supersede the previous (this is exactly why `deploy-terraform.yml`
+  takes both inputs — drift mode wants `true`, deploy mode wants `false`).
+- **Suffix**: empty by default. Set when the same caller workflow invokes
+  the same reusable from multiple matrix legs or modes that must run
+  in parallel rather than serialise. Example: `concurrency-suffix: drift`
+  on a drift-detection job that calls `deploy-terraform.yml` alongside
+  the deploy job.
+
+**Two base-group patterns are in use:**
+
+- **Caller-isolated** — `${{ github.workflow }}-${{ github.ref }}`. Used by
+  CI, Security, Release, E2E, and most Ops/Deploy workflows. `github.workflow`
+  resolves to the *caller's* workflow name when invoked via `workflow_call`,
+  so different callers automatically get different groups.
+- **Resource-locked** — built from inputs (e.g.
+  `${{ inputs.project-name }}-terraform-${{ inputs.environment }}` in
+  `deploy-terraform.yml`, or `${{ inputs.project-name }}-${{ inputs.environment }}`
+  in `ops-drift-issue.yml`). Used when the workflow guards a shared resource
+  (Terraform state, GitHub-issue list) that must serialise across *all*
+  callers, not just the same caller.
+
+When adding a new reusable workflow, pick the base-group pattern based on
+whether it serialises a shared resource, and always expose both inputs so
+consumers have an escape hatch.
 
 ---
 
@@ -169,13 +255,22 @@ uses: sbaerlocher/.github/.github/workflows/ci-js.yml@2026-04-25
 
 **Trigger**: `push` events on tags (`v*`)
 
-### Operations - Operational Tasks (1)
+### Operations - Operational Tasks (3)
 
 **Purpose**: Scheduled maintenance and operational tasks
 
-| Workflow      | File                              | Description          | Schedule  |
-| ------------- | --------------------------------- | -------------------- | --------- |
-| Orchestration | `ops-terraform-orchestration.yml` | Multi-environment TF | On-demand |
+| Workflow         | File                              | Description                              | Schedule  |
+| ---------------- | --------------------------------- | ---------------------------------------- | --------- |
+| Orchestration    | `ops-terraform-orchestration.yml` | Multi-environment TF                     | On-demand |
+| Terraform Report | `ops-terraform-report.yml`        | Pipeline report + metadata artifact      | On-demand |
+| Drift Issue      | `ops-drift-issue.yml`             | Upsert drift issue (idempotent by title) | On-demand |
+
+`ops-terraform-report.yml` consumes outputs from
+`ops-terraform-orchestration.yml` + `deploy-terraform.yml` and renders the
+deploy/drift summary that consumer repos used to inline. `ops-drift-issue.yml`
+replaces the inline `gh issue create/comment` block in consumer drift
+workflows; it serialises by `project + environment` so two scheduled drift
+runs cannot race on `gh issue list`.
 
 ### AI - AI-Assisted Workflows (2)
 
@@ -588,5 +683,5 @@ Ensure lock files are committed:
 
 ---
 
-**Last Updated**: 2026-04-30
-**Version**: 1.3.0
+**Last Updated**: 2026-05-03
+**Version**: 1.4.0

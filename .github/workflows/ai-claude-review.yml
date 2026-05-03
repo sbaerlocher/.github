@@ -4,15 +4,40 @@ on:
   pull_request:
     types: [opened, synchronize, ready_for_review, reopened]
   workflow_call:
+    inputs:
+      cancel-in-progress:
+        type: boolean
+        required: false
+        default: true
+        description: |
+          Whether to cancel in-progress runs in the same concurrency group.
+          Default matches this workflow's intended semantics; override only
+          for matrix or fan-out invocations that need different semantics
+          than the single-call default.
+      concurrency-suffix:
+        type: string
+        required: false
+        default: ''
+        description: |
+          Optional suffix appended to the concurrency group as `-<suffix>`.
+          Empty default preserves the original group name; set to separate
+          parallel invocations of this reusable from the same caller (e.g.
+          per-matrix-leg or per-mode).
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN:
         required: true
         # Note: for pull_request trigger, secrets.CLAUDE_CODE_OAUTH_TOKEN resolves
         # directly from the repo's secrets context — no caller needed.
 
+permissions:
+  contents: read
+
 concurrency:
-  group: claude-review-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: true
+  group: >-
+    claude-review-${{ github.event.pull_request.number || github.run_id }}${{
+      inputs.concurrency-suffix != '' && format('-{0}', inputs.concurrency-suffix) || ''
+    }}
+  cancel-in-progress: ${{ inputs.cancel-in-progress }}
 
 jobs:
   claude-review:
@@ -42,6 +67,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           fetch-depth: 1
 
       # Determine review mode (first vs follow-up), the bot login under which

@@ -2,7 +2,7 @@
 # (.github/actions/setup-dde, .github/actions/project).
 # Not a reusable workflow — runs only when the dde action sources change.
 
-name: Test dde actions
+name: Test - dde Actions
 
 on:
   push:
@@ -34,6 +34,8 @@ jobs:
           - macos-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Install dde via setup-dde
         id: dde
@@ -72,6 +74,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Run project against non-existent dir (expected to fail)
         id: project
@@ -102,6 +106,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Create empty project directory
         run: mkdir -p empty-project
@@ -135,6 +141,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Run project with empty command (expected to fail)
         id: project

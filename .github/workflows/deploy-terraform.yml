@@ -85,6 +85,23 @@ on:
           Useful for generating dynamic credentials (e.g., Tailscale API key from OAuth).
           Script has access to all env vars from bw-secrets and env-mapping.
           Export vars as: echo "VAR_NAME=value" >> $GITHUB_ENV
+      cancel-in-progress:
+        type: boolean
+        required: false
+        default: false
+        description: |
+          Whether to cancel in-progress runs in the same concurrency group.
+          Default `false` matches deploy semantics. Set `true` for drift /
+          scan use-cases where the latest invocation supersedes the previous.
+      concurrency-suffix:
+        type: string
+        required: false
+        default: ''
+        description: |
+          Optional suffix appended to the concurrency group, e.g. "drift",
+          to separate concurrency from the deploy path while sharing the same
+          project-name + environment scope. Empty default preserves the
+          original group name for backward compatibility.
     outputs:
       plan_outcome:
         description: 'Plan result: no-changes, has-changes, or error'
@@ -99,6 +116,9 @@ on:
       BW_ACCESS_TOKEN:
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     name: Deploy Infrastructure
@@ -107,8 +127,11 @@ jobs:
     environment:
       name: ${{ inputs.environment }}
     concurrency:
-      group: ${{ inputs.project-name }}-terraform-${{ inputs.environment }}
-      cancel-in-progress: false
+      group: >-
+        ${{ inputs.project-name }}-terraform-${{ inputs.environment }}${{
+          inputs.concurrency-suffix != '' && format('-{0}', inputs.concurrency-suffix) || ''
+        }}
+      cancel-in-progress: ${{ inputs.cancel-in-progress }}
     env:
       TF_IN_AUTOMATION: 'true'
       TF_INPUT: 'false'
