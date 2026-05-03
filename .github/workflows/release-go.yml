@@ -34,14 +34,35 @@ on:
         required: false
         default: ''
         description: 'Additional environment variables (multiline, KEY=VALUE format)'
+      cancel-in-progress:
+        type: boolean
+        required: false
+        default: false
+        description: |
+          Whether to cancel in-progress runs in the same concurrency group.
+          Default matches this workflow's intended semantics; override only
+          for matrix or fan-out invocations that need different semantics
+          than the single-call default.
+      concurrency-suffix:
+        type: string
+        required: false
+        default: ''
+        description: |
+          Optional suffix appended to the concurrency group as `-<suffix>`.
+          Empty default preserves the original group name; set to separate
+          parallel invocations of this reusable from the same caller (e.g.
+          per-matrix-leg or per-mode).
 
 permissions:
   contents: write
   packages: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  group: >-
+    ${{ github.workflow }}-${{ github.ref }}${{
+      inputs.concurrency-suffix != '' && format('-{0}', inputs.concurrency-suffix) || ''
+    }}
+  cancel-in-progress: ${{ inputs.cancel-in-progress }}
 
 jobs:
   goreleaser:
@@ -52,6 +73,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Set up Go

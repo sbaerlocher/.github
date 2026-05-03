@@ -5,8 +5,8 @@ Centralized CI/CD building blocks for all repositories under
 each workflow by date tag and let Renovate keep them current.
 
 - **Model:** rolling release with date tags (`YYYY-MM-DD`)
-- **Total workflows:** 22
-- **Last updated:** 2026-04-30
+- **Total workflows:** 24
+- **Last updated:** 2026-05-03
 
 See [AGENTS.md](./AGENTS.md) for AI-agent context.
 
@@ -111,10 +111,14 @@ All files live in [.github/workflows/](./.github/workflows/).
 | [`release-helm.yml`](./.github/workflows/release-helm.yml)        | Helm OCI chart publish               |
 | [`release-npm.yml`](./.github/workflows/release-npm.yml)          | NPM publish with provenance + SBOM   |
 
-### Operations (1)
+### Operations (3)
 
 - [`ops-terraform-orchestration.yml`](./.github/workflows/ops-terraform-orchestration.yml)
   — Multi-environment Terraform deployment driver
+- [`ops-terraform-report.yml`](./.github/workflows/ops-terraform-report.yml)
+  — Render Terraform pipeline report (Step Summary, metadata artifact, notification)
+- [`ops-drift-issue.yml`](./.github/workflows/ops-drift-issue.yml)
+  — Upsert a GitHub issue when Terraform drift is detected
 
 ### AI — Private Repos Only (2)
 

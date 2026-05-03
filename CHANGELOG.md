@@ -6,6 +6,134 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-05-03
+
+### Added
+
+- **`ops-drift-issue.yml`**: New reusable workflow that upserts a GitHub
+  issue when Terraform drift is detected. Replaces the inline
+  `create-drift-issue` job that consumer repos
+  (`authentication`, `infrastructure`, `observability`) duplicated in
+  their `drift.yml` workflows. Idempotent by title — if an open issue
+  with the substituted `title-template` (default
+  `Terraform Drift Detected: {project} ({environment})`) and the
+  configured `label` (default `terraform-drift`) exists, it adds a
+  comment instead of creating a new issue. Concurrency-grouped by
+  `project-name + environment` so two simultaneous drift jobs cannot
+  race on `gh issue list`. The label must already exist in the consumer
+  repository — the workflow does not create it.
+- **`ops-terraform-report.yml`**: New reusable workflow that renders the
+  Terraform pipeline report (Step Summary + `deployment-metadata.json`
+  artifact + optional notification step) from
+  `ops-terraform-orchestration.yml` + `deploy-terraform.yml` outputs.
+  Consolidates the inline `report` job that consumer `deploy.yml`
+  workflows duplicated. Supports both deploy and drift modes via the
+  `mode` input; drift mode includes the `drift-detected` row in the
+  deployment-details table. The notification step is opt-in via
+  `notification-environment` and currently logs to stdout — wire a real
+  webhook in the consumer if needed.
+
+### Changed
+
+- **All reusable workflows now expose `cancel-in-progress` and
+  `concurrency-suffix` inputs.** Previously only `deploy-terraform.yml`
+  carried these. Inconsistent concurrency behaviour caused real failures
+  when consumers wired the same reusable into parallel matrix legs or
+  multi-mode pipelines (drift vs deploy) — they could not separate the
+  groups without forking the workflow.
+
+  Defaults preserve current behaviour: CI / Security / E2E default to
+  `cancel-in-progress: true` (latest push wins); Deploy / Release / Ops
+  default to `false` (in-flight runs finish). The suffix defaults to
+  empty, so the group name is unchanged for every consumer that does
+  not opt in.
+
+  See AGENTS.md → "Concurrency Convention" for the full pattern, the
+  base-group rules (caller-isolated vs resource-locked), and override
+  guidance.
+
+  Touched: `ai-claude*`, `ci-*`, `deploy-cloudflare-workers`,
+  `e2e-*`, `ops-*`, `release-*`, `security-*`. `deploy-terraform.yml`
+  already had the inputs from the prior change.
+
+### Security
+
+- **All workflows: `actions/checkout` hardened with `persist-credentials: false`.**
+  Previously many checkouts inherited the v6 default `true`, which
+  persists `GITHUB_TOKEN` in `.git/config` for any subsequent step or
+  untrusted action to read. None of the reusable workflows actually
+  push via `git`, so disabling persistence is safe across the board.
+  Touched: `ai-claude*`, `ci-*`, `deploy-cloudflare-workers`,
+  `e2e-*`, `release-*`, `security-*`, `ops-terraform-orchestration`,
+  `test-actions-dde`. `deploy-terraform`, `ci-ansible`, and
+  `ci-terraform` already had it set.
+- **Top-level `permissions:` added to `deploy-terraform.yml`,
+  `ai-claude.yml`, and `ai-claude-review.yml`.** All three previously
+  inherited the caller's default permissions. Top-level is now
+  `contents: read`; existing job-level overrides (the AI workflows
+  expand to `pull-requests: write` etc.) remain in place.
+
+### Changed (cosmetic)
+
+- **Workflow `name:` fields normalized to `Category - Subject` style**
+  with hyphen separator (per AGENTS.md naming convention):
+  - `ci-gitops.yml`: `Continuous Integration (GitOps)` →
+    `Continuous Integration - GitOps`
+  - `e2e-dde.yml`: `E2E Tests (dde)` → `End-to-End - dde`
+  - `e2e-docker.yml`: `E2E Tests (Docker Compose)` →
+    `End-to-End - Docker Compose`
+  - `test-actions-dde.yml`: `Test dde actions` → `Test - dde Actions`
+  - All others were already conformant.
+
+### Fixed
+
+- **`ai-claude-review.yml` (#102)**: Hardened the review workflow.
+  Previous bugs broke follow-up runs and ran Opus with 100 turns on
+  every push.
+  - Reply endpoint was missing the PR number, returned 404 on every
+    follow-up. Now uses `repos/{repo}/pulls/{number}/comments/{id}/replies`.
+  - Mode detection now reads the prior review (not inline comments),
+    so clean PRs with no findings correctly transition to follow-up
+    mode instead of re-paying for a full first pass.
+  - Bot login is detected dynamically (`gh api .../reviews` →
+    `.../comments`) instead of hardcoded `claude[bot]`, so the
+    detection survives App-login changes.
+  - Follow-up now diffs against the last review SHA via
+    `gh api .../compare/{base}...{head}` instead of `gh pr diff` —
+    the "only flag new issues" instruction now actually has the
+    right input.
+  - Pre-step computes `mode` / `bot-login` / `last-review-sha` in shell
+    as job outputs; prompt receives concrete values instead of
+    placeholders.
+  - Cost split: first review keeps Opus with 100 turns; follow-up
+    runs on Sonnet with 40 turns.
+  - Both modes submit an explicit verdict (`--approve` or
+    `--request-changes`) so PRs don't sit in limbo when issues remain.
+  - Prompt now Reads `REVIEW.md` / `AGENTS.md` / `CLAUDE.md` first
+    so repo-specific rules win over generic best practices.
+  - Fork PRs are skipped explicitly (no secrets, no write token →
+    silent zero-comment runs were misleading).
+
+### Documentation
+
+- **AGENTS.md → "Workflow Layering"**: Codifies the three-layer split
+  (repo workflow / reusable / composite action) and the rule that
+  *concurrency is owned by the reusable* — never duplicated in the
+  caller for the same scope. Replaces the implicit "two limiters in
+  series" pattern that produced queue pile-ups in consumer repos.
+- **AGENTS.md → "Concurrency Convention"**: Documents the uniform
+  `cancel-in-progress` + `concurrency-suffix` inputs, the per-category
+  defaults, the two base-group patterns (caller-isolated vs
+  resource-locked), and override guidance.
+
+### Dependencies
+
+- `anthropics/claude-code-action`: → v1.0.107 (#92), → v1.0.110 (#103)
+- `securego/gosec`: → v2.26.1 (#101)
+- GitHub Actions group bumps: #99, #100 (Renovate batched)
+
+---
+
 ## 2026-04-30
 
 ### Removed
@@ -188,7 +316,7 @@ This is a rolling release - changes are deployed continuously to `main`.
     - Testing tools group renamed to "Jest" (vitest moved out)
   - **Branch-name collapsing** (`separateMultipleMajor: false` per group):
     Collapse the `major-N-` segment that Renovate prepends to `groupSlug` for
-    grouped major updates, so co-dependent packages with _different_ major
+    grouped major updates, so co-dependent packages with *different* major
     version numbers (e.g. Vue 4 + plugin-vue 6) share one branch/PR despite
     `separateMultipleMajor: true` in base
     - Verified against Renovate source

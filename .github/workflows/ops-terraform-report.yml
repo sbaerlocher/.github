@@ -1,0 +1,263 @@
+---
+name: Ops - Terraform Report
+
+on:
+  workflow_call:
+    inputs:
+      project-name:
+        type: string
+        required: true
+        description: 'Project identifier used in report headers and artifact names'
+      environment:
+        type: string
+        required: true
+        description: 'Target deployment environment (e.g. nuvulus)'
+      deployment-id:
+        type: string
+        required: true
+        description: 'Unique deployment identifier produced by ops-terraform-orchestration'
+      mode:
+        type: string
+        required: false
+        default: 'deploy'
+        description: 'Pipeline mode: deploy (plan + apply) or drift (plan only)'
+      orchestration-status:
+        type: string
+        required: true
+        description: 'Result of the orchestration job: success, failure, skipped, cancelled'
+      validation-status:
+        type: string
+        required: true
+        description: 'Result of the validation job: success, failure, skipped, cancelled'
+      deploy-status:
+        type: string
+        required: true
+        description: 'Result of the deploy job: success, failure, skipped, cancelled'
+      plan-outcome:
+        type: string
+        required: false
+        default: ''
+        description: 'plan_outcome from deploy-terraform: no-changes, has-changes, or error'
+      apply-outcome:
+        type: string
+        required: false
+        default: ''
+        description: 'apply_outcome from deploy-terraform: success, failed, or skipped'
+      drift-detected:
+        type: string
+        required: false
+        default: ''
+        description: 'drift_detected from deploy-terraform (drift mode only): true, false, or error'
+      terraform-changed:
+        type: string
+        required: false
+        default: ''
+        description: 'terraform_changed from ops-terraform-orchestration: true or false'
+      notification-environment:
+        type: string
+        required: false
+        default: ''
+        description: |
+          Environment name that triggers a notification log line. Empty (default)
+          disables notification. Set to e.g. "nuvulus" to log on success/failure
+          for that environment only.
+      cancel-in-progress:
+        type: boolean
+        required: false
+        default: false
+        description: |
+          Whether to cancel in-progress runs in the same concurrency group.
+          Default matches this workflow's intended semantics; override only
+          for matrix or fan-out invocations that need different semantics
+          than the single-call default.
+      concurrency-suffix:
+        type: string
+        required: false
+        default: ''
+        description: |
+          Optional suffix appended to the concurrency group as `-<suffix>`.
+          Empty default preserves the original group name; set to separate
+          parallel invocations of this reusable from the same caller (e.g.
+          per-matrix-leg or per-mode).
+    outputs:
+      overall-status:
+        description: 'Computed overall status: success, plan-only, validation-failed, or failed'
+        value: ${{ jobs.report.outputs.overall-status }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: >-
+    ${{ github.workflow }}-${{ inputs.project-name }}-${{ inputs.environment }}-${{ inputs.deployment-id }}${{
+      inputs.concurrency-suffix != '' && format('-{0}', inputs.concurrency-suffix) || ''
+    }}
+  cancel-in-progress: ${{ inputs.cancel-in-progress }}
+
+jobs:
+  report:
+    name: Render Pipeline Report
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      overall-status: ${{ steps.analysis.outputs.overall_status }}
+
+    steps:
+      - name: Analyze pipeline status
+        id: analysis
+        env:
+          ORCHESTRATION_STATUS: ${{ inputs.orchestration-status }}
+          VALIDATION_STATUS: ${{ inputs.validation-status }}
+          DEPLOY_STATUS: ${{ inputs.deploy-status }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$DEPLOY_STATUS" == "success" && "$VALIDATION_STATUS" == "success" ]]; then
+            OVERALL_STATUS="success"
+          elif [[ "$DEPLOY_STATUS" == "success" && "$VALIDATION_STATUS" == "skipped" ]]; then
+            OVERALL_STATUS="plan-only"
+          elif [[ "$VALIDATION_STATUS" == "failure" ]]; then
+            OVERALL_STATUS="validation-failed"
+          else
+            OVERALL_STATUS="failed"
+          fi
+
+          echo "overall_status=$OVERALL_STATUS" >> "$GITHUB_OUTPUT"
+          echo "Computed overall_status: $OVERALL_STATUS"
+
+      - name: Generate pipeline report
+        env:
+          PROJECT_NAME: ${{ inputs.project-name }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          DEPLOYMENT_ID: ${{ inputs.deployment-id }}
+          MODE: ${{ inputs.mode }}
+          OVERALL_STATUS: ${{ steps.analysis.outputs.overall_status }}
+          ORCHESTRATION_STATUS: ${{ inputs.orchestration-status }}
+          VALIDATION_STATUS: ${{ inputs.validation-status }}
+          DEPLOY_STATUS: ${{ inputs.deploy-status }}
+          PLAN_OUTCOME: ${{ inputs.plan-outcome }}
+          APPLY_OUTCOME: ${{ inputs.apply-outcome }}
+          DRIFT_DETECTED: ${{ inputs.drift-detected }}
+          TERRAFORM_CHANGED: ${{ inputs.terraform-changed }}
+        run: |
+          set -euo pipefail
+          TIMESTAMP="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+
+          {
+            echo "# ${PROJECT_NAME} Terraform Pipeline Report"
+            echo
+            echo "**Status:** ${OVERALL_STATUS}"
+            echo "**Mode:** ${MODE}"
+            echo "**Environment:** ${ENVIRONMENT}"
+            echo "**Deployment ID:** ${DEPLOYMENT_ID}"
+            echo "**Timestamp:** ${TIMESTAMP}"
+            echo
+            echo "## Pipeline Status"
+            echo
+            echo "| Component | Status | Details |"
+            echo "|-----------|--------|---------|"
+            echo "| Orchestration | ${ORCHESTRATION_STATUS} | Environment setup |"
+            echo "| Validation | ${VALIDATION_STATUS} | Configuration validation |"
+            echo "| Deployment | ${DEPLOY_STATUS} | Terraform provisioning |"
+            echo
+            echo "## Deployment Details"
+            echo
+            echo "| Outcome | Result |"
+            echo "|---------|--------|"
+            echo "| Plan | ${PLAN_OUTCOME:-N/A} |"
+            echo "| Apply | ${APPLY_OUTCOME:-N/A} |"
+            if [[ "${MODE}" == "drift" ]]; then
+              echo "| Drift Detected | ${DRIFT_DETECTED:-N/A} |"
+            fi
+            echo
+            echo "## Change Analysis"
+            echo
+            echo "| Type | Changed |"
+            echo "|------|---------|"
+            echo "| Terraform | ${TERRAFORM_CHANGED:-N/A} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Consolidate deployment artifacts
+        if: always()
+        env:
+          PROJECT_NAME: ${{ inputs.project-name }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          DEPLOYMENT_ID: ${{ inputs.deployment-id }}
+          OVERALL_STATUS: ${{ steps.analysis.outputs.overall_status }}
+          MODE: ${{ inputs.mode }}
+          ORCHESTRATION_STATUS: ${{ inputs.orchestration-status }}
+          VALIDATION_STATUS: ${{ inputs.validation-status }}
+          DEPLOY_STATUS: ${{ inputs.deploy-status }}
+          PLAN_OUTCOME: ${{ inputs.plan-outcome }}
+          APPLY_OUTCOME: ${{ inputs.apply-outcome }}
+          DRIFT_DETECTED: ${{ inputs.drift-detected }}
+          GIT_REF: ${{ github.ref }}
+          GIT_SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p deployment-artifacts
+          ISO_TIMESTAMP="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+
+          cat > deployment-artifacts/deployment-metadata.json <<JSON
+          {
+            "project_name": "${PROJECT_NAME}",
+            "deployment_id": "${DEPLOYMENT_ID}",
+            "environment": "${ENVIRONMENT}",
+            "mode": "${MODE}",
+            "overall_status": "${OVERALL_STATUS}",
+            "timestamp": "${ISO_TIMESTAMP}",
+            "git_ref": "${GIT_REF}",
+            "git_sha": "${GIT_SHA}",
+            "triggered_by": "${ACTOR}",
+            "workflow_run_id": "${RUN_ID}",
+            "deployment": {
+              "plan_outcome": "${PLAN_OUTCOME}",
+              "apply_outcome": "${APPLY_OUTCOME}",
+              "drift_detected": "${DRIFT_DETECTED}"
+            },
+            "pipeline_status": {
+              "orchestration": "${ORCHESTRATION_STATUS}",
+              "validation": "${VALIDATION_STATUS}",
+              "deployment": "${DEPLOY_STATUS}"
+            }
+          }
+          JSON
+
+      - name: Upload deployment metadata artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: deployment-metadata-${{ inputs.deployment-id }}
+          path: deployment-artifacts/deployment-metadata.json
+          retention-days: 30
+
+      - name: Send deployment notification
+        if: |
+          always() &&
+          inputs.notification-environment != '' &&
+          inputs.environment == inputs.notification-environment &&
+          (steps.analysis.outputs.overall_status == 'failed' ||
+           steps.analysis.outputs.overall_status == 'success')
+        env:
+          PROJECT_NAME: ${{ inputs.project-name }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          DEPLOYMENT_ID: ${{ inputs.deployment-id }}
+          OVERALL_STATUS: ${{ steps.analysis.outputs.overall_status }}
+          PLAN_OUTCOME: ${{ inputs.plan-outcome }}
+          APPLY_OUTCOME: ${{ inputs.apply-outcome }}
+        run: |
+          set -euo pipefail
+          case "${OVERALL_STATUS}" in
+            success)
+              echo "${PROJECT_NAME} terraform pipeline successful"
+              echo "Environment: ${ENVIRONMENT}"
+              echo "Plan: ${PLAN_OUTCOME}"
+              echo "Apply: ${APPLY_OUTCOME}"
+              ;;
+            failed)
+              echo "${PROJECT_NAME} terraform pipeline failed"
+              echo "Deployment ID: ${DEPLOYMENT_ID}"
+              ;;
+          esac

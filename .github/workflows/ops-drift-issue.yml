@@ -1,0 +1,121 @@
+---
+name: Ops - Drift Issue
+
+on:
+  workflow_call:
+    inputs:
+      project-name:
+        type: string
+        required: true
+        description: 'Project identifier used in issue title and body'
+      environment:
+        type: string
+        required: true
+        description: 'Environment in which drift was detected'
+      workflow-run-url:
+        type: string
+        required: true
+        description: 'URL to the triggering workflow run for issue cross-reference'
+      label:
+        type: string
+        required: false
+        default: 'terraform-drift'
+        description: 'Issue label used to find and group drift issues'
+      title-template:
+        type: string
+        required: false
+        default: 'Terraform Drift Detected: {project} ({environment})'
+        description: |
+          Issue title template with placeholders {project} and {environment}.
+          The substituted title MUST be stable across runs so the same drift
+          finds the same issue and updates rather than duplicates.
+      cancel-in-progress:
+        type: boolean
+        required: false
+        default: false
+        description: |
+          Whether to cancel in-progress runs in the same concurrency group.
+          Default matches this workflow's intended semantics; override only
+          for matrix or fan-out invocations that need different semantics
+          than the single-call default.
+      concurrency-suffix:
+        type: string
+        required: false
+        default: ''
+        description: |
+          Optional suffix appended to the concurrency group as `-<suffix>`.
+          Empty default preserves the original group name; set to separate
+          parallel invocations of this reusable from the same caller (e.g.
+          per-matrix-leg or per-mode).
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  # Same project + environment must serialise so two simultaneous drift jobs
+  # cannot race on `gh issue list` and create duplicate issues.
+  group: >-
+    ${{ github.workflow }}-${{ inputs.project-name }}-${{ inputs.environment }}${{
+      inputs.concurrency-suffix != '' && format('-{0}', inputs.concurrency-suffix) || ''
+    }}
+  cancel-in-progress: ${{ inputs.cancel-in-progress }}
+
+jobs:
+  upsert-drift-issue:
+    name: Create or Update Drift Issue
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Upsert drift issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PROJECT_NAME: ${{ inputs.project-name }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          WORKFLOW_RUN_URL: ${{ inputs.workflow-run-url }}
+          LABEL: ${{ inputs.label }}
+          TITLE_TEMPLATE: ${{ inputs.title-template }}
+        run: |
+          set -euo pipefail
+
+          TITLE="${TITLE_TEMPLATE//\{project\}/${PROJECT_NAME}}"
+          TITLE="${TITLE//\{environment\}/${ENVIRONMENT}}"
+          TIMESTAMP="$(date -u '+%Y-%m-%d %H:%M UTC')"
+
+          BODY=$(cat <<BODY_EOF
+          ## Terraform Drift Detected
+
+          Drift was detected in the **${PROJECT_NAME}** Terraform configuration for environment **${ENVIRONMENT}**.
+
+          **Workflow Run:** ${WORKFLOW_RUN_URL}
+          **Triggered:** ${TIMESTAMP}
+
+          ### Next Steps
+          1. Review the plan output in the workflow run linked above
+          2. Determine if the drift is expected or unexpected
+          3. Apply the plan or adjust the Terraform configuration accordingly
+          BODY_EOF
+          )
+
+          EXISTING=$(gh issue list \
+            --label "${LABEL}" \
+            --state open \
+            --json number,title \
+            --jq ".[] | select(.title == \"${TITLE}\") | .number" \
+            | head -1)
+
+          if [ -n "${EXISTING}" ]; then
+            gh issue comment "${EXISTING}" --body "${BODY}"
+            echo "Updated existing drift issue #${EXISTING}"
+          else
+            gh issue create \
+              --title "${TITLE}" \
+              --body "${BODY}" \
+              --label "${LABEL}"
+            echo "Created new drift issue"
+          fi
