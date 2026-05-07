@@ -330,7 +330,8 @@ jobs:
 
           mapfile -t manifests < <(
             find ${FLEET_PATHS} \( -name '*.yaml' -o -name '*.yml' \) \
-              | grep -E '(templates|manifests)' \
+              ! -name 'fleet.yaml' \
+              | grep -E '/(templates|manifests)/' \
               || true
           )
 

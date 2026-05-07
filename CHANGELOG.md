@@ -6,6 +6,35 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-05-07
+
+### Fixed
+
+- **`ci-gitops.yml`**: The `Validate Kubernetes manifests` step's path
+  filter (`grep -E '(templates|manifests)'`) matched the substring
+  anywhere in the path, so a Fleet bundle living under e.g.
+  `applications/<svc>/email-templates/fleet.yaml` was handed to
+  kubeconform and failed with `error while parsing: missing 'kind' key`
+  — `fleet.yaml` is a Fleet bundle config, not a Kubernetes manifest.
+  The pre-`2026-05-03` step trailed `|| true` and silently swallowed
+  this; the strict default introduced in `2026-05-03` exposed it as
+  a real failure for any consumer with a `*-templates` or `*-manifests`
+  directory name.
+
+  Two changes:
+  - Tightened the regex to `'/(templates|manifests)/'` so only
+    `templates` / `manifests` as standalone path segments match (the
+    intended helm-chart-templates / raw-k8s-manifests directories).
+  - Added `! -name 'fleet.yaml'` to the `find` so Fleet bundle configs
+    are excluded defensively even if a future path layout puts one
+    inside a `templates/` directory.
+
+  Consumer-visible: a bundle path containing `*-templates` or
+  `*-manifests` in a directory name no longer produces a kubeconform
+  failure, and `fleet.yaml` files are never evaluated as K8s manifests.
+
+---
+
 ## 2026-05-03
 
 ### Added
