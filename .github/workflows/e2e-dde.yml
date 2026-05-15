@@ -46,12 +46,67 @@ on:
         type: string
         required: false
         default: 'test:e2e'
-        description: 'Playwright test command'
+        description: |
+          Package-manager script name to run for Playwright tests.
+          Ignored when `test-command-override` is set — that bypasses the
+          PM wrapper and runs arbitrary bash instead.
+      test-command-override:
+        type: string
+        required: false
+        default: ''
+        description: |
+          Raw bash command(s) to run Playwright tests, bypassing the
+          package-manager wrapper. When non-empty, this replaces the
+          `<pm> run <test-command>` step entirely. Use for projects that
+          drive Playwright through a dde plugin or other custom entrypoint
+          (e.g. `dde project:e2e:test`). Runs in `playwright-directory`.
       playwright-browsers:
         type: string
         required: false
         default: 'chromium'
         description: 'Playwright browsers (chromium, firefox, webkit, all)'
+
+      # E2E lifecycle hooks
+      compose-profiles:
+        type: string
+        required: false
+        default: ''
+        description: |
+          Value for the `COMPOSE_PROFILES` env var on the job. Set when
+          the dde stack defines compose profiles that gate the E2E
+          service set (e.g. `e2e` to bring up an `app-e2e` profile while
+          leaving the dev profile dormant). Applies to every dde call in
+          the job, including project:up and project:down.
+      pre-test-commands:
+        type: string
+        required: false
+        default: ''
+        description: |
+          Bash command(s) to run after `dde project:up` and dependency
+          install, but before Playwright tests. Use for project-specific
+          E2E setup (database reset, health-check waits, fixture seeding,
+          ...). Runs in the project directory (`project-directory`), not
+          `playwright-directory`.
+      failure-logs-command:
+        type: string
+        required: false
+        default: ''
+        description: |
+          Bash command(s) to capture diagnostics on test failure. When
+          non-empty, replaces the default `dde project:logs` / `project:ps`
+          capture. Output is appended to `$RUNNER_TEMP/dde-logs.txt`. Runs
+          in the project directory. Useful for plugin-driven log helpers
+          like `dde project:e2e:logs -- 200`.
+      teardown-command:
+        type: string
+        required: false
+        default: ''
+        description: |
+          Bash command(s) for the always-run teardown step. When non-empty,
+          replaces the default `dde project:down`. Use to invoke a
+          project-specific cleanup plugin (e.g. `dde project:e2e:down`,
+          which also removes the e2e volumes). Runs in the project
+          directory; failures are tolerated.
 
       # Artifact Configuration
       upload-artifacts:
@@ -102,6 +157,13 @@ jobs:
       contents: read
     outputs:
       dde-version: ${{ steps.dde.outputs.version }}
+    # COMPOSE_PROFILES is set at job scope so every dde invocation
+    # (project:up, project:down, plugin commands, teardown) sees the same
+    # compose-profile selection. Empty by default — Compose treats an
+    # unset/empty value the same as "no profiles", which matches the
+    # zero-config behavior of the previous reusable workflow.
+    env:
+      COMPOSE_PROFILES: ${{ inputs.compose-profiles }}
 
     steps:
       - name: Checkout code
@@ -111,7 +173,7 @@ jobs:
 
       - name: Bring dde project up
         id: dde
-        uses: sbaerlocher/.github/.github/actions/project@2026-05-07
+        uses: sbaerlocher/.github/.github/actions/project@2026-05-16
         with:
           command: up
           version: ${{ inputs.dde-version }}
@@ -163,7 +225,29 @@ jobs:
             npx playwright install --with-deps "$BROWSERS"
           fi
 
+      # Optional pre-test hook for project-specific setup (DB reset,
+      # health-check waits, fixture seeding). Runs in the project
+      # directory so callers can invoke `dde project:*` plugins
+      # directly. Skipped when the input is empty.
+      - name: Run pre-test commands
+        if: inputs.pre-test-commands != ''
+        working-directory: ${{ inputs.project-directory }}
+        shell: bash
+        run: ${{ inputs.pre-test-commands }}
+
+      # Test runner: two mutually exclusive modes. When
+      # `test-command-override` is set, run that bash verbatim and skip
+      # the package-manager wrapper. Otherwise fall back to the
+      # historical `<pm> run <test-command>` behavior. Splitting the step
+      # via `if:` keeps each mode readable in step logs.
+      - name: Run Playwright tests (override)
+        if: inputs.test-command-override != ''
+        working-directory: ${{ inputs.playwright-directory }}
+        shell: bash
+        run: ${{ inputs.test-command-override }}
+
       - name: Run Playwright tests
+        if: inputs.test-command-override == ''
         working-directory: ${{ inputs.playwright-directory }}
         env:
           PM: ${{ inputs.package-manager }}
@@ -181,6 +265,7 @@ jobs:
         if: failure() && inputs.upload-artifacts
         env:
           PROJECT_DIR: ${{ inputs.project-directory }}
+          LOGS_OVERRIDE: ${{ inputs.failure-logs-command }}
         run: |
           if ! command -v dde >/dev/null 2>&1; then
             echo "dde was never installed — see 'Bring dde project up' step output" \
@@ -193,8 +278,18 @@ jobs:
             exit 0
           fi
           cd "$PROJECT_DIR"
-          dde project:logs > "$RUNNER_TEMP/dde-logs.txt" 2>&1 || true
-          dde project:ps   > "$RUNNER_TEMP/dde-ps.txt"   2>&1 || true
+          if [ -n "$LOGS_OVERRIDE" ]; then
+            # Override mode: caller owns log collection (e.g. a
+            # `dde project:e2e:logs -- 200` plugin). We still write
+            # dde-ps.txt from the standard `project:ps` so the artifact
+            # bundle stays useful even when the override only captures
+            # service logs.
+            bash -c "$LOGS_OVERRIDE" > "$RUNNER_TEMP/dde-logs.txt" 2>&1 || true
+            dde project:ps           > "$RUNNER_TEMP/dde-ps.txt"   2>&1 || true
+          else
+            dde project:logs > "$RUNNER_TEMP/dde-logs.txt" 2>&1 || true
+            dde project:ps   > "$RUNNER_TEMP/dde-ps.txt"   2>&1 || true
+          fi
 
       - name: Upload Playwright report
         if: inputs.upload-artifacts && always()
@@ -229,6 +324,7 @@ jobs:
         if: always()
         env:
           PROJECT_DIR: ${{ inputs.project-directory }}
+          TEARDOWN_OVERRIDE: ${{ inputs.teardown-command }}
         run: |
           if ! command -v dde >/dev/null 2>&1; then
             echo "dde was never installed — nothing to tear down"
@@ -239,7 +335,14 @@ jobs:
             exit 0
           fi
           cd "$PROJECT_DIR"
-          dde project:down || true
+          if [ -n "$TEARDOWN_OVERRIDE" ]; then
+            # Caller-provided cleanup (e.g. `dde project:e2e:down`, which
+            # also removes the e2e volumes). Tolerate failures so a
+            # broken teardown doesn't mask the real test result.
+            bash -c "$TEARDOWN_OVERRIDE" || true
+          else
+            dde project:down || true
+          fi
 
   # PR comment runs as a separate job so the test job stays at
   # contents:read. pull-requests:write is scoped to this job only.
