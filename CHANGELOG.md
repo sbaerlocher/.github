@@ -47,11 +47,11 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ### Changed
 
-- **`e2e-dde.yml`**: Bumped internal `sbaerlocher/.github/.github/actions/project@2026-05-03`
+- **`e2e-dde.yml`**: Bumped internal `sbaerlocher/.github/.github/actions/project@2026-05-07`
   reference to `@2026-05-16` so consumers of the workflow pick up the
   new `setup-dde` polkit fix transitively.
 
-- **`project` action**: Bumped internal `setup-dde@2026-05-03` reference
+- **`project` action**: Bumped internal `setup-dde@2026-05-07` reference
   to `@2026-05-16` for the same reason.
 
 ---

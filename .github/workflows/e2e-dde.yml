@@ -93,10 +93,11 @@ on:
         default: ''
         description: |
           Bash command(s) to capture diagnostics on test failure. When
-          non-empty, replaces the default `dde project:logs` / `project:ps`
-          capture. Output is appended to `$RUNNER_TEMP/dde-logs.txt`. Runs
-          in the project directory. Useful for plugin-driven log helpers
-          like `dde project:e2e:logs -- 200`.
+          non-empty, replaces the default `dde project:logs` capture
+          (`dde project:ps` still runs into `dde-ps.txt`). Output is
+          written to `$RUNNER_TEMP/dde-logs.txt` (overwritten, not
+          appended). Runs in the project directory. Useful for
+          plugin-driven log helpers like `dde project:e2e:logs -- 200`.
       teardown-command:
         type: string
         required: false
@@ -228,12 +229,17 @@ jobs:
       # Optional pre-test hook for project-specific setup (DB reset,
       # health-check waits, fixture seeding). Runs in the project
       # directory so callers can invoke `dde project:*` plugins
-      # directly. Skipped when the input is empty.
+      # directly. Skipped when the input is empty. Caller string is
+      # routed through `env:` (same pattern as LOGS_OVERRIDE /
+      # TEARDOWN_OVERRIDE) so the value cannot inject into the step
+      # script via `${{ ... }}`-substitution.
       - name: Run pre-test commands
         if: inputs.pre-test-commands != ''
         working-directory: ${{ inputs.project-directory }}
         shell: bash
-        run: ${{ inputs.pre-test-commands }}
+        env:
+          PRE_TEST_COMMANDS: ${{ inputs.pre-test-commands }}
+        run: bash -c "$PRE_TEST_COMMANDS"
 
       # Test runner: two mutually exclusive modes. When
       # `test-command-override` is set, run that bash verbatim and skip
@@ -244,7 +250,9 @@ jobs:
         if: inputs.test-command-override != ''
         working-directory: ${{ inputs.playwright-directory }}
         shell: bash
-        run: ${{ inputs.test-command-override }}
+        env:
+          TEST_COMMAND_OVERRIDE: ${{ inputs.test-command-override }}
+        run: bash -c "$TEST_COMMAND_OVERRIDE"
 
       - name: Run Playwright tests
         if: inputs.test-command-override == ''
