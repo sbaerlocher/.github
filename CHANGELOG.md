@@ -6,6 +6,62 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-05-16
+
+### Added
+
+- **`setup-dde`**: New pre-authorize step that runs before
+  `dde system:install` on Linux runners. It `chmod o+w`s `/etc/systemd`
+  (so dde can write its `resolved.conf.d` drop-in) and installs a polkit
+  rule that grants the runner user `manage-units` on
+  `systemd-resolved.service` (so the unprivileged restart succeeds).
+  Linux-only and gated on `system-install: true`. Removes the
+  per-consumer `Pre-authorize dde DNS resolver setup` workaround that
+  was previously copy-pasted into e2e workflows. Drop once dde escalates
+  for `resolved.conf.d` / polkit the same way it does for dnsmasq.
+
+- **`e2e-dde.yml`**: Five new optional inputs for plugin-driven E2E
+  lifecycles. Existing callers keep working unchanged; reach for these
+  when the project drives its E2E flow through dde plugins rather than
+  the standard `dde project:up` → `npm run test:e2e` → `dde project:down`
+  pipeline.
+
+  - `compose-profiles` — set `COMPOSE_PROFILES` at job scope (e.g. `e2e`
+    to bring up an `app-e2e` compose profile while leaving the dev
+    profile dormant). Applies to every dde call in the job, including
+    teardown.
+  - `pre-test-commands` — bash to run after `dde project:up` and
+    dependency install, but before Playwright tests. Runs in
+    `project-directory`. Use for DB reset, health-check waits, fixture
+    seeding.
+  - `test-command-override` — raw bash that replaces the
+    `<pm> run <test-command>` step. Use for projects that drive
+    Playwright through a dde plugin (`dde project:e2e:test`) instead of
+    a package-manager script.
+  - `failure-logs-command` — raw bash for failure-time log capture.
+    Replaces the default `dde project:logs` (`dde-ps.txt` is still
+    written from `dde project:ps`).
+  - `teardown-command` — bash for the always-run teardown step. Replaces
+    the default `dde project:down`. Use for plugin-driven cleanup like
+    `dde project:e2e:down -v`.
+
+### Note on transitive consumption
+
+Consumers of `e2e-dde.yml@2026-05-16` and `project@2026-05-16` do **not**
+transitively pick up the new `setup-dde` polkit step in this tag — the
+inner `uses:` refs still point at `setup-dde@2026-05-07`. To benefit from
+the polkit fix, either:
+
+- consume `setup-dde@2026-05-16` directly, or
+- wait for the next rolling-release tag, where Renovate's standard
+  github-actions bump will have lifted the inner refs to `@2026-05-16`.
+
+This is the documented chicken-and-egg of the date-tag model: the inner
+ref cannot point at the tag that is about to be cut from the same
+commit, because the tag does not yet resolve at PR-validation time.
+
+---
+
 ## 2026-05-07
 
 ### Fixed

@@ -157,6 +157,47 @@ runs:
         esac
         mkcert -version
 
+    # `dde system:install` writes a systemd-resolved drop-in to
+    # /etc/systemd/resolved.conf.d/ and restarts systemd-resolved. On
+    # GitHub-hosted Linux runners dde does not escalate for either step:
+    # the mkdir hits `Permission denied`, and once that's fixed the
+    # restart hits `Interactive authentication required.` from polkit.
+    # Pre-create the drop-in directory world-writable so dde's mkdir is
+    # a no-op, and install a polkit rule that grants the runner user
+    # manage-units on systemd-resolved.service so the unprivileged
+    # restart succeeds.
+    #
+    # Linux-only (resolved.conf.d / polkit are Linux constructs) and only
+    # when system-install is requested. Drop this step once dde escalates
+    # for these paths the same way it does for dnsmasq.
+    - name: Pre-authorize dde DNS resolver setup (Linux)
+      if: runner.os == 'Linux' && inputs.system-install == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Narrowly scoped: only the drop-in directory is opened up, not
+        # /etc/systemd itself. dde writes into this dir; the dir's mode
+        # is 0777 but ephemeral hosted runners are single-user, so this
+        # is bounded blast radius and avoids `chmod o+w /etc/systemd`.
+        sudo install -d -m 0777 /etc/systemd/resolved.conf.d
+        sudo install -d -m 0755 /etc/polkit-1/rules.d
+        # `$(id -un)` is preferred over `$USER` here: `set -u` would
+        # abort on an unset `$USER`, and an empty `$USER` would silently
+        # bake `subject.user === ""` into the rule (it would never
+        # match, and `dde system:install` would still fail at the
+        # restart with the very polkit error this step exists to
+        # prevent). `id -un` always resolves the effective user.
+        sudo tee /etc/polkit-1/rules.d/49-dde-systemd-resolved.rules \
+          >/dev/null <<EOF
+        polkit.addRule(function(action, subject) {
+          if (action.id === "org.freedesktop.systemd1.manage-units" &&
+              action.lookup("unit") === "systemd-resolved.service" &&
+              subject.user === "$(id -un)") {
+            return polkit.Result.YES;
+          }
+        });
+        EOF
+
     - name: Run dde system:install
       if: inputs.system-install == 'true'
       shell: bash
