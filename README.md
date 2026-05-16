@@ -141,11 +141,12 @@ All files live in [.github/workflows/](./.github/workflows/).
 In addition to reusable workflows, this repo ships composite actions under
 [.github/actions/](./.github/actions/) for use from any consumer workflow.
 
-| Action                                      | Purpose                                                                |
-| ------------------------------------------- | ---------------------------------------------------------------------- |
-| [`setup-dde`](./.github/actions/setup-dde/) | Install the [whatwedo dde](https://github.com/whatwedo/dde) CLI        |
-| [`project`](./.github/actions/project/)     | Install dde + run any `dde project:<command>` (default `up`) for E2E   |
-| [`sbom-npm`](./.github/actions/sbom-npm/)   | CycloneDX SBOM for npm/pnpm/yarn/bun projects (internal)               |
+| Action                                                                                  | Purpose                                                                |
+| --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| [`setup-dde`](./.github/actions/setup-dde/)                                             | Install the [whatwedo dde](https://github.com/whatwedo/dde) CLI        |
+| [`project`](./.github/actions/project/)                                                 | Install dde + run any `dde project:<command>` (default `up`) for E2E   |
+| [`sbom-npm`](./.github/actions/sbom-npm/)                                               | CycloneDX SBOM for npm/pnpm/yarn/bun projects (internal)               |
+| [`validate-observability-configs`](./.github/actions/validate-observability-configs/)   | Validate Grafana Alloy and JSON configs in observability Terraform repos |
 
 For a complete Playwright + dde E2E job, use the
 [`e2e-dde.yml`](./.github/workflows/e2e-dde.yml) reusable workflow — it

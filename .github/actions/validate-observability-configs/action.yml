@@ -1,0 +1,92 @@
+---
+name: 'Validate Observability Configs'
+description: |
+  Validate Grafana Alloy and JSON config files in an observability
+  Terraform repo. Runs `alloy fmt --test` against every `*.alloy` file
+  under the configured Alloy directory and `jq empty` against every
+  `*.json` file under the configured JSON directories. Single source of
+  truth used by the observability repo's pull-request workflow.
+author: 'sbaerlocher'
+
+inputs:
+  alloy-version:
+    description: 'Grafana Alloy version to install (e.g. v1.16.1)'
+    required: true
+  alloy-dir:
+    description: 'Directory containing *.alloy files'
+    required: false
+    default: 'configs/fleet'
+  json-dirs:
+    description: |
+      Newline-separated list of directories containing *.json files to
+      validate with `jq empty`. Each directory is relative to the repo
+      root. Missing directories are skipped without error.
+    required: false
+    default: |
+      configs/synthetic-monitoring
+      configs/alerting
+      configs/notification-policies
+      configs/dashboards
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Grafana Alloy
+      shell: bash
+      env:
+        ALLOY_VERSION: ${{ inputs.alloy-version }}
+      run: |
+        curl -fsSL "https://github.com/grafana/alloy/releases/download/${ALLOY_VERSION}/alloy-linux-amd64.zip" -o alloy.zip
+        unzip -q alloy.zip
+        chmod +x alloy-linux-amd64
+        sudo mv alloy-linux-amd64 /usr/local/bin/alloy
+        echo "Grafana Alloy ${ALLOY_VERSION} installed"
+
+    - name: Validate Alloy configs
+      shell: bash
+      env:
+        ALLOY_DIR: ${{ inputs.alloy-dir }}
+      run: |
+        ERRORS=0
+        if [ -d "${ALLOY_DIR}" ]; then
+          for config in "${ALLOY_DIR}"/*.alloy; do
+            [ -f "$config" ] || continue
+            if ! alloy fmt --test "$config" > /dev/null 2>&1; then
+              echo "::error file=$config::Alloy syntax error or formatting issue"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+        else
+          echo "::notice::Alloy directory '${ALLOY_DIR}' not found, skipping"
+        fi
+        if [ "$ERRORS" -gt 0 ]; then
+          echo "::error::Found $ERRORS Alloy configuration errors"
+          exit 1
+        fi
+        echo "All Alloy configurations valid"
+
+    - name: Validate JSON configs
+      shell: bash
+      env:
+        JSON_DIRS: ${{ inputs.json-dirs }}
+      run: |
+        ERRORS=0
+        while IFS= read -r dir; do
+          [ -n "$dir" ] || continue
+          if [ ! -d "$dir" ]; then
+            echo "::notice::JSON directory '$dir' not found, skipping"
+            continue
+          fi
+          for config in "$dir"/*.json; do
+            [ -f "$config" ] || continue
+            if ! jq empty "$config" > /dev/null 2>&1; then
+              echo "::error file=$config::Invalid JSON syntax"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+        done <<< "$JSON_DIRS"
+        if [ "$ERRORS" -gt 0 ]; then
+          echo "::error::Found $ERRORS JSON syntax errors"
+          exit 1
+        fi
+        echo "All JSON configurations valid"
