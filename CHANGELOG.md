@@ -45,14 +45,20 @@ This is a rolling release - changes are deployed continuously to `main`.
     the default `dde project:down`. Use for plugin-driven cleanup like
     `dde project:e2e:down -v`.
 
-### Changed
+### Note on transitive consumption
 
-- **`e2e-dde.yml`**: Bumped internal `sbaerlocher/.github/.github/actions/project@2026-05-07`
-  reference to `@2026-05-16` so consumers of the workflow pick up the
-  new `setup-dde` polkit fix transitively.
+Consumers of `e2e-dde.yml@2026-05-16` and `project@2026-05-16` do **not**
+transitively pick up the new `setup-dde` polkit step in this tag — the
+inner `uses:` refs still point at `setup-dde@2026-05-07`. To benefit from
+the polkit fix, either:
 
-- **`project` action**: Bumped internal `setup-dde@2026-05-07` reference
-  to `@2026-05-16` for the same reason.
+- consume `setup-dde@2026-05-16` directly, or
+- wait for the next rolling-release tag, where Renovate's standard
+  github-actions bump will have lifted the inner refs to `@2026-05-16`.
+
+This is the documented chicken-and-egg of the date-tag model: the inner
+ref cannot point at the tag that is about to be cut from the same
+commit, because the tag does not yet resolve at PR-validation time.
 
 ---
 
