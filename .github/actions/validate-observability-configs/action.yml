@@ -1,0 +1,145 @@
+---
+name: 'Validate Observability Configs'
+description: |
+  Validate Grafana Alloy and JSON config files in an observability
+  Terraform repo. Runs `alloy fmt --test` against every `*.alloy` file
+  under the configured Alloy directory and `jq empty` against every
+  `*.json` file under the configured JSON directories (recursive).
+  Supports Linux and macOS on amd64/arm64 runners. Single source of
+  truth used by the observability repo's pull-request workflow.
+author: 'sbaerlocher'
+
+inputs:
+  alloy-version:
+    description: 'Grafana Alloy version to install (e.g. v1.16.1)'
+    required: true
+  alloy-dir:
+    description: 'Directory containing *.alloy files (searched recursively)'
+    required: false
+    default: 'configs/fleet'
+  json-dirs:
+    description: |
+      Newline-separated list of directories containing *.json files to
+      validate with `jq empty`. Each directory is searched recursively
+      and is relative to the repo root. Missing directories are skipped
+      without error.
+    required: false
+    default: |
+      configs/synthetic-monitoring
+      configs/alerting
+      configs/notification-policies
+      configs/dashboards
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Detect platform
+      id: platform
+      shell: bash
+      run: |
+        set -euo pipefail
+        case "$RUNNER_OS" in
+          Linux)  os=linux ;;
+          macOS)  os=darwin ;;
+          *)
+            echo "::error::alloy does not ship a binary for $RUNNER_OS"
+            exit 1
+            ;;
+        esac
+        case "$RUNNER_ARCH" in
+          X64)   arch=amd64 ;;
+          ARM64) arch=arm64 ;;
+          *)
+            echo "::error::alloy does not ship a binary for $RUNNER_ARCH"
+            exit 1
+            ;;
+        esac
+        echo "asset=alloy-${os}-${arch}.zip" >> "$GITHUB_OUTPUT"
+        echo "binary=alloy-${os}-${arch}" >> "$GITHUB_OUTPUT"
+
+    - name: Install Grafana Alloy
+      shell: bash
+      env:
+        ALLOY_VERSION: ${{ inputs.alloy-version }}
+        ASSET: ${{ steps.platform.outputs.asset }}
+        BINARY: ${{ steps.platform.outputs.binary }}
+      run: |
+        set -euo pipefail
+        dl="$RUNNER_TEMP/alloy-download"
+        bin_dir="$RUNNER_TEMP/alloy-bin"
+        mkdir -p "$dl" "$bin_dir"
+
+        base="https://github.com/grafana/alloy/releases/download/${ALLOY_VERSION}"
+        echo "Downloading $base/$ASSET"
+        curl -fsSL --retry 3 "$base/$ASSET" -o "$dl/$ASSET"
+        curl -fsSL --retry 3 "$base/SHA256SUMS" -o "$dl/SHA256SUMS"
+
+        # SHA256SUMS format is "<sha>  <filename>" (two spaces). Match any
+        # whitespace run so we don't break if the format ever shifts to a
+        # tab. Extract the line first and fail with a clear message if
+        # the asset is missing, then pipe to shasum so the verification
+        # error path stays clean.
+        echo "Verifying SHA256 for $ASSET"
+        if ! grep -E "[[:space:]]+${ASSET}\$" "$dl/SHA256SUMS" > "$dl/expected.sum"; then
+          echo "::error::Asset '${ASSET}' not listed in SHA256SUMS for ${ALLOY_VERSION}"
+          echo "SHA256SUMS contents:" && cat "$dl/SHA256SUMS"
+          exit 1
+        fi
+        ( cd "$dl" && shasum -a 256 -c expected.sum )
+
+        unzip -q "$dl/$ASSET" -d "$dl"
+        install -m 0755 "$dl/$BINARY" "$bin_dir/alloy"
+        echo "$bin_dir" >> "$GITHUB_PATH"
+
+        "$bin_dir/alloy" --version
+
+    - name: Validate Alloy configs
+      shell: bash
+      env:
+        ALLOY_DIR: ${{ inputs.alloy-dir }}
+      run: |
+        set -euo pipefail
+        ERRORS=0
+        if [ -d "$ALLOY_DIR" ]; then
+          while IFS= read -r -d '' config; do
+            if ! out=$(alloy fmt --test "$config" 2>&1); then
+              echo "::error file=$config::Alloy validation failed"
+              echo "$out"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done < <(find "$ALLOY_DIR" -type f -name '*.alloy' -print0)
+        else
+          echo "::notice::Alloy directory '$ALLOY_DIR' not found, skipping"
+        fi
+        if [ "$ERRORS" -gt 0 ]; then
+          echo "::error::Found $ERRORS Alloy configuration error(s)"
+          exit 1
+        fi
+        echo "All Alloy configurations valid"
+
+    - name: Validate JSON configs
+      shell: bash
+      env:
+        JSON_DIRS: ${{ inputs.json-dirs }}
+      run: |
+        set -euo pipefail
+        ERRORS=0
+        while IFS= read -r dir; do
+          [ -n "$dir" ] || continue
+          if [ ! -d "$dir" ]; then
+            echo "::notice::JSON directory '$dir' not found, skipping"
+            continue
+          fi
+          while IFS= read -r -d '' config; do
+            if ! out=$(jq empty "$config" 2>&1); then
+              echo "::error file=$config::Invalid JSON syntax"
+              echo "$out"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done < <(find "$dir" -type f -name '*.json' -print0)
+        done <<< "$JSON_DIRS"
+        if [ "$ERRORS" -gt 0 ]; then
+          echo "::error::Found $ERRORS JSON syntax error(s)"
+          exit 1
+        fi
+        echo "All JSON configurations valid"

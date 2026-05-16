@@ -6,6 +6,26 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-05-17
+
+### Added
+
+- **`validate-observability-configs`**: New composite action that
+  installs Grafana Alloy and validates `*.alloy` files via
+  `alloy fmt --test` plus `*.json` config files via `jq empty`. Used by
+  the observability repo's `pull-request.yml` to gate Alloy / JSON
+  drift before Terraform plan/apply. Inputs let consumers override the
+  Alloy version, Alloy directory and the newline-separated list of JSON
+  directories. Mirrors the `setup-dde` supply-chain pattern: platform
+  detection (`linux`/`darwin` × `amd64`/`arm64`), SHA256 verification
+  against `SHA256SUMS`, install into `$RUNNER_TEMP` + `$GITHUB_PATH`
+  (no `sudo`), `curl --retry 3`. Validation steps capture and surface
+  the tool's stderr/stdout so failed configs report the actual error,
+  and search both `*.alloy` and `*.json` recursively so nested
+  layouts (e.g. `configs/dashboards/<service>/foo.json`) are covered.
+
+---
+
 ## 2026-05-16
 
 ### Added
