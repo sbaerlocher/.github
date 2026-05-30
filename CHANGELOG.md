@@ -6,6 +6,36 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-05-30
+
+### Changed
+
+- **ai-claude-review.yml**: Bump `--model` to `claude-opus-4-8` for both
+  the first and follow-up review passes (previously `claude-opus-4-7`
+  for first and `claude-sonnet-4-6` for follow-up). The per-mode
+  conditional collapses to a single fixed model ID since both branches
+  now use the same model.
+
+### Dependencies
+
+- **`codecov/codecov-action`**: v6.0.0 → v6.0.1 (`ci-go.yml`, `ci-js.yml`).
+- **`github/codeql-action`**: v4.35.5 → v4.36.0 (`ci-go.yml`, `ci-js.yml`,
+  `ci-terraform.yml`, `release-docker.yml`, `security-code.yml`,
+  `security-config.yml`, `security-containers.yml`).
+- **`docker/setup-buildx-action`**: v4.0.0 → v4.1.0 (`release-docker.yml`).
+- **`docker/login-action`**: v4.1.0 → v4.2.0 (`release-docker.yml`).
+- **`docker/metadata-action`**: v6.0.0 → v6.1.0 (`release-docker.yml`).
+- **`docker/build-push-action`**: v7.1.0 → v7.2.0 (`release-docker.yml`).
+- **`goreleaser/goreleaser-action`**: v7.2.1 → v7.2.2 (`release-go.yml`).
+- **`anthropics/claude-code-action`**: v1.0.123 → v1.0.133 (`ai-claude.yml`,
+  `ai-claude-review.yml`).
+- **`ansible`**: 13.6.0 → 13.7.0 (`security-config.yml`).
+- **`safety`**: 3.7.0 → 3.8.0 (`security-deps.yml`).
+- **internal `setup-dde` / `project` refs**: pinned to `@2026-05-17`
+  (`actions/project/action.yml`, `e2e-dde.yml`).
+
+---
+
 ## 2026-05-17
 
 ### Added
