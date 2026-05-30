@@ -269,7 +269,7 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
         env:
           # renovate: datasource=pypi depName=safety
-          SAFETY_VERSION: '3.7.0'
+          SAFETY_VERSION: '3.8.0'
         run: |
           pip install "safety==${SAFETY_VERSION}"
           if [ -f requirements.txt ]; then
