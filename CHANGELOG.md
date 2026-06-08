@@ -6,6 +6,39 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-06-08
+
+### Fixed
+
+- **security-deps.yml**: Correct the `go-licenses` install path to include
+  the `/v2` major-version suffix (`github.com/google/go-licenses/v2`), and
+  align the Renovate `depName` comment in lockstep. The `v2.0.1` module path
+  requires the `/vN` suffix under semantic import versioning, so the previous
+  unsuffixed `go install` failed — surfacing as the weekly Security Scan
+  failure on `tsmetrics` and any other Go repo consuming this reusable
+  workflow. Verified that v2 still ships a `go-licenses` binary at the module
+  root and accepts the `check`/`csv` subcommands plus `--allowed_licenses`.
+
+### Dependencies
+
+- **`codecov/codecov-action`**: v6.0.1 → v7.0.0 (`ci-go.yml`, `ci-js.yml`).
+- **`github/codeql-action`**: v4.36.0 → v4.36.2 (`ci-go.yml`, `ci-js.yml`,
+  `ci-terraform.yml`, `release-docker.yml`, `security-code.yml`,
+  `security-config.yml`, `security-containers.yml`).
+- **`gitleaks/gitleaks-action`**: v2.3.9 → v3.0.0 (`security-secrets.yml`).
+- **`trufflesecurity/trufflehog`**: v3.95.3 → v3.95.5 (`security-secrets.yml`).
+- **`docker/setup-qemu-action`**: v4.0.0 → v4.1.0 (`release-docker.yml`).
+- **`actions/checkout`**: v6.0.2 → v6.0.3 (all workflows).
+- **`anthropics/claude-code-action`**: v1.0.133 → v1.0.137 (`ai-claude.yml`,
+  `ai-claude-review.yml`).
+- **`ansible`**: 13.7.0 → 14.0.0 (`security-config.yml`).
+- **`gosec`**: v2.26.1 → v2.27.1 (`ci-go.yml`).
+- **`safety`**: 3.8.0 → 3.8.1 (`security-deps.yml`).
+- **internal `setup-dde` / `project` refs**: pinned to `@2026-05-30`
+  (`actions/project/action.yml`, `e2e-dde.yml`).
+
+---
+
 ## 2026-05-30
 
 ### Changed
