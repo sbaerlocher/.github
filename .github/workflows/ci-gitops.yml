@@ -22,7 +22,7 @@ on:
         type: string
         required: false
         # renovate: datasource=github-releases depName=yannh/kubeconform extractVersion=^v(?<version>.+)$
-        default: '0.7.0'
+        default: '0.8.0'
       enable-yaml-lint:
         description: 'Run YAML syntax validation'
         type: boolean
