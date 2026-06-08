@@ -8,6 +8,13 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ## 2026-06-08
 
+### Removed
+
+- **security-secrets.yml**: Drop the unused `pull-requests: read` token
+  permission. Gitleaks and TruffleHog only read repository contents and the
+  Actions metadata; neither queries the pull-requests API, so the grant was
+  dead scope. Tightens the workflow to least-privilege.
+
 ### Fixed
 
 - **security-deps.yml**: Correct the `go-licenses` install path to include
