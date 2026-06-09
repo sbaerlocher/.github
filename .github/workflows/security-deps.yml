@@ -214,17 +214,22 @@ jobs:
         if: inputs.enable-license-check
         working-directory: ${{ inputs.working-directory }}
         env:
-          # renovate: datasource=npm depName=license-checker
-          LICENSE_CHECKER_VERSION: '25.0.1'
+          # license-checker (davglass) is unmaintained since 2019; the
+          # rseidelsohn fork is the actively-maintained, feature-enhanced
+          # superset of the original v25.0.1 and keeps the same CLI surface
+          # (--json/--summary/--failOn). Note the binary is renamed to
+          # `license-checker-rseidelsohn`.
+          # renovate: datasource=npm depName=license-checker-rseidelsohn
+          LICENSE_CHECKER_VERSION: '5.0.1'
           DENIED: ${{ inputs.denied-licenses }}
         run: |
-          npm install -g "license-checker@${LICENSE_CHECKER_VERSION}"
+          npm install -g "license-checker-rseidelsohn@${LICENSE_CHECKER_VERSION}"
           echo "Checking JavaScript dependency licenses..."
-          license-checker --json > js-licenses.json 2>&1 || true
-          license-checker --summary > js-licenses-summary.txt 2>&1 || true
+          license-checker-rseidelsohn --json > js-licenses.json 2>&1 || true
+          license-checker-rseidelsohn --summary > js-licenses-summary.txt 2>&1 || true
 
           if [ -n "$DENIED" ]; then
-            license-checker --failOn "$DENIED" 2>&1 | tee js-licenses-violations.txt || true
+            license-checker-rseidelsohn --failOn "$DENIED" 2>&1 | tee js-licenses-violations.txt || true
           fi
 
       - name: Upload audit results
