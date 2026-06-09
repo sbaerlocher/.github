@@ -22,6 +22,31 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ## 2026-06-10
 
+### Added
+
+- **ai-claude-review.yml**: New optional `model` input (default
+  `claude-opus-4-8`). Consumers can override the reviewer model with a
+  cheaper tier (e.g. `claude-sonnet-4-6`, `claude-haiku-4-5-20251001`) to
+  trade review depth for lower CI cost. Default behaviour is unchanged; on
+  the `pull_request` trigger (where `inputs.*` is undefined) the expression
+  falls back to the default, matching the existing handling for
+  `cancel-in-progress` / `concurrency-suffix`.
+- **CHANGELOG.md / AGENTS.md**: Documented the breaking-change channel and
+  tag support policy (see the section at the top of this file). Breaking
+  changes now carry a `### ⚠ BREAKING` heading with a migration step; only
+  the latest date tag is supported.
+
+### Changed
+
+- **security-deps.yml**: Replace the unmaintained `license-checker`
+  (davglass, no release since 2019) with `license-checker-rseidelsohn`
+  (`5.0.1`), the actively-maintained, feature-enhanced superset of the
+  original `v25.0.1`. The CLI surface (`--json` / `--summary` / `--failOn`)
+  is identical; the binary is renamed, so the install, the three
+  invocations, and the Renovate datasource annotation are updated together.
+  **Consumers:** no action needed — the license-check job behaviour and
+  output artifacts are unchanged.
+
 ### Fixed
 
 - **security-secrets.yml**: Re-add the `pull-requests: read` token
