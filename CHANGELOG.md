@@ -6,6 +6,26 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-06-10
+
+### Fixed
+
+- **renovate-terraform.json**: Stop the spurious `Failed to look up
+terraform-provider package registry.terraform.io/<ns>/<name>: no-result`
+  warnings that the `registryUrls` pin (2026-06-09) did not resolve. Root
+  cause is in the terraform manager, not the registry: it extracts providers
+  from `.terraform.lock.hcl` under their fully-qualified name
+  (`registry.terraform.io/<ns>/<name>`), and the v2 datasource does not strip
+  the host prefix — so it requests
+  `/v2/providers/registry.terraform.io/<ns>/<name>` which 404s (verified: the
+  same path without the host prefix returns 200). These lock-file lookups are
+  redundant — the identical providers are already tracked from
+  `versions.tf` / `required_providers` (packageName `<ns>/<name>`, resolves
+  fine), and the lock file is maintained via `lockFileMaintenance` / artifact
+  update, not datasource lookup. Disabling only the `.terraform.lock.hcl`
+  source (`matchFileNames` + `enabled: false`) clears the warning without
+  affecting provider tracking or lock updates.
+
 ## 2026-06-09
 
 ### Fixed
