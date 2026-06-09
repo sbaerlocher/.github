@@ -6,6 +6,24 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## 2026-06-09
+
+### Fixed
+
+- **renovate-terraform.json**: Pin the `terraform-provider` datasource to
+  `registry.terraform.io` only. Renovate defaults to querying both
+  `registry.terraform.io` and `releases.hashicorp.com`; the latter times out
+  (ETIMEDOUT, 30s) or returns 403 on Mend's hosted runner and is being
+  deprecated for partner/third-party providers in favour of
+  `release-assets.githubusercontent.com`. This caused persistent
+  `Failed to look up terraform-provider package ...: no-result` warnings on
+  the dependency dashboards of `infrastructure`, `authentication` and
+  `observability` — for providers that resolve fine via the registry
+  (authentik, bitwarden-secrets, hcloud, cloudflare, tailscale, vultr,
+  grafana, hashicorp/\*). Overriding `registryUrls` drops the broken backend
+  while keeping native version/range handling intact (the datasource queries
+  `hashicorpReleaseUrl` only when it is present in `registryUrls`).
+
 ## 2026-06-08
 
 ### Removed
@@ -115,7 +133,6 @@ This is a rolling release - changes are deployed continuously to `main`.
   when the project drives its E2E flow through dde plugins rather than
   the standard `dde project:up` → `npm run test:e2e` → `dde project:down`
   pipeline.
-
   - `compose-profiles` — set `COMPOSE_PROFILES` at job scope (e.g. `e2e`
     to bring up an `app-e2e` compose profile while leaving the dev
     profile dormant). Applies to every dde call in the job, including
@@ -293,7 +310,7 @@ commit, because the tag does not yet resolve at PR-validation time.
 
 - **AGENTS.md → "Workflow Layering"**: Codifies the three-layer split
   (repo workflow / reusable / composite action) and the rule that
-  *concurrency is owned by the reusable* — never duplicated in the
+  _concurrency is owned by the reusable_ — never duplicated in the
   caller for the same scope. Replaces the implicit "two limiters in
   series" pattern that produced queue pile-ups in consumer repos.
 - **AGENTS.md → "Concurrency Convention"**: Documents the uniform
@@ -317,7 +334,7 @@ commit, because the tag does not yet resolve at PR-validation time.
   `STANDARDS.md` documented org-wide repo conventions (required files,
   required workflows per repo type, Renovate preset map, Conventional
   Commits, GitHub repo settings) and `SETUP.md` carried the `gh repo
-  edit` / branch-ruleset bootstrap script. Neither doc is being relocated
+edit` / branch-ruleset bootstrap script. Neither doc is being relocated
   — the conventions still apply but are now enforced via templates,
   reusable workflows, and the Renovate presets in this repo, not via a
   central spec. Issue forms (`config.yml`, `feature_request.yml`) and
@@ -491,7 +508,7 @@ commit, because the tag does not yet resolve at PR-validation time.
     - Testing tools group renamed to "Jest" (vitest moved out)
   - **Branch-name collapsing** (`separateMultipleMajor: false` per group):
     Collapse the `major-N-` segment that Renovate prepends to `groupSlug` for
-    grouped major updates, so co-dependent packages with *different* major
+    grouped major updates, so co-dependent packages with _different_ major
     version numbers (e.g. Vue 4 + plugin-vue 6) share one branch/PR despite
     `separateMultipleMajor: true` in base
     - Verified against Renovate source
