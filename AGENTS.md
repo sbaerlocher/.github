@@ -383,8 +383,11 @@ public action.
 
 1. **Test First**: Create a test version (e.g., `ci-js-test.yml`)
 2. **Consumer Testing**: Test in 1-2 consumer repos pointing at `@main`
-3. **Breaking Changes**: Cut a new dated tag and call out the break in
-   `CHANGELOG.md` so consumers know not to bump until they migrate
+3. **Breaking Changes**: Cut a new dated tag and add a `### ⚠ BREAKING`
+   heading to that tag's `CHANGELOG.md` entry, naming the affected workflow
+   and a one-line migration step. This is the single channel consumers scan
+   before bumping — see the "Breaking changes & support policy" section at
+   the top of `CHANGELOG.md`.
 4. **Non-Breaking**: A regular dated tag is sufficient
 5. **Document**: Update CHANGELOG.md with all changes
 

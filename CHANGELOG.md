@@ -2,7 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-This is a rolling release - changes are deployed continuously to `main`.
+This is a rolling release - changes are deployed continuously to `main` and
+consumed via date-based tags (`YYYY-MM-DD`).
+
+## Breaking changes & support policy
+
+Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
+
+- **Breaking changes are flagged explicitly.** Any change that alters required
+  inputs, removes an input/output, or changes default behaviour gets a
+  `### ⚠ BREAKING` heading in its dated entry below, naming the affected
+  workflow and a one-line migration step. Scan for `⚠ BREAKING` before bumping
+  a tag — that is the single source of truth for what might break.
+- **Only the latest tag is supported.** Older date tags keep working
+  (immutable), but fixes and security patches land only on `main` / the newest
+  tag. Pin an old tag at your own risk; there is no backport.
 
 ---
 
