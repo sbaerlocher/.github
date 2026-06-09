@@ -14,6 +14,11 @@
   },
   "packageRules": [
     {
+      "description": "Pin the terraform-provider datasource to registry.terraform.io only. By default Renovate queries [registry.terraform.io, releases.hashicorp.com]; the latter times out / 403s on Mend's hosted runner (and is being deprecated for partner/3rd-party providers in favour of release-assets.githubusercontent.com), causing persistent 'no-result' dashboard warnings. Overriding registryUrls drops the broken backend while keeping native range handling intact (see renovate terraform-provider datasource: hashicorpReleaseUrl is only queried when present in registryUrls).",
+      "matchDatasources": ["terraform-provider"],
+      "registryUrls": ["https://registry.terraform.io"]
+    },
+    {
       "description": "Terraform Core version updates - higher stability",
       "matchManagers": ["terraform-version"],
       "matchPackageNames": ["hashicorp/terraform"],
