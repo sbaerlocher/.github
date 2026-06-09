@@ -19,6 +19,12 @@
       "registryUrls": ["https://registry.terraform.io"]
     },
     {
+      "description": "Skip provider lookups originating from .terraform.lock.hcl. The terraform manager extracts lock-file providers under their fully-qualified name (registry.terraform.io/<ns>/<name>, depType=provider); the v2 datasource does not strip the host prefix and requests /v2/providers/registry.terraform.io/<ns>/<name> -> 404 -> persistent 'no-result' dashboard warning. These lookups are redundant: the same providers are tracked from versions.tf / required_providers (packageName <ns>/<name>, resolves fine), and the lock file itself is maintained via lockFileMaintenance / artifact update, not datasource lookup. Disabling only the lock-file source removes the spurious warning without touching provider tracking or lock updates.",
+      "matchManagers": ["terraform"],
+      "matchFileNames": ["**/.terraform.lock.hcl", ".terraform.lock.hcl"],
+      "enabled": false
+    },
+    {
       "description": "Terraform Core version updates - higher stability",
       "matchManagers": ["terraform-version"],
       "matchPackageNames": ["hashicorp/terraform"],
