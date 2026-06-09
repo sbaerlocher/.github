@@ -10,6 +10,20 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ### Fixed
 
+- **security-secrets.yml**: Re-add the `pull-requests: read` token
+  permission removed on 2026-06-08, scoped to the `gitleaks` job only. That
+  removal assumed Gitleaks does not query the pull-requests API, but
+  `gitleaks/gitleaks-action@v3` enumerates the PR's commits via
+  `GET /repos/{owner}/{repo}/pulls/{n}/commits` on `pull_request` events.
+  Without the grant the action aborts with HTTP 403 "Resource not accessible
+  by integration", failing the Gitleaks job on every PR in consumer repos
+  (observed in `authentication` PR #110) — a false CI failure with no actual
+  leak. The permission is read-only and job-scoped per REVIEW.md
+  least-privilege. **Consumers:** because this is a reusable, the grant is
+  capped by the caller — a thin trigger workflow that restricts permissions
+  to `contents`/`actions` will still hit the 403; ensure the caller grants
+  `pull-requests: read` (or relies on the default token) when bumping the
+  date tag.
 - **renovate-terraform.json**: Stop the spurious `Failed to look up
 terraform-provider package registry.terraform.io/<ns>/<name>: no-result`
   warnings that the `registryUrls` pin (2026-06-09) did not resolve. Root
