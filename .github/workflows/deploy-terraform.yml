@@ -143,6 +143,25 @@ jobs:
       drift_detected: ${{ steps.plan.outputs.drift_detected }}
 
     steps:
+      # Fork guard — fail fast BEFORE any checkout or Bitwarden retrieval.
+      # This reusable pulls R2 + Authentik/Grafana secrets from Bitwarden. On
+      # a `pull_request` from a forked repository, a malicious .tf change (or
+      # provider/external hook) could exfiltrate those secrets during the plan
+      # before a human reviews the diff. Same-repo PRs, push, schedule and
+      # workflow_dispatch are unaffected (the condition is only ever true for
+      # a fork-originated pull_request). The fork flag is consumed via env to
+      # avoid interpolating event data directly into the shell.
+      - name: 'Fork Guard'
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+        env:
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          echo "::error::deploy-terraform.yml refuses to run on a pull_request" \
+               "from a fork ($HEAD_REPO): it would load R2/Authentik secrets" \
+               "from Bitwarden before the diff is reviewed. Run plan/apply from" \
+               "a branch in the base repository instead."
+          exit 1
+
       - name: 'Repository Checkout'
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:

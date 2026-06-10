@@ -22,6 +22,20 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ## 2026-06-10
 
+### Security
+
+- **deploy-terraform.yml**: Add a fork guard as the first step of the
+  `deploy` job. The workflow retrieves R2 and Authentik/Grafana secrets from
+  Bitwarden; on a `pull_request` from a forked repository a malicious `.tf`
+  change could exfiltrate them during the plan before review. The guard fails
+  fast (before checkout and the Bitwarden step) when
+  `github.event_name == 'pull_request'` and
+  `github.event.pull_request.head.repo.fork` is true. **Consumers:** no action
+  needed — same-repo PRs, `push`, `schedule` and `workflow_dispatch` are
+  unaffected; only fork-originated pull requests are blocked (they previously
+  would have loaded secrets). Not breaking for any current caller, which all
+  run from branches in the base repository.
+
 ### Added
 
 - **ai-claude-review.yml**: New optional `model` input (default
