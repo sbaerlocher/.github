@@ -92,6 +92,18 @@ terraform-provider package registry.terraform.io/<ns>/<name>: no-result`
   update, not datasource lookup. Disabling only the `.terraform.lock.hcl`
   source (`matchFileNames` + `enabled: false`) clears the warning without
   affecting provider tracking or lock updates.
+- **e2e-dde.yml**: Replace `dde project:ps` with `dde project:status` in the
+  "Show running services" step and the failure-diagnostics collection.
+  `project:ps` does not exist in dde v2 — every invocation failed with
+  `Command "project:ps" is not defined`, so the step printed an error
+  instead of the service list and the `dde-ps.txt` file in the `dde-logs`
+  artifact only contained that usage error (observed in sbaerlocher/savvy
+  PR #102 run artifacts). All call sites were
+  `continue-on-error`/`|| true`-guarded, so job results are unchanged. The
+  artifact file is renamed `dde-ps.txt` → `dde-status.txt` to match the
+  command. **Consumers:** no action needed unless tooling greps the
+  `dde-logs` artifact for the literal `dde-ps.txt` filename — update it to
+  `dde-status.txt`.
 
 ## 2026-06-09
 
