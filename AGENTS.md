@@ -312,11 +312,12 @@ change. Not reusable from consumer repos.
 Located under [`.github/actions/`](./.github/actions/). Consume from any
 workflow via `sbaerlocher/.github/.github/actions/<name>@<DATE-TAG>`.
 
-| Action      | File                          | Purpose                                                       |
-| ----------- | ----------------------------- | ------------------------------------------------------------- |
-| `setup-dde` | `.github/actions/setup-dde/`  | Install whatwedo dde CLI; optional mkcert + `system:install`  |
-| `project`   | `.github/actions/project/`    | Install dde + run any `dde project:<command>` (default `up`)  |
-| `sbom-npm`  | `.github/actions/sbom-npm/`   | CycloneDX SBOM for npm/pnpm/yarn/bun (internal helper)        |
+| Action                           | File                                                | Purpose                                                       |
+| -------------------------------- | --------------------------------------------------- | ------------------------------------------------------------- |
+| `setup-dde`                      | `.github/actions/setup-dde/`                        | Install whatwedo dde CLI; optional mkcert + `system:install`  |
+| `project`                        | `.github/actions/project/`                          | Install dde + run any `dde project:<command>` (default `up`)  |
+| `sbom-npm`                       | `.github/actions/sbom-npm/`                         | CycloneDX SBOM for npm/pnpm/yarn/bun (internal helper)        |
+| `validate-observability-configs` | `.github/actions/validate-observability-configs/`   | Validate Grafana Alloy and JSON observability configs         |
 
 ### dde actions (`setup-dde`, `project`)
 

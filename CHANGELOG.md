@@ -6,6 +6,19 @@ This is a rolling release - changes are deployed continuously to `main`.
 
 ---
 
+## Unreleased
+
+### Changed
+
+- **internal action refs**: Replace remaining `@main` references for
+  `sbom-npm` with the date tag `@2026-06-10`, and align the dde internal
+  action refs with the same date-tag model.
+- **deploy-terraform.yml**: Pass `env-mapping` and `pre-script` through
+  environment variables before shell execution, and document `pre-script` as a
+  trusted-only escape hatch.
+- **repo metadata**: Add `CONTRIBUTING.md`, `lefthook.yml`, and `.yamllint`;
+  update CODEOWNERS and AGENTS.md to match the current repo structure.
+
 ## 2026-06-10
 
 ### Fixed
