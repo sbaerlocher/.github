@@ -8,11 +8,11 @@ branding:
 
 inputs:
   command:
-    description: 'dde project subcommand to run (up, down, restart, update, ...). Determines whether `system-install` and `wait-url` apply.'
+    description: 'dde project subcommand to run (up, down, stop, update, ...). Determines whether `system-install`, `pre-pull-images` and `wait-url` apply.'
     required: false
     default: 'up'
   version:
-    description: 'dde version to install (e.g. v2.0.0-alpha.5) or "latest"'
+    description: 'dde version to install (e.g. v2.0.0-beta.2) or "latest". Pin an exact tag in CI — "latest" follows pre-releases, so breaking dde changes propagate immediately.'
     required: false
     default: 'latest'
   working-directory:
@@ -25,6 +25,15 @@ inputs:
     default: 'true'
   system-install:
     description: 'Run `dde system:install` to set up the host (Traefik, mkcert CA, dnsmasq). Only applied when `command: up`; ignored otherwise.'
+    required: false
+    default: 'true'
+  pre-pull-images:
+    description: >-
+      Pre-pull all compose images (every profile) before `project:up`.
+      dde's dev-layer build probes each image with a 30-second timeout;
+      on a cold image cache — every fresh CI runner — pulling a larger
+      image inside that probe exceeds the limit and fails the up. Only
+      applied when `command: up`; ignored otherwise.
     required: false
     default: 'true'
   wait-url:
@@ -88,6 +97,26 @@ runs:
         system-install: ${{ inputs.command == 'up' && inputs.system-install || 'false' }}
         github-token: ${{ inputs.github-token }}
         repository: ${{ inputs.repository }}
+
+    # dde's dev-layer build probes every compose image (all profiles, even
+    # inactive ones) with a 30s `docker run … exit 0` timeout. On a cold
+    # image cache pulling a larger image (grafana, loki, ...) inside that
+    # probe exceeds the timeout and fails project:up before the stack
+    # starts. Pre-pull all pinned images so the probe only ever runs
+    # already-present ones. Best-effort by design: every failure path
+    # exits 0 — a missing directory or compose file is re-checked with a
+    # friendly ::error:: in the next step, and a pull failure surfaces
+    # with proper context during project:up.
+    - name: Pre-pull compose images
+      if: inputs.command == 'up' && inputs.pre-pull-images == 'true'
+      shell: bash
+      env:
+        WD: ${{ inputs.working-directory }}
+      run: |
+        set -uo pipefail
+        cd "$WD" 2>/dev/null || exit 0
+        docker compose config --quiet >/dev/null 2>&1 || exit 0
+        docker compose --profile '*' pull --ignore-buildable --quiet || true
 
     # cd is done inside the script (not via working-directory:) so that a
     # missing/typo'd working-directory produces our friendly ::error::

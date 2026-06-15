@@ -8,7 +8,7 @@ branding:
 
 inputs:
   version:
-    description: 'dde version to install (e.g. v2.0.0-alpha.5) or "latest"'
+    description: 'dde version to install (e.g. v2.0.0-beta.2) or "latest". Pin an exact tag in CI — "latest" follows pre-releases, so breaking dde changes propagate immediately.'
     required: false
     default: 'latest'
   install-mkcert:

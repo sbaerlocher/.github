@@ -49,6 +49,16 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   tag support policy (see the section at the top of this file). Breaking
   changes now carry a `### ⚠ BREAKING` heading with a migration step; only
   the latest date tag is supported.
+- **actions/project**: New `pre-pull-images` input (default `true`). Before
+  `project:up` the action now pre-pulls all compose images (every profile)
+  via `docker compose --profile '*' pull --ignore-buildable --quiet`. dde's
+  dev-layer build probes each image with a 30-second `docker run` timeout;
+  on a cold image cache — every fresh CI runner — pulling a larger image
+  (grafana, loki, …) inside that probe exceeded the timeout and failed
+  `project:up` before the stack started (reproduced with sbaerlocher/savvy's
+  observability images). Best-effort: pull failures fall through to
+  `project:up`, which reports them with proper context. **Consumers:** no
+  action needed; set `pre-pull-images: false` to restore the old behaviour.
 
 ### Changed
 
@@ -60,6 +70,17 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   invocations, and the Renovate datasource annotation are updated together.
   **Consumers:** no action needed — the license-check job behaviour and
   output artifacts are unchanged.
+- **e2e-dde.yml**: The PR results comment is now updated in place instead
+  of posting a new comment on every run. A hidden marker — keyed by
+  `project-directory` and `concurrency-suffix`, so matrix legs keep
+  separate comments — identifies the workflow's own comment; the first run
+  still creates it. **Consumers:** no action needed — long-running PRs
+  stop accumulating one results comment per push.
+- **e2e-dde.yml**: Failure diagnostics additionally capture raw
+  `docker ps -a` into `docker-ps.txt` in the `dde-logs` artifact. Unlike
+  the `dde project:logs` / `dde project:status` calls this works even when
+  dde itself never installed, and it is the one signal that always shows
+  whether the stack came up at all.
 
 ### Fixed
 
@@ -92,6 +113,23 @@ terraform-provider package registry.terraform.io/<ns>/<name>: no-result`
   update, not datasource lookup. Disabling only the `.terraform.lock.hcl`
   source (`matchFileNames` + `enabled: false`) clears the warning without
   affecting provider tracking or lock updates.
+- **e2e-dde.yml**: Replace `dde project:ps` with `dde project:status` in the
+  "Show running services" step and the failure-diagnostics collection.
+  `project:ps` does not exist in dde v2 — every invocation failed with
+  `Command "project:ps" is not defined`, so the step printed an error
+  instead of the service list and the `dde-ps.txt` file in the `dde-logs`
+  artifact only contained that usage error (observed in sbaerlocher/savvy
+  PR #102 run artifacts). All call sites were
+  `continue-on-error`/`|| true`-guarded, so job results are unchanged. The
+  artifact file is renamed `dde-ps.txt` → `dde-status.txt` to match the
+  command. **Consumers:** no action needed unless tooling greps the
+  `dde-logs` artifact for the literal `dde-ps.txt` filename — update it to
+  `dde-status.txt`.
+- **actions/project, actions/setup-dde**: Input docs no longer advertise
+  `restart` (dde v2 has no `project:restart`; the real lifecycle commands
+  are `up`, `down`, `stop`, `update`) and now recommend pinning an exact
+  dde tag in CI instead of `latest`, which follows pre-releases and lets
+  breaking dde changes propagate immediately.
 
 ## 2026-06-09
 

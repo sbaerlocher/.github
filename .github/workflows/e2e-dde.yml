@@ -9,7 +9,11 @@ on:
         type: string
         required: false
         default: 'latest'
-        description: 'dde version to install (e.g. v2.0.0-alpha.5) or "latest"'
+        description: |
+          dde version to install (e.g. v2.0.0-beta.2) or "latest". Pin an
+          exact tag — "latest" follows pre-releases, so breaking dde
+          changes (e.g. the alpha→beta plugin-namespace rename) propagate
+          to the pipeline immediately.
       project-directory:
         type: string
         required: false
@@ -94,10 +98,11 @@ on:
         description: |
           Bash command(s) to capture diagnostics on test failure. When
           non-empty, replaces the default `dde project:logs` capture
-          (`dde project:ps` still runs into `dde-ps.txt`). Output is
-          written to `$RUNNER_TEMP/dde-logs.txt` (overwritten, not
-          appended). Runs in the project directory. Useful for
-          plugin-driven log helpers like `dde project:e2e:logs -- 200`.
+          (`dde project:status` and `docker ps -a` still run into
+          `dde-status.txt` / `docker-ps.txt`). Output is written to
+          `$RUNNER_TEMP/dde-logs.txt` (overwritten, not appended). Runs
+          in the project directory. Useful for plugin-driven log helpers
+          like `dde project:e2e:logs -- 200`.
       teardown-command:
         type: string
         required: false
@@ -185,7 +190,7 @@ jobs:
       - name: Show running services
         working-directory: ${{ inputs.project-directory }}
         continue-on-error: true
-        run: dde project:ps
+        run: dde project:status
 
       # ----- Playwright -----
       - name: Setup Node.js
@@ -275,28 +280,33 @@ jobs:
           PROJECT_DIR: ${{ inputs.project-directory }}
           LOGS_OVERRIDE: ${{ inputs.failure-logs-command }}
         run: |
+          # Raw container state first — unlike the dde calls below this
+          # works even when dde itself never installed or is broken, and
+          # it is the one signal that always tells whether the stack came
+          # up at all.
+          docker ps -a > "$RUNNER_TEMP/docker-ps.txt" 2>&1 || true
           if ! command -v dde >/dev/null 2>&1; then
             echo "dde was never installed — see 'Bring dde project up' step output" \
-              | tee "$RUNNER_TEMP/dde-logs.txt" "$RUNNER_TEMP/dde-ps.txt"
+              | tee "$RUNNER_TEMP/dde-logs.txt" "$RUNNER_TEMP/dde-status.txt"
             exit 0
           fi
           if [ ! -d "$PROJECT_DIR" ]; then
             echo "project-directory '$PROJECT_DIR' does not exist" \
-              | tee "$RUNNER_TEMP/dde-logs.txt" "$RUNNER_TEMP/dde-ps.txt"
+              | tee "$RUNNER_TEMP/dde-logs.txt" "$RUNNER_TEMP/dde-status.txt"
             exit 0
           fi
           cd "$PROJECT_DIR"
           if [ -n "$LOGS_OVERRIDE" ]; then
             # Override mode: caller owns log collection (e.g. a
             # `dde project:e2e:logs -- 200` plugin). We still write
-            # dde-ps.txt from the standard `project:ps` so the artifact
+            # dde-status.txt from the standard `project:status` so the artifact
             # bundle stays useful even when the override only captures
             # service logs.
             bash -c "$LOGS_OVERRIDE" > "$RUNNER_TEMP/dde-logs.txt" 2>&1 || true
-            dde project:ps           > "$RUNNER_TEMP/dde-ps.txt"   2>&1 || true
+            dde project:status       > "$RUNNER_TEMP/dde-status.txt"   2>&1 || true
           else
             dde project:logs > "$RUNNER_TEMP/dde-logs.txt" 2>&1 || true
-            dde project:ps   > "$RUNNER_TEMP/dde-ps.txt"   2>&1 || true
+            dde project:status > "$RUNNER_TEMP/dde-status.txt"   2>&1 || true
           fi
 
       - name: Upload Playwright report
@@ -324,7 +334,8 @@ jobs:
           name: dde-logs
           path: |
             ${{ runner.temp }}/dde-logs.txt
-            ${{ runner.temp }}/dde-ps.txt
+            ${{ runner.temp }}/dde-status.txt
+            ${{ runner.temp }}/docker-ps.txt
           retention-days: ${{ inputs.artifact-retention-days }}
           if-no-files-found: ignore
 
@@ -372,15 +383,23 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           PROJECT_DIRECTORY: ${{ inputs.project-directory }}
+          CONCURRENCY_SUFFIX: ${{ inputs.concurrency-suffix }}
           DDE_VERSION: ${{ needs.e2e-dde.outputs.dde-version }}
           JOB_STATUS: ${{ needs.e2e-dde.result }}
         with:
           script: |
             const projectDir = process.env.PROJECT_DIRECTORY;
+            const suffix = process.env.CONCURRENCY_SUFFIX;
             const ddeVersion = process.env.DDE_VERSION;
             const jobStatus = process.env.JOB_STATUS;
 
-            let comment = '## 🎭 E2E Test Results (dde)\n\n';
+            // Hidden marker so re-runs update their own comment instead of
+            // stacking a new one per push. Project directory and the
+            // concurrency suffix keep parallel invocations (matrix legs,
+            // multi-project repos) on separate comments.
+            const marker = `<!-- e2e-dde-results:${projectDir}:${suffix} -->`;
+
+            let comment = `${marker}\n## 🎭 E2E Test Results (dde)\n\n`;
             comment += `**Project**: \`${projectDir}\`\n`;
             comment += `**dde**: \`${ddeVersion}\`\n\n`;
 
@@ -396,9 +415,28 @@ jobs:
               comment += `View the [test results](${runUrl}) for details.\n`;
             }
 
-            await github.rest.issues.createComment({
+            const { data: comments } = await github.rest.issues.listComments({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: comment
+              per_page: 100
             });
+            const existing = comments.find(
+              (c) => c.body && c.body.startsWith(marker)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                comment_id: existing.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
