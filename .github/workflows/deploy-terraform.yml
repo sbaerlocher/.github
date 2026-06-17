@@ -201,7 +201,7 @@ jobs:
           PRE_SCRIPT: ${{ inputs.pre-script }}
         run: |
           echo "Executing pre-script..."
-          bash -Eeuo pipefail -c "$PRE_SCRIPT"
+          bash -Eeo pipefail -c "$PRE_SCRIPT"
           echo "Pre-script execution complete"
 
       - name: 'Terraform Initialization'
