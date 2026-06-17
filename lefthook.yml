@@ -23,5 +23,5 @@ pre-commit:
     json:
       # Strict JSON only — exclude .vscode/*.json (JSONC: comments/trailing commas
       # are idiomatic there and `jq empty` would reject them).
-      glob: "{renovate*.json,.github/**/*.json,package.json,tsconfig*.json}"
+      glob: "{renovate*.json,.github/**/*.json,package.json}"
       run: jq empty {staged_files}
