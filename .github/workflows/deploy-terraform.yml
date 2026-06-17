@@ -81,8 +81,10 @@ on:
         required: false
         default: ''
         description: |
-          Optional bash script to run before Terraform init.
+          Optional trusted bash script to run before Terraform init.
           Useful for generating dynamic credentials (e.g., Tailscale API key from OAuth).
+          This input executes as shell code and must only be set by trusted
+          caller workflows, never from PR-controlled data.
           Script has access to all env vars from bw-secrets and env-mapping.
           Export vars as: echo "VAR_NAME=value" >> $GITHUB_ENV
       cancel-in-progress:
@@ -190,6 +192,8 @@ jobs:
           secrets: ${{ inputs.bw-secrets }}
 
       - name: 'Environment Configuration'
+        env:
+          ENV_MAPPING: ${{ inputs.env-mapping }}
         run: |
           # R2 backend credentials (always required)
           {
@@ -199,22 +203,24 @@ jobs:
           } >> "$GITHUB_ENV"
 
           # Map Bitwarden secrets to Terraform/runtime variables
-          if [ -n "${{ inputs.env-mapping }}" ]; then
+          if [ -n "$ENV_MAPPING" ]; then
             while IFS= read -r line; do
               [ -z "$line" ] && continue
               src=$(echo "$line" | awk -F'>' '{print $1}' | xargs)
               dst=$(echo "$line" | awk -F'>' '{print $2}' | xargs)
               value="${!src}"
               [ -n "$value" ] && echo "$dst=$value" >> "$GITHUB_ENV"
-            done <<< "${{ inputs.env-mapping }}"
+            done <<< "$ENV_MAPPING"
             echo "Environment variable mapping complete"
           fi
 
       - name: 'Pre-Script Execution'
         if: inputs.pre-script != ''
+        env:
+          PRE_SCRIPT: ${{ inputs.pre-script }}
         run: |
           echo "Executing pre-script..."
-          ${{ inputs.pre-script }}
+          bash -Eeo pipefail -c "$PRE_SCRIPT"
           echo "Pre-script execution complete"
 
       - name: 'Terraform Initialization'

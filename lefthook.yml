@@ -1,0 +1,27 @@
+---
+pre-commit:
+  commands:
+    protect-main:
+      run: |
+        branch=$(git rev-parse --abbrev-ref HEAD)
+        case "$branch" in
+          main|master)
+            echo "Direct commits to $branch are blocked. Create a feature branch and open a PR."
+            exit 1
+            ;;
+        esac
+
+    yaml:
+      glob: "*.{yml,yaml}"
+      run: |
+        if command -v yamllint >/dev/null 2>&1; then
+          yamllint {staged_files}
+        else
+          echo "yamllint not installed; skipping YAML lint"
+        fi
+
+    json:
+      # Strict JSON only — exclude .vscode/*.json (JSONC: comments/trailing commas
+      # are idiomatic there and `jq empty` would reject them).
+      glob: "{renovate*.json,.github/**/*.json,package.json}"
+      run: jq empty {staged_files}

@@ -7,5 +7,7 @@
 # Renovate presets affect all repos - require review
 /renovate-*.json @sbaerlocher
 
-# Standards affect all repos - require review
-/STANDARDS.md @sbaerlocher
+# Repository standards and review guidance affect all consumers
+/AGENTS.md @sbaerlocher
+/REVIEW.md @sbaerlocher
+/SECURITY.md @sbaerlocher

@@ -110,12 +110,12 @@ jobs:
       # NPM Package SBOM — uses the shared composite action so this step
       # stays in lockstep with the SBOM job in release-npm.yml. `uses: ./`
       # in a reusable workflow resolves against the caller's checkout, so
-      # we reference the action absolutely. `@main` rides the rolling
-      # release; Renovate updates this once tagged versions exist.
+      # we reference the action absolutely and pin it to the same rolling
+      # date-tag model used by consumers.
       - name: Generate npm SBOM
         if: inputs.artifact-type == 'npm-package'
         id: sbom-npm
-        uses: sbaerlocher/.github/.github/actions/sbom-npm@main
+        uses: sbaerlocher/.github/.github/actions/sbom-npm@2026-06-10
         with:
           package-manager: ${{ inputs.package-manager }}
           working-directory: ${{ inputs.working-directory }}
