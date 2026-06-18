@@ -22,6 +22,8 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ## Unreleased
 
+## 2026-06-18
+
 ### Added
 
 - **`templates/CHANGELOG.md`**: Keep-a-Changelog `CHANGELOG.md` template with
