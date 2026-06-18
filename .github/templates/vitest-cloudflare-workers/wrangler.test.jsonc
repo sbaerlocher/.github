@@ -1,0 +1,25 @@
+{
+  // Test-only wrangler config: same shape as your real wrangler.jsonc, but with
+  // fake/local IDs and the outbound service repointed at the mock worker.
+  // Keep this in sync with prod wrangler.jsonc whenever bindings change.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "my-worker",
+  "main": "./dist/server/entry.mjs",
+  "compatibility_date": "2026-05-13",
+  "compatibility_flags": ["nodejs_compat"],
+  // Astro adapter output. Adjust if your build emits elsewhere.
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS"
+  },
+  // Use a throwaway id for any KV/D1/R2 the worker declares — the test pool
+  // provisions a local store, the id just has to be present.
+  "kv_namespaces": [{ "binding": "SESSION", "id": "test-session" }],
+  "vars": {
+    // App vars the worker reads at runtime; fake values for tests.
+    "GRAPHQL_ENDPOINT": "https://example.com/api/graphql"
+  },
+  // Point every outbound service binding at the mock worker. The `service`
+  // value must match the mock worker `name` in vitest.config.ts.
+  "services": [{ "binding": "UPSTREAM", "service": "mock-upstream" }]
+}
