@@ -55,7 +55,9 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 - **`actions/checkout`**: v6.0.3 → v7.0.0 (all workflows). Internal to the
   reusables; consumers pin date tags and are unaffected.
-- **`pnpm/action-setup`**: v6.0.8 → v6.0.9 (`ci-js.yml`, `release-npm.yml`).
+- **`pnpm/action-setup`**: v6.0.8 → v6.0.9 (`sbom-npm/action.yml`, `ci-js.yml`,
+  `deploy-cloudflare-workers.yml`, `e2e-dde.yml`, `e2e-docker.yml`,
+  `release-npm.yml`, `security-code.yml`, `security-deps.yml`).
 - **`@cyclonedx/cyclonedx-npm`**: 4.2.1 → 5.0.0 (`sbom-npm/action.yml`).
 - **`govulncheck`**: v1.3.0 → v1.4.0 (`ci-go.yml`, `security-deps.yml`).
 
