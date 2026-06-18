@@ -30,7 +30,11 @@ export default defineConfig({
     dangerouslyIgnoreUnhandledErrors: true,
 
     coverage: {
-      provider: "v8",
+      // The vitest-pool-workers runtime cannot do v8 coverage (it needs
+      // node:inspector, which workerd only stubs) — the pool throws on
+      // `provider: "v8"`. Use istanbul, which instruments at build time and
+      // runs anywhere. Install @vitest/coverage-istanbul.
+      provider: "istanbul",
       reporter: ["text", "lcov"],
       reportsDirectory: "./coverage",
       // ── adjust: what you actually want covered ──

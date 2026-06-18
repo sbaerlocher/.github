@@ -32,8 +32,11 @@ Unit tests stay co-located with source (`src/**/*.test.ts`).
 2. Install dev deps:
 
    ```bash
-   pnpm add -D vitest @vitest/coverage-v8 @cloudflare/vitest-pool-workers happy-dom
+   pnpm add -D vitest @vitest/coverage-istanbul @cloudflare/vitest-pool-workers happy-dom
    ```
+
+   Coverage uses **istanbul**, not v8 — the Workers pool can't run v8 coverage
+   (no functional `node:inspector` in workerd) and throws if you try.
 
    Reference versions (sbaerlo.ch, 2026-06): `vitest@4`,
    `@cloudflare/vitest-pool-workers@0.16`, `happy-dom@20`. Match your prod
@@ -43,11 +46,13 @@ Unit tests stay co-located with source (`src/**/*.test.ts`).
 
    ```jsonc
    {
-     "test": "vitest run --project unit",
-     "test:unit": "vitest run --project unit",
-     "test:integration": "vitest run --project integration",
-     "test:watch": "vitest --project unit",
-     "test:coverage": "vitest run --coverage"
+     "scripts": {
+       "test": "vitest run --project unit",
+       "test:unit": "vitest run --project unit",
+       "test:integration": "vitest run --project integration",
+       "test:watch": "vitest --project unit",
+       "test:coverage": "vitest run --coverage"
+     }
    }
    ```
 

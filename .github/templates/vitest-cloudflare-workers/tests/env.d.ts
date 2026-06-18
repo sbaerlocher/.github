@@ -3,7 +3,7 @@
 declare namespace Cloudflare {
   interface Env {
     // ── adjust: the vars/bindings your worker reads, mirrored from wrangler ──
-    GRAPHQL_ENDPOINT: string;
+    UPSTREAM_ENDPOINT: string;
   }
 
   // Make `exports.default` from `cloudflare:workers` resolve to the loopback

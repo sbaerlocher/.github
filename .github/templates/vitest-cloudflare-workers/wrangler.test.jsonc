@@ -16,8 +16,9 @@
   // provisions a local store, the id just has to be present.
   "kv_namespaces": [{ "binding": "SESSION", "id": "test-session" }],
   "vars": {
-    // App vars the worker reads at runtime; fake values for tests.
-    "GRAPHQL_ENDPOINT": "https://example.com/api/graphql"
+    // App vars the worker reads at runtime; fake values for tests. The path
+    // here must match what the mock worker (mock-upstream.mjs) intercepts.
+    "UPSTREAM_ENDPOINT": "https://example.com/api/data"
   },
   // Point every outbound service binding at the mock worker. The `service`
   // value must match the mock worker `name` in vitest.config.ts.
