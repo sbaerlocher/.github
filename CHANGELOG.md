@@ -20,7 +20,7 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
-## Unreleased
+## 2026-06-19
 
 ### Added
 
