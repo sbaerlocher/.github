@@ -1,0 +1,37 @@
+---
+name: 'Install kubeconform'
+description: |
+  Download and install the kubeconform binary onto PATH, verifying the
+  release tarball against the upstream CHECKSUMS file (fail-closed). Single
+  source of truth for kubeconform installation across the ci-gitops.yml jobs
+  (validate-kubernetes and validate-helm-template).
+author: 'sbaerlocher'
+
+inputs:
+  version:
+    description: 'kubeconform version without the v prefix (e.g. 0.8.0)'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install kubeconform
+      shell: bash
+      env:
+        KUBECONFORM_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        tarball="kubeconform-linux-amd64.tar.gz"
+        base="https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}"
+
+        curl --fail --silent --show-error --location -o "$tarball" "$base/$tarball"
+        curl --fail --silent --show-error --location -o CHECKSUMS "$base/CHECKSUMS"
+
+        # CHECKSUMS is GNU sha256sum text-mode ("<hash>  <file>", two spaces).
+        # If upstream switches to binary mode ("<hash> *<file>") the grep finds
+        # nothing and pipefail aborts — fail-closed is intended here.
+        grep -E "  ${tarball}\$" CHECKSUMS | sha256sum -c -
+
+        tar -xzf "$tarball" kubeconform
+        sudo install -m 0755 kubeconform /usr/local/bin/
+        rm -f kubeconform "$tarball" CHECKSUMS
