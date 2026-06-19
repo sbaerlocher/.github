@@ -312,6 +312,12 @@ jobs:
           version: v${{ inputs.helm-version }}
 
       - name: Install kubeconform
+        # TODO: bump @main -> the date tag cut for this batch once it exists.
+        # The action is new in this PR, so no published tag contains it yet;
+        # pinning to a not-yet-cut tag would break the ref immediately. @main
+        # is the only working ref until the tag is cut; Renovate's
+        # github-actions manager then keeps it on the date tag (same pattern
+        # as project/action.yml pinning setup-dde).
         uses: sbaerlocher/.github/.github/actions/install-kubeconform@main
         with:
           version: ${{ inputs.kubeconform-version }}
@@ -371,6 +377,12 @@ jobs:
           persist-credentials: false
 
       - name: Install kubeconform
+        # TODO: bump @main -> the date tag cut for this batch once it exists.
+        # The action is new in this PR, so no published tag contains it yet;
+        # pinning to a not-yet-cut tag would break the ref immediately. @main
+        # is the only working ref until the tag is cut; Renovate's
+        # github-actions manager then keeps it on the date tag (same pattern
+        # as project/action.yml pinning setup-dde).
         uses: sbaerlocher/.github/.github/actions/install-kubeconform@main
         with:
           version: ${{ inputs.kubeconform-version }}
