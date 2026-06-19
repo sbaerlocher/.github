@@ -22,6 +22,26 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ## Unreleased
 
+### Added
+
+- **`ci-gitops.yml`**: New `validate-helm-template` job + composite action
+  `.github/actions/install-kubeconform`. The job renders every Helm chart with
+  `helm template` (after a best-effort `helm dependency build`) and validates
+  the rendered output with `kubeconform -strict -ignore-missing-schemas`,
+  catching values/render errors that `helm lint` and static-manifest
+  kubeconform miss. Gated on the new input `enable-helm-template-validation`
+  (default `true`). The kubeconform install is now shared between this job and
+  `validate-kubernetes` via the composite action.
+
+### ⚠ BREAKING
+
+- **`ci-gitops.yml`**: `enable-helm-template-validation` defaults to `true`, so
+  the new rendered-manifest validation runs on the next tag bump for every
+  GitOps consumer. A chart that renders invalid Kubernetes objects — and passed
+  before because only static template files were checked — will now fail CI.
+  Migration: fix the rendered manifest, or set
+  `enable-helm-template-validation: false` to opt out.
+
 ## 2026-06-18
 
 ### Added
