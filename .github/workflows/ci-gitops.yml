@@ -43,6 +43,14 @@ on:
         type: boolean
         required: false
         default: true
+      enable-helm-template-validation:
+        description: >-
+          Render each Helm chart with `helm template` and validate the
+          rendered manifests with kubeconform. Catches values/render errors
+          that `helm lint` and static-manifest kubeconform miss.
+        type: boolean
+        required: false
+        default: true
       enable-k8s-validation:
         description: 'Validate Kubernetes manifests with kubeconform'
         type: boolean
@@ -286,6 +294,56 @@ jobs:
           fi
 
           echo "All Helm charts validated successfully!"
+
+      - name: Install kubeconform
+        if: inputs.enable-helm-template-validation
+        env:
+          KUBECONFORM_VERSION: ${{ inputs.kubeconform-version }}
+        run: |
+          set -euo pipefail
+          tarball="kubeconform-linux-amd64.tar.gz"
+          base="https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}"
+
+          curl --fail --silent --show-error --location -o "$tarball" "$base/$tarball"
+          curl --fail --silent --show-error --location -o CHECKSUMS "$base/CHECKSUMS"
+          grep -E "  ${tarball}\$" CHECKSUMS | sha256sum -c -
+          tar -xzf "$tarball" kubeconform
+          sudo install -m 0755 kubeconform /usr/local/bin/
+          rm -f kubeconform "$tarball" CHECKSUMS
+
+      - name: Render charts and validate with kubeconform
+        if: inputs.enable-helm-template-validation
+        env:
+          FLEET_PATHS: ${{ inputs.fleet-paths }}
+          STRICT: ${{ inputs.k8s-validation-strict }}
+        run: |
+          set -euo pipefail
+          echo "Rendering Helm charts and validating with kubeconform..."
+          ERRORS=0
+          RENDERED=0
+
+          for dir in $(echo "${FLEET_PATHS}" | tr ' ' '\n' | while read -r p; do echo "$p"/*; done); do
+            [ -f "$dir/Chart.yaml" ] || continue
+            RENDERED=$((RENDERED + 1))
+            echo "Rendering $dir..."
+            # `helm template` resolves values + templates; kubeconform then
+            # validates the *rendered* objects against the K8s schemas.
+            # -ignore-missing-schemas tolerates CRDs without published schemas.
+            if ! helm template "$dir" \
+                | kubeconform -summary -strict -ignore-missing-schemas -output text; then
+              echo "ERROR: rendered manifests from $dir failed kubeconform"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+
+          echo "Rendered $RENDERED chart(s)."
+          if [ "$STRICT" = "true" ] && [ $ERRORS -gt 0 ]; then
+            echo "Found $ERRORS chart(s) with invalid rendered manifests"
+            exit 1
+          fi
+          if [ $ERRORS -gt 0 ]; then
+            echo "::warning::$ERRORS chart(s) had invalid rendered manifests (non-strict mode)"
+          fi
 
   validate-kubernetes:
     name: Validate Kubernetes Manifests
