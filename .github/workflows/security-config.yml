@@ -327,7 +327,7 @@ jobs:
       - name: Install Ansible and ansible-lint
         env:
           # renovate: datasource=pypi depName=ansible
-          ANSIBLE_VERSION: '14.0.0'
+          ANSIBLE_VERSION: '14.1.0'
           # renovate: datasource=pypi depName=ansible-lint
           ANSIBLE_LINT_VERSION: '26.4.0'
           # renovate: datasource=pypi depName=yamllint
