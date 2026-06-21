@@ -340,10 +340,26 @@ jobs:
               }
             fi
 
+            # Charts that `required`-guard secret values (e.g.
+            # `database.existingSecret`) cannot render from values.yaml
+            # defaults alone — the guard aborts the template. Honour a
+            # conventional CI values file in the chart dir if present, so the
+            # chart renders with placeholder secret names without weakening
+            # the production guard. First match wins; absence is a no-op so
+            # charts that render from defaults are unaffected.
+            VALUES_ARGS=()
+            for vf in values-test.yaml ci-values.yaml values-ci.yaml; do
+              if [ -f "$dir/$vf" ]; then
+                echo "Using values override $dir/$vf"
+                VALUES_ARGS=(-f "$dir/$vf")
+                break
+              fi
+            done
+
             # `helm template` resolves values + templates; kubeconform then
             # validates the *rendered* objects against the K8s schemas.
             # -ignore-missing-schemas tolerates CRDs without published schemas.
-            if ! helm template "$dir" \
+            if ! helm template "$dir" "${VALUES_ARGS[@]}" \
                 | kubeconform -summary -strict -ignore-missing-schemas -output text; then
               echo "ERROR: rendered manifests from $dir failed kubeconform"
               ERRORS=$((ERRORS + 1))

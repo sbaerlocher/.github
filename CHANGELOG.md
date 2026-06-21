@@ -20,6 +20,20 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## Unreleased
+
+### Changed
+
+- **`ci-gitops.yml`**: The `validate-helm-template` job now honours a
+  conventional CI values file per chart. If a chart directory contains
+  `values-test.yaml` (or `ci-values.yaml` / `values-ci.yaml`, first match
+  wins), `helm template` renders with `-f <file>`. Charts that `required`-guard
+  secret values (e.g. `database.existingSecret`) could not render from
+  `values.yaml` defaults alone — the guard aborted the template and failed the
+  job. Drop a values file with placeholder secret names to fix this without
+  weakening the production guard. Charts without such a file render from
+  defaults exactly as before — no behaviour change for them.
+
 ## 2026-06-19
 
 ### Added
