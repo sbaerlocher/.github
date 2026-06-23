@@ -90,7 +90,7 @@ runs:
     # re-provision the host on every lifecycle step.
     - name: Setup dde
       id: setup
-      uses: sbaerlocher/.github/.github/actions/setup-dde@2026-06-19
+      uses: sbaerlocher/.github/.github/actions/setup-dde@2026-06-21
       with:
         version: ${{ inputs.version }}
         install-mkcert: ${{ inputs.install-mkcert }}
