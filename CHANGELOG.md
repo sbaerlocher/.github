@@ -20,6 +20,17 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-06-26
+
+### Changed
+
+- **`ci-js.yml`**: Allow the `BSD-2-Clause-Views` license (and the
+  `BSD-2-Clause AND BSD-2-Clause-Views` compound) in the dependency-review
+  gate. `uri-js` ships under that SPDX expression and is pulled in
+  transitively by common JS toolchains (ajv/eslint), so the gate rejected it
+  even though it is a permissive BSD license. No behaviour change for any
+  other dependency.
+
 ## 2026-06-21
 
 ### Changed
