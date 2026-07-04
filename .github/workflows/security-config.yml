@@ -329,7 +329,7 @@ jobs:
           # renovate: datasource=pypi depName=ansible
           ANSIBLE_VERSION: '14.1.0'
           # renovate: datasource=pypi depName=ansible-lint
-          ANSIBLE_LINT_VERSION: '26.4.0'
+          ANSIBLE_LINT_VERSION: '26.6.0'
           # renovate: datasource=pypi depName=yamllint
           YAMLLINT_VERSION: '1.38.0'
         run: |
