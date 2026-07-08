@@ -454,12 +454,21 @@ jobs:
             echo "::error::govulncheck failed (exit $rc)"
             exit "$rc"
           fi
-          if grep -q '"finding"' govulncheck.json; then
-            echo "::warning::Vulnerabilities detected by govulncheck"
-            jq -r '.finding // empty | .osv' govulncheck.json | sort -u | head -10
+          # A finding whose trace reaches a called symbol has trace[0].function
+          # set; module-level informational advisories (e.g. unmaintained
+          # packages with no fix) carry only module/version and are not
+          # actionable, so surface them as a warning without failing.
+          reachable=$(jq -r 'select(.finding.trace[0].function) | .finding.osv' govulncheck.json | sort -u)
+          informational=$(jq -r 'select(.finding and (.finding.trace[0].function | not)) | .finding.osv' govulncheck.json | sort -u)
+          if [ -n "$informational" ]; then
+            echo "::warning::govulncheck informational (unreachable) findings: $(echo "$informational" | tr '\n' ' ')"
+          fi
+          if [ -n "$reachable" ]; then
+            echo "::error::govulncheck reachable vulnerabilities detected"
+            echo "$reachable" | head -10
             exit 1
           fi
-          echo "::notice::No vulnerabilities found by govulncheck"
+          echo "::notice::No reachable vulnerabilities found by govulncheck"
 
       - name: Run Trivy filesystem scanner
         if: matrix.scanner == 'trivy-fs'
