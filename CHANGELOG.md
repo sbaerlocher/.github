@@ -20,6 +20,24 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-07-08
+
+### Fixed
+
+- **`ai-claude-review.yml`**: Set `allowed_bots: '*'` so bot-initiated runs
+  reach the action. `claude-code-action@v1` rejects runs from bot actors
+  unless their login is allow-listed; the job `if:` already skips
+  renovate/dependabot, but `github-actions[bot]` (flake-lock update PRs) still
+  reached the action and failed with "Workflow initiated by non-human actor".
+  The remaining bots that pass the `if:` filter are trusted first-party ones.
+
+### Changed
+
+- **Dependencies**: Renovate updates for pinned action SHAs and tool versions —
+  `actions/cache` v6, `@cyclonedx/cyclonedx-npm` v6, `golang.org/x/vuln`
+  v1.5.0, `ansible-lint` v26.6.0, `anthropics/claude-code-action` v1.0.158,
+  `postgres:18-alpine` digest, plus batched GitHub Actions SHA bumps.
+
 ## 2026-06-26
 
 ### Changed
