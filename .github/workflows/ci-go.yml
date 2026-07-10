@@ -463,7 +463,8 @@ jobs:
           # called, e.g. deprecated packages with no fixed version) are reported
           # as notices, not failures.
           reachable=$(jq -rc 'select(.finding.trace[0].function != null) | .finding.osv' govulncheck.json | sort -u)
-          imported=$(jq -rc 'select(.finding.trace[0].function == null) | .finding.osv' govulncheck.json | sort -u)
+          all_osv=$(jq -rc '.finding.osv // empty' govulncheck.json | sort -u)
+          imported=$(comm -23 <(printf '%s\n' "$all_osv") <(printf '%s\n' "$reachable") | sed '/^$/d')
           if [ -n "$imported" ]; then
             echo "::notice::Non-reachable (import-only) findings, not gating:"
             echo "$imported"
