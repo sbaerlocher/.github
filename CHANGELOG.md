@@ -20,6 +20,24 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-07-10
+
+### Fixed
+
+- **`ci-go.yml`**, **`security-deps.yml`**: Add `check-latest: true` to every
+  `setup-go` step. Runners preferred a stale Go patch from the tool-cache (e.g.
+  `go1.26.4`) over the latest patch for the requested minor, so stdlib
+  vulnerabilities fixed in a newer patch (`go1.26.5`) kept the `govulncheck` gate
+  red even though nothing in the consumer code was affected. `check-latest`
+  resolves the newest patch from the version index instead of the cache.
+- **`ci-go.yml`**: `govulncheck` now gates only on **call-reachable** findings.
+  The previous gate keyed on any `"finding"` line, so import-only / module-level
+  findings — a module pulled in transitively but never called (e.g. a deprecated
+  package with no fixed version, like `golang.org/x/crypto/openpgp` reached only
+  through `crypto/bcrypt`) — held the gate red permanently. Non-reachable
+  findings are now reported as notices; the build fails only on findings whose
+  trace is actually reachable in source mode.
+
 ## 2026-07-08
 
 ### Fixed

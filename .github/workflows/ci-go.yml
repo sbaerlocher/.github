@@ -170,6 +170,7 @@ jobs:
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: ${{ inputs.go-version }}
+          check-latest: true
           cache: true
           cache-dependency-path: go.sum
 
@@ -298,6 +299,7 @@ jobs:
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: ${{ inputs.go-version }}
+          check-latest: true
           cache: true
           cache-dependency-path: go.sum
 
@@ -426,6 +428,7 @@ jobs:
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: ${{ inputs.go-version }}
+          check-latest: true
           cache: true
 
       - name: Run gosec Security Scanner
@@ -454,12 +457,24 @@ jobs:
             echo "::error::govulncheck failed (exit $rc)"
             exit "$rc"
           fi
-          if grep -q '"finding"' govulncheck.json; then
-            echo "::warning::Vulnerabilities detected by govulncheck"
-            jq -r '.finding // empty | .osv' govulncheck.json | sort -u | head -10
+          # Gate only on call-reachable findings. A finding whose top trace frame
+          # carries a `function` is reachable in source mode; import-only /
+          # module-level findings (a module pulled in transitively but never
+          # called, e.g. deprecated packages with no fixed version) are reported
+          # as notices, not failures.
+          reachable=$(jq -rc 'select(.finding.trace[0].function != null) | .finding.osv' govulncheck.json | sort -u)
+          all_osv=$(jq -rc '.finding.osv // empty' govulncheck.json | sort -u)
+          imported=$(comm -23 <(printf '%s\n' "$all_osv") <(printf '%s\n' "$reachable") | sed '/^$/d')
+          if [ -n "$imported" ]; then
+            echo "::notice::Non-reachable (import-only) findings, not gating:"
+            echo "$imported"
+          fi
+          if [ -n "$reachable" ]; then
+            echo "::warning::Reachable vulnerabilities detected by govulncheck"
+            echo "$reachable"
             exit 1
           fi
-          echo "::notice::No vulnerabilities found by govulncheck"
+          echo "::notice::No reachable vulnerabilities found by govulncheck"
 
       - name: Run Trivy filesystem scanner
         if: matrix.scanner == 'trivy-fs'
