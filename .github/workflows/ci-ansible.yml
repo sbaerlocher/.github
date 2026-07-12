@@ -128,6 +128,9 @@ jobs:
   lint:
     name: Lint
     if: ${{ inputs.enable-ansible-lint }}
+    # Gate behind validation: a failed syntax check aborts before ansible-lint
+    # spends a runner. validation is unconditional, so plain needs is enough.
+    needs: validation
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -165,6 +168,8 @@ jobs:
   yamllint:
     name: YAML Lint
     if: ${{ inputs.enable-yamllint }}
+    # Gate behind validation so a syntax failure aborts before yamllint runs.
+    needs: validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
 

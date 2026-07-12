@@ -102,6 +102,10 @@ jobs:
   lint:
     name: Lint
     if: ${{ inputs.enable-tflint }}
+    # Gate behind validation: a failed terraform validate/fmt aborts before
+    # tflint spends a runner. validation is unconditional, so plain needs is
+    # enough — a validation failure skips this job.
+    needs: validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -130,6 +134,8 @@ jobs:
 
   trivy:
     name: Vulnerability Scanning
+    # Gate behind validation so a broken config fails fast before the scan runs.
+    needs: validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
