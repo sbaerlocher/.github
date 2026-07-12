@@ -20,6 +20,40 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## Unreleased
+
+### ⚠ BREAKING
+
+- **`security-secrets.yml`, `security-deps.yml`, `security-containers.yml`,
+  `security-config.yml`**: scan jobs merged into a single sequential-step job
+  per workflow to stop paying GitHub's per-job minute-rounding tax (each job
+  rounds up to a full billed minute; scans ran 6–13 s each). Status-check
+  context names change, which breaks branch-protection / ruleset required-check
+  anchors pinned to the old job names.
+
+  **Migration**: update required-status-check anchors in consumer rulesets /
+  branch protection to the new context names:
+  - `security-secrets.yml`: `Scan with Gitleaks` (unchanged) + `Scan Secrets`
+    (replaces `Scan with TruffleHog`, `Detect Patterns`, `Create Report`)
+  - `security-deps.yml`: `Scan Dependencies` (replaces `Dependency Review
+    (GitHub)`, `Audit Go`, `Audit JavaScript`, `Audit Python`, `Create Report`)
+  - `security-containers.yml`: `Scan Container Image` (replaces `Scan with
+    Trivy`, `Scan with Grype`, `Analyze Images`, `Create Report`)
+  - `security-config.yml`: `Scan Configuration` (replaces `Trivy Config Scan`,
+    `Terraform Security`, `Scan Kubernetes`, `Scan Ansible`, `Create Report`)
+
+  `gitleaks` stays an isolated job with scoped `pull-requests: read`
+  (least-privilege preserved). Scanner pass/fail behaviour is preserved:
+  merged scanners run with `continue-on-error` so later sequential steps
+  execute, and a final enforce step re-raises the original gates — the
+  AWS-key / private-key checks (`security-secrets`), `fail-on-findings`
+  (`security-config`), and `fail-on-severity` (`security-deps`) still fail the
+  workflow exactly as before. Note: `security-containers.yml`'s `scan-timeout`
+  input no longer sets the job timeout (fixed 40 min ceiling now); the input is
+  retained for compatibility but has no effect.
+
+---
+
 ## 2026-07-10
 
 ### Fixed

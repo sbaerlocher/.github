@@ -66,11 +66,15 @@ concurrency:
   cancel-in-progress: ${{ inputs.cancel-in-progress }}
 
 jobs:
-  dependency-review:
-    name: Dependency Review (GitHub)
+  # All audit jobs shared the same workflow-level permissions and differed only
+  # by language/event `if:` guards, so they merge into one sequential-step job
+  # (one checkout, one runner). Each former job is now a step group behind its
+  # original `if:`; the report is the final always()-step reading step outcomes.
+  dependency-scan:
+    name: Scan Dependencies
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.event.repository.visibility == 'public'
-    timeout-minutes: 10
+    # Union of the merged jobs' timeouts (review 10 + 3×15).
+    timeout-minutes: 55
     steps:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -78,6 +82,9 @@ jobs:
           persist-credentials: false
 
       - name: Dependency Review
+        id: dependency-review
+        if: github.event_name == 'pull_request' && github.event.repository.visibility == 'public'
+        continue-on-error: true
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: ${{ inputs.fail-on-severity }}
@@ -86,26 +93,24 @@ jobs:
           vulnerability-check: true
           comment-summary-in-pr: true
 
-  go-audit:
-    name: Audit Go
-    if: inputs.language == 'go' || inputs.language == 'multi'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-
+      # --- Go ---
+      # continue-on-error on the setup steps: a failed setup counts as success
+      # for the default `if: success()` gate of later steps, so a broken Go
+      # setup can't skip the JS/Python setups + audits (they ran as independent
+      # parallel jobs on origin/main).
       - name: Setup Go
+        if: inputs.language == 'go' || inputs.language == 'multi'
+        continue-on-error: true
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version-file: 'go.mod'
           check-latest: true
           cache: true
 
-      # Vulnerability scanning
       - name: Run govulncheck
+        id: go-audit
+        if: inputs.language == 'go' || inputs.language == 'multi'
+        continue-on-error: true
         working-directory: ${{ inputs.working-directory }}
         env:
           # renovate: datasource=go depName=golang.org/x/vuln
@@ -129,9 +134,8 @@ jobs:
             echo "::notice::No vulnerabilities found"
           fi
 
-      # License checking
       - name: Check Go licenses
-        if: inputs.enable-license-check
+        if: (inputs.language == 'go' || inputs.language == 'multi') && inputs.enable-license-check
         working-directory: ${{ inputs.working-directory }}
         env:
           # renovate: datasource=go depName=github.com/google/go-licenses/v2
@@ -143,8 +147,8 @@ jobs:
           go-licenses check ./... --allowed_licenses="${ALLOWED_LICENSES}" 2>&1 | tee go-licenses.txt || true
           go-licenses csv ./... > go-licenses.csv 2>&1 || true
 
-      - name: Upload audit results
-        if: always()
+      - name: Upload Go audit results
+        if: always() && (inputs.language == 'go' || inputs.language == 'multi')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: go-audit-results
@@ -155,24 +159,17 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
 
-  javascript-audit:
-    name: Audit JavaScript
-    if: inputs.language == 'javascript' || inputs.language == 'multi'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-
+      # --- JavaScript ---
       - name: Setup Node.js
+        if: inputs.language == 'javascript' || inputs.language == 'multi'
+        continue-on-error: true
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: '.nvmrc'
 
       - name: Detect package manager
         id: detect-pm
+        if: inputs.language == 'javascript' || inputs.language == 'multi'
         working-directory: ${{ inputs.working-directory }}
         run: |
           if [ -f "pnpm-lock.yaml" ]; then
@@ -186,10 +183,13 @@ jobs:
           fi
 
       - name: Setup pnpm
-        if: steps.detect-pm.outputs.pm == 'pnpm'
+        if: |
+          (inputs.language == 'javascript' || inputs.language == 'multi')
+          && steps.detect-pm.outputs.pm == 'pnpm'
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
-      - name: Install dependencies
+      - name: Install JavaScript dependencies
+        if: inputs.language == 'javascript' || inputs.language == 'multi'
         working-directory: ${{ inputs.working-directory }}
         run: |
           case "${{ steps.detect-pm.outputs.pm }}" in
@@ -199,8 +199,10 @@ jobs:
             npm) npm ci ;;
           esac
 
-      # Vulnerability scanning
       - name: Run npm audit
+        id: javascript-audit
+        if: inputs.language == 'javascript' || inputs.language == 'multi'
+        continue-on-error: true
         working-directory: ${{ inputs.working-directory }}
         run: |
           case "${{ steps.detect-pm.outputs.pm }}" in
@@ -210,9 +212,8 @@ jobs:
             bun) echo "Bun audit not yet supported" > npm-audit.json ;;
           esac
 
-      # License checking
       - name: Check JavaScript licenses
-        if: inputs.enable-license-check
+        if: (inputs.language == 'javascript' || inputs.language == 'multi') && inputs.enable-license-check
         working-directory: ${{ inputs.working-directory }}
         env:
           # license-checker (davglass) is unmaintained since 2019; the
@@ -233,8 +234,8 @@ jobs:
             license-checker-rseidelsohn --failOn "$DENIED" 2>&1 | tee js-licenses-violations.txt || true
           fi
 
-      - name: Upload audit results
-        if: always()
+      - name: Upload JavaScript audit results
+        if: always() && (inputs.language == 'javascript' || inputs.language == 'multi')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: javascript-audit-results
@@ -246,32 +247,27 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
 
-  python-audit:
-    name: Audit Python
-    if: inputs.language == 'python' || inputs.language == 'multi'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-
+      # --- Python ---
       - name: Setup Python
+        if: inputs.language == 'python' || inputs.language == 'multi'
+        continue-on-error: true
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: Install dependencies
+      - name: Install Python dependencies
+        if: inputs.language == 'python' || inputs.language == 'multi'
         working-directory: ${{ inputs.working-directory }}
         run: |
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt
           fi
 
-      # Vulnerability scanning
       - name: Install and run safety
+        id: python-audit
+        if: inputs.language == 'python' || inputs.language == 'multi'
+        continue-on-error: true
         working-directory: ${{ inputs.working-directory }}
         env:
           # renovate: datasource=pypi depName=safety
@@ -282,9 +278,8 @@ jobs:
             safety check --file requirements.txt --json > safety-results.json || true
           fi
 
-      # License checking
       - name: Check Python licenses
-        if: inputs.enable-license-check
+        if: (inputs.language == 'python' || inputs.language == 'multi') && inputs.enable-license-check
         working-directory: ${{ inputs.working-directory }}
         env:
           # renovate: datasource=pypi depName=pip-licenses
@@ -295,8 +290,8 @@ jobs:
           pip-licenses --format=json > python-licenses.json 2>&1 || true
           pip-licenses --format=markdown > python-licenses.md 2>&1 || true
 
-      - name: Upload audit results
-        if: always()
+      - name: Upload Python audit results
+        if: always() && (inputs.language == 'python' || inputs.language == 'multi')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: python-audit-results
@@ -307,13 +302,10 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
 
-  security-report:
-    name: Create Report
-    runs-on: ubuntu-latest
-    needs: [dependency-review, go-audit, javascript-audit, python-audit]
-    if: always() && !cancelled()
-    steps:
+      # Report folded from the old security-report job; step outcomes replace
+      # needs.*.result (a disabled/skipped language step reports `skipped`).
       - name: Generate Security Report
+        if: always()
         run: |
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
 
@@ -326,12 +318,23 @@ jobs:
 
           | Component | Status |
           | --- | --- |
-          | Dependency Review | ${{ needs.dependency-review.result }} |
-          | Go Audit | ${{ needs.go-audit.result }} |
-          | JavaScript Audit | ${{ needs.javascript-audit.result }} |
-          | Python Audit | ${{ needs.python-audit.result }} |
+          | Dependency Review | ${{ steps.dependency-review.outcome }} |
+          | Go Audit | ${{ steps.go-audit.outcome }} |
+          | JavaScript Audit | ${{ steps.javascript-audit.outcome }} |
+          | Python Audit | ${{ steps.python-audit.outcome }} |
 
           **Allowed Licenses:** \`${{ inputs.allowed-licenses }}\`
           **Denied Licenses:** \`${{ inputs.denied-licenses }}\`
           **Fail on Violation:** ${{ inputs.fail-on-license-violation }}
           EOF
+
+      # continue-on-error on dependency-review only lets the language audits run
+      # afterwards; it must not swallow the fail-on-severity / denied-license
+      # gate. On origin/main dependency-review had no continue-on-error, so a
+      # finding failed the PR. Re-raise here. The go/js/python audits used
+      # `|| true` on main and stay non-blocking.
+      - name: Enforce dependency-review result
+        if: always() && steps.dependency-review.outcome == 'failure'
+        run: |
+          echo "::error::dependency-review found vulnerabilities or denied licenses at/above the configured threshold"
+          exit 1
