@@ -59,18 +59,30 @@ concurrency:
   cancel-in-progress: ${{ inputs.cancel-in-progress }}
 
 jobs:
-  trivy-image:
-    name: Scan with Trivy
-    if: inputs.enable-trivy-scan
+  # trivy + grype + image-analysis + report shared the same permissions and
+  # differed only by enable-* guards, so they merge into one sequential-step
+  # job (one runner). Each scanner is a step behind its original `if:`; the
+  # report is the final always()-step reading step outcomes.
+  container-scan:
+    name: Scan Container Image
     runs-on: ubuntu-latest
-    timeout-minutes: ${{ inputs.scan-timeout }}
+    # Upper bound for the merged trivy + grype + analysis steps. Fixed rather
+    # than derived from scan-timeout: GitHub-expression arithmetic isn't
+    # portable across linters, and a timeout is only a ceiling. Each scanner
+    # keeps its own effective budget; 40 covers 2×15 scans + analysis.
+    # ponytail: fixed ceiling, bump if a caller raises scan-timeout past ~15.
+    timeout-minutes: 40
     steps:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
 
+      # --- Trivy ---
       - name: Run Trivy vulnerability scanner
+        id: trivy-image
+        if: inputs.enable-trivy-scan
+        continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ inputs.image-ref }}
@@ -79,7 +91,7 @@ jobs:
           exit-code: '0'
 
       - name: Run Trivy SARIF scan
-        if: inputs.enable-sarif-upload
+        if: inputs.enable-trivy-scan && inputs.enable-sarif-upload
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ inputs.image-ref }}
@@ -88,7 +100,7 @@ jobs:
           severity: ${{ inputs.severity-level }}
 
       - name: Upload Trivy SARIF
-        if: inputs.enable-sarif-upload
+        if: inputs.enable-trivy-scan && inputs.enable-sarif-upload
         uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
         with:
           sarif_file: 'trivy-image.sarif'
@@ -96,7 +108,7 @@ jobs:
         continue-on-error: true
 
       - name: Run Trivy JSON scan
-        if: always()
+        if: always() && inputs.enable-trivy-scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ inputs.image-ref }}
@@ -106,7 +118,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Trivy Results
-        if: always()
+        if: always() && inputs.enable-trivy-scan
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: trivy-image-results
@@ -114,69 +126,57 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
 
-  grype-image:
-    name: Scan with Grype
-    if: inputs.enable-grype-scan
-    runs-on: ubuntu-latest
-    timeout-minutes: ${{ inputs.scan-timeout }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-
+      # --- Grype ---
       - name: Run Grype vulnerability scanner
+        id: grype-image
+        if: inputs.enable-grype-scan
+        continue-on-error: true
         uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
-        id: grype
         with:
           image: ${{ inputs.image-ref }}
           fail-build: false
           severity-cutoff: medium
 
       - name: Upload Grype Results
-        if: always()
+        if: always() && inputs.enable-grype-scan
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: grype-image-results
-          path: ${{ steps.grype.outputs.sarif }}
+          path: ${{ steps.grype-image.outputs.sarif }}
           retention-days: 30
           if-no-files-found: ignore
 
-  image-analysis:
-    name: Analyze Images
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
+      # --- Image analysis (always runs, like the old unconditional job) ---
       - name: Analyze image layers
+        id: image-analysis
+        continue-on-error: true
+        env:
+          IMAGE_REF: ${{ inputs.image-ref }}
         run: |
-          echo "Analyzing image: ${{ inputs.image-ref }}"
+          echo "Analyzing image: $IMAGE_REF"
 
           # Pull image (if accessible)
-          if docker pull "${{ inputs.image-ref }}" 2>/dev/null; then
+          if docker pull "$IMAGE_REF" 2>/dev/null; then
             echo "✓ Image pulled successfully"
 
             # Show image size
-            SIZE=$(docker image inspect "${{ inputs.image-ref }}" --format='{{.Size}}' | numfmt --to=iec-i --suffix=B)
+            SIZE=$(docker image inspect "$IMAGE_REF" --format='{{.Size}}' | numfmt --to=iec-i --suffix=B)
             echo "Image size: $SIZE"
 
             # Show layer count
-            LAYERS=$(docker image inspect "${{ inputs.image-ref }}" --format='{{len .RootFS.Layers}}')
+            LAYERS=$(docker image inspect "$IMAGE_REF" --format='{{len .RootFS.Layers}}')
             echo "Layer count: $LAYERS"
 
             # Show base image (if detectable)
-            BASE=$(docker image inspect "${{ inputs.image-ref }}" --format='{{index .Config.Labels "org.opencontainers.image.base.name"}}' 2>/dev/null || echo "Unknown")
+            BASE=$(docker image inspect "$IMAGE_REF" --format='{{index .Config.Labels "org.opencontainers.image.base.name"}}' 2>/dev/null || echo "Unknown")
             echo "Base image: $BASE"
           else
             echo "::warning::Unable to pull image for analysis"
           fi
 
-  security-report:
-    name: Create Report
-    runs-on: ubuntu-latest
-    needs: [trivy-image, grype-image, image-analysis]
-    if: always() && !cancelled()
-    steps:
+      # Report folded from the old security-report job.
       - name: Generate Security Report
+        if: always()
         run: |
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
           cat >> "$GITHUB_STEP_SUMMARY" << EOF
@@ -188,7 +188,7 @@ jobs:
 
           | Scanner | Status |
           | --- | --- |
-          | Trivy | ${{ needs.trivy-image.result }} |
-          | Grype | ${{ needs.grype-image.result }} |
-          | Image Analysis | ${{ needs.image-analysis.result }} |
+          | Trivy | ${{ steps.trivy-image.outcome }} |
+          | Grype | ${{ steps.grype-image.outcome }} |
+          | Image Analysis | ${{ steps.image-analysis.outcome }} |
           EOF

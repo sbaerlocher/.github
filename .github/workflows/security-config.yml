@@ -75,17 +75,25 @@ concurrency:
   cancel-in-progress: ${{ inputs.cancel-in-progress }}
 
 jobs:
-  trivy-config-scan:
-    name: Trivy Config Scan
+  # trivy-config + terraform + kubernetes + ansible + report shared the same
+  # permissions and differed only by scan-* guards, so they merge into one
+  # sequential-step job (one checkout, one runner). Each scanner is a step
+  # behind its original `if:`; the report is the final always()-step.
+  config-scan:
+    name: Scan Configuration
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Union of the merged jobs' timeouts (4×15).
+    timeout-minutes: 60
     steps:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
 
+      # --- Trivy config (always runs, like the old unconditional job) ---
       - name: Run Trivy config scan
+        id: trivy-config-scan
+        continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: 'config'
@@ -134,18 +142,11 @@ jobs:
             trivy-config-report.txt
           retention-days: 30
 
-  terraform-security:
-    name: Terraform Security
-    if: inputs.scan-terraform
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-
+      # --- Terraform ---
       - name: Run Trivy (Terraform Security)
+        id: terraform-security
+        if: inputs.scan-terraform
+        continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: 'config'
@@ -158,7 +159,7 @@ jobs:
 
       - name: Check if SARIF file exists
         id: sarif_check
-        if: always()
+        if: always() && inputs.scan-terraform
         run: |
           if [ -f "trivy-results.sarif" ]; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
@@ -169,7 +170,7 @@ jobs:
 
       - name: Upload Trivy results
         if: |
-          inputs.enable-sarif && always() &&
+          inputs.scan-terraform && inputs.enable-sarif && always() &&
           steps.sarif_check.outputs.exists == 'true' &&
           github.event.repository.visibility == 'public'
         uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
@@ -180,15 +181,15 @@ jobs:
 
       - name: Skip SARIF upload for private repo
         if: |
-          inputs.enable-sarif && always() &&
+          inputs.scan-terraform && inputs.enable-sarif && always() &&
           steps.sarif_check.outputs.exists == 'true' &&
           github.event.repository.visibility != 'public'
         run: |
           echo "::notice::Skipping SARIF upload - Code Scanning requires GitHub Advanced Security for private repos"
           echo "::notice::Security results are available as workflow artifacts"
 
-      - name: Upload Trivy artifacts
-        if: always() && steps.sarif_check.outputs.exists == 'true'
+      - name: Upload Trivy Terraform artifacts
+        if: always() && inputs.scan-terraform && steps.sarif_check.outputs.exists == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: trivy-terraform-results
@@ -196,6 +197,7 @@ jobs:
           retention-days: 30
 
       - name: Custom Terraform validators
+        if: inputs.scan-terraform
         working-directory: ${{ inputs.terraform-path }}
         run: |
           echo "Running custom Terraform validators..."
@@ -220,19 +222,11 @@ jobs:
             echo "::warning::Found hardcoded IP addresses in Terraform files"
           fi
 
-  kubernetes-security:
-    name: Scan Kubernetes
-    if: inputs.scan-kubernetes
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-
+      # --- Kubernetes ---
       - name: Find Kubernetes manifests
-        id: find-manifests
+        id: kubernetes-security
+        if: inputs.scan-kubernetes
+        continue-on-error: true
         working-directory: ${{ inputs.kubernetes-path }}
         run: |
           echo "Searching for Kubernetes manifests..."
@@ -248,7 +242,7 @@ jobs:
           fi
 
       - name: Run Kubesec
-        if: steps.find-manifests.outputs.found == 'true'
+        if: inputs.scan-kubernetes && steps.kubernetes-security.outputs.found == 'true'
         working-directory: ${{ inputs.kubernetes-path }}
         env:
           # renovate: datasource=docker depName=kubesec/kubesec
@@ -277,7 +271,7 @@ jobs:
           fi
 
       - name: Check for hardcoded credentials
-        if: steps.find-manifests.outputs.found == 'true'
+        if: inputs.scan-kubernetes && steps.kubernetes-security.outputs.found == 'true'
         working-directory: ${{ inputs.kubernetes-path }}
         run: |
           echo "Checking for hardcoded credentials in Kubernetes manifests..."
@@ -298,7 +292,7 @@ jobs:
           fi
 
       - name: Upload Kubernetes scan results
-        if: steps.find-manifests.outputs.found == 'true' && always()
+        if: always() && inputs.scan-kubernetes && steps.kubernetes-security.outputs.found == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: kubernetes-security-results
@@ -308,23 +302,17 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
 
-  ansible-security:
-    name: Scan Ansible
-    if: inputs.scan-ansible
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-
+      # --- Ansible ---
       - name: Setup Python
+        if: inputs.scan-ansible
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.12'
 
       - name: Install Ansible and ansible-lint
+        id: ansible-security
+        if: inputs.scan-ansible
+        continue-on-error: true
         env:
           # renovate: datasource=pypi depName=ansible
           ANSIBLE_VERSION: '14.1.0'
@@ -339,19 +327,21 @@ jobs:
             "yamllint==${YAMLLINT_VERSION}"
 
       - name: Run ansible-lint
+        if: inputs.scan-ansible
         working-directory: ${{ inputs.ansible-path }}
         run: |
           echo "Running ansible-lint..."
           ansible-lint -f pep8 . | tee ansible-lint-results.txt || true
 
       - name: Run yamllint
+        if: inputs.scan-ansible
         working-directory: ${{ inputs.ansible-path }}
         run: |
           echo "Running yamllint on playbooks..."
           yamllint -f parsable . | tee yamllint-results.txt || true
 
       - name: Upload Ansible scan results
-        if: always()
+        if: always() && inputs.scan-ansible
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ansible-security-results
@@ -361,13 +351,10 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
 
-  security-report:
-    name: Create Report
-    runs-on: ubuntu-latest
-    needs: [trivy-config-scan, terraform-security, kubernetes-security, ansible-security]
-    if: always() && !cancelled()
-    steps:
+      # Report folded from the old security-report job. trivy-config always
+      # runs; the others report `skipped` when their scan-* input is off.
       - name: Generate Security Report
+        if: always()
         run: |
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
 
@@ -380,10 +367,10 @@ jobs:
 
           | Scan | Enabled | Status |
           | --- | --- | --- |
-          | Trivy Config | yes | ${{ needs.trivy-config-scan.result }} |
-          | Terraform | ${{ inputs.scan-terraform && 'yes' || 'no' }} | ${{ needs.terraform-security.result }} |
-          | Kubernetes | ${{ inputs.scan-kubernetes && 'yes' || 'no' }} | ${{ needs.kubernetes-security.result }} |
-          | Ansible | ${{ inputs.scan-ansible && 'yes' || 'no' }} | ${{ needs.ansible-security.result }} |
+          | Trivy Config | yes | ${{ steps.trivy-config-scan.outcome }} |
+          | Terraform | ${{ inputs.scan-terraform && 'yes' || 'no' }} | ${{ steps.terraform-security.outcome }} |
+          | Kubernetes | ${{ inputs.scan-kubernetes && 'yes' || 'no' }} | ${{ steps.kubernetes-security.outcome }} |
+          | Ansible | ${{ inputs.scan-ansible && 'yes' || 'no' }} | ${{ steps.ansible-security.outcome }} |
 
           > Secret detection is handled separately by \`security-secrets.yml\`
           EOF
