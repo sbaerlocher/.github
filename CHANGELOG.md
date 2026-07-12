@@ -43,8 +43,12 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
     `Terraform Security`, `Scan Kubernetes`, `Scan Ansible`, `Create Report`)
 
   `gitleaks` stays an isolated job with scoped `pull-requests: read`
-  (least-privilege preserved). Individual scanner behaviour is unchanged; only
-  the job topology differs. Note: `security-containers.yml`'s `scan-timeout`
+  (least-privilege preserved). Scanner pass/fail behaviour is preserved:
+  merged scanners run with `continue-on-error` so later sequential steps
+  execute, and a final enforce step re-raises the original gates — the
+  AWS-key / private-key checks (`security-secrets`), `fail-on-findings`
+  (`security-config`), and `fail-on-severity` (`security-deps`) still fail the
+  workflow exactly as before. Note: `security-containers.yml`'s `scan-timeout`
   input no longer sets the job timeout (fixed 40 min ceiling now); the input is
   retained for compatibility but has no effect.
 

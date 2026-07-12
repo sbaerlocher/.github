@@ -68,9 +68,8 @@ jobs:
     runs-on: ubuntu-latest
     # Upper bound for the merged trivy + grype + analysis steps. Fixed rather
     # than derived from scan-timeout: GitHub-expression arithmetic isn't
-    # portable across linters, and a timeout is only a ceiling. Each scanner
-    # keeps its own effective budget; 40 covers 2×15 scans + analysis.
-    # ponytail: fixed ceiling, bump if a caller raises scan-timeout past ~15.
+    # portable across linters, and a timeout is only a ceiling. 40 covers
+    # 2×15 scans + analysis; bump if a caller raises scan-timeout past ~15.
     timeout-minutes: 40
     steps:
       - name: Checkout code
@@ -92,6 +91,7 @@ jobs:
 
       - name: Run Trivy SARIF scan
         if: inputs.enable-trivy-scan && inputs.enable-sarif-upload
+        continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ inputs.image-ref }}

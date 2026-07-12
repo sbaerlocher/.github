@@ -374,3 +374,24 @@ jobs:
 
           > Secret detection is handled separately by \`security-secrets.yml\`
           EOF
+
+      # continue-on-error on the trivy-config / terraform scanners only lets the
+      # later sequential steps run; it must not swallow the fail-on-findings
+      # gate. On origin/main both keyed exit-code off fail-on-findings and had
+      # no continue-on-error, so a finding with fail-on-findings:true failed the
+      # workflow. Re-raise here. kubernetes/ansible used `|| true` on main and
+      # stay non-blocking.
+      - name: Enforce config-scan result
+        if: always() && inputs.fail-on-findings
+        run: |
+          fail=0
+          if [ "${{ steps.trivy-config-scan.outcome }}" = "failure" ]; then
+            echo "::error::Trivy config scan found issues at/above the severity threshold"
+            fail=1
+          fi
+          if [ "${{ inputs.scan-terraform }}" = "true" ] \
+             && [ "${{ steps.terraform-security.outcome }}" = "failure" ]; then
+            echo "::error::Terraform security scan found issues at/above the severity threshold"
+            fail=1
+          fi
+          exit "$fail"
