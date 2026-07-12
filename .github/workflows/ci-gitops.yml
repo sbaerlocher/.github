@@ -150,7 +150,13 @@ jobs:
 
   validate-fleet-configs:
     name: Validate Fleet Configurations
-    if: inputs.enable-fleet-validation
+    # Gate behind validate-yaml. The gate is conditional (enable-yaml-lint), so
+    # the always()/!failure()/!cancelled() guard runs this job when the gate
+    # succeeds OR is skipped, and blocks only on a gate failure.
+    needs: [validate-yaml]
+    if: >-
+      always() && !failure() && !cancelled()
+      && inputs.enable-fleet-validation
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -208,7 +214,10 @@ jobs:
 
   validate-gitrepo:
     name: Validate GitRepo Configuration
-    if: inputs.enable-gitrepo-validation
+    needs: [validate-yaml]
+    if: >-
+      always() && !failure() && !cancelled()
+      && inputs.enable-gitrepo-validation
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -251,7 +260,10 @@ jobs:
 
   validate-helm:
     name: Validate Helm Charts
-    if: inputs.enable-helm-lint
+    needs: [validate-yaml]
+    if: >-
+      always() && !failure() && !cancelled()
+      && inputs.enable-helm-lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -297,7 +309,10 @@ jobs:
 
   validate-helm-template:
     name: Validate Rendered Helm Output
-    if: inputs.enable-helm-template-validation
+    needs: [validate-yaml]
+    if: >-
+      always() && !failure() && !cancelled()
+      && inputs.enable-helm-template-validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -377,7 +392,10 @@ jobs:
 
   validate-kubernetes:
     name: Validate Kubernetes Manifests
-    if: inputs.enable-k8s-validation
+    needs: [validate-yaml]
+    if: >-
+      always() && !failure() && !cancelled()
+      && inputs.enable-k8s-validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -419,7 +437,10 @@ jobs:
 
   check-documentation:
     name: Check Documentation
-    if: inputs.enable-docs-check
+    needs: [validate-yaml]
+    if: >-
+      always() && !failure() && !cancelled()
+      && inputs.enable-docs-check
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

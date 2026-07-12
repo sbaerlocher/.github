@@ -52,6 +52,23 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   input no longer sets the job timeout (fixed 40 min ceiling now); the input is
   retained for compatibility but has no effect.
 
+### Changed
+
+- **`ci-terraform.yml`, `ci-ansible.yml`, `ci-gitops.yml`**: expensive jobs now
+  wait for the cheap lint/validate job via `needs:`, so a lint failure aborts
+  before the heavy jobs burn minutes.
+  - `ci-terraform.yml`: `lint` + `trivy` gain `needs: validation`.
+  - `ci-ansible.yml`: `lint` + `yamllint` gain `needs: validation`.
+  - `ci-gitops.yml`: the six non-gate jobs gain `needs: [validate-yaml]` with an
+    `always() && !failure() && !cancelled()` guard, so they still run when the
+    (conditional) gate is skipped but stop when it fails.
+
+  **Not breaking**: no job names change, so required-status-check anchors stay
+  valid. Behaviour note: a heavy job that previously reported `failure`
+  independently now reports `skipped` when the gate fails, and successful runs
+  are slightly slower (gate first, then heavy). `ci-go.yml` / `ci-js.yml`
+  already gate their heavy jobs; unchanged.
+
 ---
 
 ## 2026-07-10
