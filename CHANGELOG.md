@@ -22,14 +22,6 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ## Unreleased
 
-### Changed
-
-- **`ci-js.yml`, `ci-go.yml`**: add `OFL-1.1` to the `dependency-review-action`
-  `allow-licenses` list, matching the `security-deps.yml` default so fonts and
-  icon sets under the SIL Open Font License pass across all license gates. Not
-  breaking — widening an allow-list can only make previously-failing checks
-  pass.
-
 ---
 
 ## 2026-07-13
@@ -66,9 +58,11 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### Changed
 
-- **`security-deps.yml`**: add `OFL-1.1` to the default `allowed-licenses` so
-  fonts and icon sets under the SIL Open Font License no longer fail dependency
-  license checks. Not breaking — widening an allow-list can only make
+- **`security-deps.yml`, `ci-js.yml`, `ci-go.yml`**: add `OFL-1.1` to the
+  license allow-lists (the `security-deps.yml` default plus the
+  `dependency-review-action` lists in `ci-js.yml` / `ci-go.yml`, which are
+  separate), so fonts and icon sets under the SIL Open Font License pass across
+  every license gate. Not breaking — widening an allow-list can only make
   previously-failing checks pass.
 - **`ci-terraform.yml`, `ci-ansible.yml`, `ci-gitops.yml`**: expensive jobs now
   wait for the cheap lint/validate job via `needs:`, so a lint failure aborts
