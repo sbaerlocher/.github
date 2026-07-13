@@ -36,9 +36,9 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   - `security-secrets.yml`: `Scan with Gitleaks` (unchanged) + `Scan Secrets`
     (replaces `Scan with TruffleHog`, `Detect Patterns`, `Create Report`)
   - `security-deps.yml`: `Scan Dependencies` (replaces `Dependency Review
-(GitHub)`, `Audit Go`, `Audit JavaScript`, `Audit Python`, `Create Report`)
+    (GitHub)`, `Audit Go`, `Audit JavaScript`, `Audit Python`, `Create Report`)
   - `security-containers.yml`: `Scan Container Image` (replaces `Scan with
-Trivy`, `Scan with Grype`, `Analyze Images`, `Create Report`)
+    Trivy`, `Scan with Grype`, `Analyze Images`, `Create Report`)
   - `security-config.yml`: `Scan Configuration` (replaces `Trivy Config Scan`,
     `Terraform Security`, `Scan Kubernetes`, `Scan Ansible`, `Create Report`)
 
