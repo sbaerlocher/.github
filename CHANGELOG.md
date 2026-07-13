@@ -22,6 +22,10 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ## Unreleased
 
+---
+
+## 2026-07-13
+
 ### ⚠ BREAKING
 
 - **`security-secrets.yml`, `security-deps.yml`, `security-containers.yml`,
