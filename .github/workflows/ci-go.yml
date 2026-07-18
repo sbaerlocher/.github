@@ -506,11 +506,28 @@ jobs:
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
 
+    env:
+      # Let Go fetch the toolchain pinned in go.mod instead of failing when the
+      # Go on PATH is older (GOTOOLCHAIN defaults to local). Applies to the
+      # extractor, autobuild and analyze steps alike.
+      GOTOOLCHAIN: auto
+
     steps:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+
+      # Must run before codeql-action/init: the Go extractor is configured at
+      # init time and otherwise picks up the Go bundled with the CodeQL
+      # release, which can be older than the version go.mod requires.
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          check-latest: true
+          cache: true
+          cache-dependency-path: go.sum
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0

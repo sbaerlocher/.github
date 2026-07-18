@@ -81,6 +81,13 @@ jobs:
       matrix:
         language: ${{ fromJSON(inputs.languages) }}
 
+    env:
+      # Let Go fetch the toolchain pinned in go.mod instead of failing when the
+      # Go on PATH is older (GOTOOLCHAIN defaults to local). Applies to the
+      # extractor, autobuild and analyze steps alike. No-op for non-Go
+      # languages.
+      GOTOOLCHAIN: auto
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -99,6 +106,16 @@ jobs:
             done
             echo "CODEQL_CONFIG_EOF"
           } >> "$GITHUB_OUTPUT"
+
+      # Must run before codeql-action/init: the Go extractor is configured at
+      # init time and otherwise picks up the Go bundled with the CodeQL
+      # release, which can be older than the version go.mod requires.
+      - name: Setup Go
+        if: matrix.language == 'go'
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: true
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
@@ -133,13 +150,6 @@ jobs:
         with:
           node-version-file: ${{ inputs.node-version-file }}
           cache: ${{ steps.detect-pm.outputs.manager }}
-
-      - name: Setup Go
-        if: matrix.language == 'go'
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
-        with:
-          go-version: ${{ inputs.go-version }}
-          cache: true
 
       - name: Setup Python
         if: matrix.language == 'python'
