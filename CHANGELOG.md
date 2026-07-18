@@ -20,6 +20,22 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-07-19
+
+### Fixed
+
+- **`ci-terraform.yml`**: `tflint --init` no longer crashes with
+  `runtime error: invalid memory address or nil pointer dereference` while
+  verifying the terraform plugin's signature attestation. The nil-pointer bug
+  lives in tflint's signature bundle verifier
+  ([terraform-linters/tflint#2591](https://github.com/terraform-linters/tflint/issues/2591))
+  and was triggered by a GitHub backend change, so it hits every run rather
+  than flaking intermittently. tflint v0.61.0–v0.63.1 are all affected;
+  the pin moves to v0.64.0, which upstream released as the fix. Affects every
+  consumer running with `enable-tflint: true`; no input or output changes.
+
+---
+
 ## 2026-07-18
 
 ### Fixed
