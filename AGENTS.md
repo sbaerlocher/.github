@@ -3,7 +3,7 @@
 **Repository Type**: Centralized Workflow Repository
 **Purpose**: Provide reusable GitHub Actions workflows for all sbaerlocher projects
 **Visibility**: Public
-**Last Updated**: 2026-05-03
+**Last Updated**: 2026-07-18
 
 ---
 
@@ -556,7 +556,7 @@ Ensure lock files are committed:
 ```text
 .github/
 ├── .github/
-│   ├── workflows/           # 22 reusable workflows + 1 internal self-test
+│   ├── workflows/           # 24 reusable workflows + 1 internal self-test
 │   │   ├── ai-*.yml        # AI workflows
 │   │   ├── ci-*.yml        # CI workflows
 │   │   ├── deploy-*.yml    # Deploy workflows
@@ -687,5 +687,5 @@ Ensure lock files are committed:
 
 ---
 
-**Last Updated**: 2026-05-03
+**Last Updated**: 2026-07-18
 **Version**: 1.4.0

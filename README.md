@@ -6,7 +6,7 @@ each workflow by date tag and let Renovate keep them current.
 
 - **Model:** rolling release with date tags (`YYYY-MM-DD`)
 - **Total workflows:** 24
-- **Last updated:** 2026-05-03
+- **Last updated:** 2026-07-18
 
 See [AGENTS.md](./AGENTS.md) for AI-agent context.
 
