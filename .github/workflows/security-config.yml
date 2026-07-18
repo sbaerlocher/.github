@@ -315,7 +315,7 @@ jobs:
         continue-on-error: true
         env:
           # renovate: datasource=pypi depName=ansible
-          ANSIBLE_VERSION: '14.1.0'
+          ANSIBLE_VERSION: '14.2.0'
           # renovate: datasource=pypi depName=ansible-lint
           ANSIBLE_LINT_VERSION: '26.6.0'
           # renovate: datasource=pypi depName=yamllint
