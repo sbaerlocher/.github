@@ -49,7 +49,7 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 - **`anthropics/claude-code-action`**: v1.0.170 → v1.0.174 (`ai-claude.yml`),
   plus a digest bump on the `v1` ref (`ai-claude-review.yml`).
 - **`gosec`**: v2.27.1 → v2.28.0 (`ci-go.yml`).
-- **`ansible-lint`**: 14.1.0 → 14.2.0 (`security-config.yml`).
+- **`ansible`**: 14.1.0 → 14.2.0 (`security-config.yml`).
 - **internal `setup-dde` / `project` / `sbom-npm` / `install-kubeconform`
   refs**: pinned to `@2026-07-13` (`project/action.yml`, `ci-gitops.yml`,
   `e2e-dde.yml`, `release-npm.yml`, `security-sbom.yml`).
