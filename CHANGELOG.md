@@ -20,7 +20,7 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
-## Unreleased
+## 2026-07-18
 
 ### Fixed
 
@@ -33,6 +33,26 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   `GOTOOLCHAIN: auto` so Go may fetch the toolchain pinned in `go.mod`. Affects
   every Go consumer of these workflows; no input, output, or permission
   changes. The job-wide env is a no-op for non-Go matrix legs.
+
+### Changed
+
+- **`AGENTS.md`, `README.md`**: correct the stale `Last Updated` fields (both
+  claimed `2026-05-03`) and the repository-structure comment, which undercounted
+  the reusable workflows as 22 against the actual 24. Documentation only; no
+  workflow behaviour changes.
+
+### Dependencies
+
+- **`actions/setup-node`**: v6.4.0 → v6.5.0 (`sbom-npm/action.yml`,
+  `ci-js.yml`, `deploy-cloudflare-workers.yml`, `e2e-dde.yml`, `e2e-docker.yml`,
+  `release-npm.yml`, `security-code.yml`, `security-deps.yml`).
+- **`anthropics/claude-code-action`**: v1.0.170 → v1.0.174 (`ai-claude.yml`),
+  plus a digest bump on the `v1` ref (`ai-claude-review.yml`).
+- **`gosec`**: v2.27.1 → v2.28.0 (`ci-go.yml`).
+- **`ansible`**: 14.1.0 → 14.2.0 (`security-config.yml`).
+- **internal `setup-dde` / `project` / `sbom-npm` / `install-kubeconform`
+  refs**: pinned to `@2026-07-13` (`project/action.yml`, `ci-gitops.yml`,
+  `e2e-dde.yml`, `release-npm.yml`, `security-sbom.yml`).
 
 ---
 
