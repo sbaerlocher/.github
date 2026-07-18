@@ -22,6 +22,18 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ## Unreleased
 
+### Fixed
+
+- **`security-code.yml`, `ci-go.yml`**: CodeQL-on-Go analysis no longer fails
+  extraction when `go.mod` requires a newer Go than the CodeQL bundle ships
+  (`go.mod requires go >= X (running go Y, GOTOOLCHAIN=local)`). The Go
+  extractor is configured by `codeql-action/init`, so `setup-go` now runs
+  before that step (`security-code.yml` ran it after; `ci-go.yml`'s CodeQL job
+  had none at all and used the bundled Go), and both jobs set
+  `GOTOOLCHAIN: auto` so Go may fetch the toolchain pinned in `go.mod`. Affects
+  every Go consumer of these workflows; no input, output, or permission
+  changes. The job-wide env is a no-op for non-Go matrix legs.
+
 ---
 
 ## 2026-07-13
