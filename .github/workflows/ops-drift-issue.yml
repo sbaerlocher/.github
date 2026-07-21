@@ -16,6 +16,18 @@ on:
         type: string
         required: true
         description: 'URL to the triggering workflow run for issue cross-reference'
+      drift-summary:
+        type: string
+        required: false
+        default: ''
+        description: |
+          Optional value-free drift summary from deploy-terraform.yml's
+          `drift_summary` output: one "<action> <address>" line per drifting
+          resource. When set, the summary is upserted into a marker-delimited
+          block in the issue body, and a comment is added only when the set of
+          drifting addresses changes. Empty default preserves the original
+          behaviour (comment on every run, no summary block). MUST stay
+          value-free — never pass raw plan output here.
       label:
         type: string
         required: false
@@ -71,6 +83,16 @@ jobs:
       issues: write
 
     steps:
+      # Body-Logik ist inline, nicht via Checkout des Skripts. Grund: ein
+      # reusable Workflow hat keinen Kontext, der seinen EIGENEN Aufruf-Ref
+      # exponiert (`github.action_ref` ist in `workflow_call`-Steps leer,
+      # `github.workflow_ref` ist der Caller). Ein Checkout müsste auf `@main`
+      # zurückfallen — mutable Ref für ausführbaren Code, genau was das
+      # Datums-Tag-Pinning verhindern soll. Darum dieselbe Linie wie die
+      # Inline-jq in `deploy-terraform.yml`: die render/addresses-Logik ist ein
+      # Duplikat von scripts/drift-issue-body.sh, das per
+      # scripts/tests/test-drift-issue-body.sh getestete Referenz bleibt.
+      # Ändert sich die eine, muss die andere folgen (Gleichheit von Hand).
       - name: Upsert drift issue
         env:
           GH_TOKEN: ${{ github.token }}
@@ -80,14 +102,48 @@ jobs:
           WORKFLOW_RUN_URL: ${{ inputs.workflow-run-url }}
           LABEL: ${{ inputs.label }}
           TITLE_TEMPLATE: ${{ inputs.title-template }}
+          DRIFT_SUMMARY: ${{ inputs.drift-summary }}
         run: |
           set -euo pipefail
+
+          START='<!-- drift-summary:start -->'
+          END='<!-- drift-summary:end -->'
+
+          # strip_block/render/addresses spiegeln scripts/drift-issue-body.sh.
+          strip_block() {
+            awk -v s="$START" -v e="$END" '
+              $0 == s { skip = 1; next }
+              $0 == e { skip = 0; next }
+              !skip   { print }
+            '
+          }
+          render() { # render <base> <summary>
+            local clean
+            clean="$(printf '%s' "$1" | strip_block)"
+            clean="$(printf '%s\n' "$clean" | sed -e :a -e '/^\n*$/{$d;N;ba}')"
+            if [ -z "$2" ]; then
+              printf '%s\n' "$clean"
+              return
+            fi
+            printf '%s\n\n%s\n\n### Drifting resources\n\n```\n%s\n```\n\n%s\n' \
+              "$clean" "$START" "$2" "$END"
+          }
+          addresses() { # addresses <body>
+            printf '%s' "$1" |
+              awk -v s="$START" -v e="$END" '
+                $0 == s { inb = 1; next }
+                $0 == e { inb = 0; fence = 0; next }
+                inb && $0 == "```" { fence = !fence; next }
+                inb && fence && $0 ~ / / { sub(/^[^ ]+ /, ""); print }
+              ' |
+              sort -u
+          }
 
           TITLE="${TITLE_TEMPLATE//\{project\}/${PROJECT_NAME}}"
           TITLE="${TITLE//\{environment\}/${ENVIRONMENT}}"
           TIMESTAMP="$(date -u '+%Y-%m-%d %H:%M UTC')"
 
-          BODY=$(cat <<BODY_EOF
+          BASE=$(cat <<BODY_EOF
           ## Terraform Drift Detected
 
           Drift was detected in the **${PROJECT_NAME}** Terraform configuration for environment **${ENVIRONMENT}**.
@@ -109,13 +165,47 @@ jobs:
             --jq ".[] | select(.title == \"${TITLE}\") | .number" \
             | head -1)
 
-          if [ -n "${EXISTING}" ]; then
-            gh issue comment "${EXISTING}" --body "${BODY}"
-            echo "Updated existing drift issue #${EXISTING}"
+          # --- Leerer Pfad: kein Summary -> exakt bisheriges Verhalten. --------
+          if [ -z "${DRIFT_SUMMARY}" ]; then
+            if [ -n "${EXISTING}" ]; then
+              gh issue comment "${EXISTING}" --body "${BASE}"
+              echo "Updated existing drift issue #${EXISTING}"
+            else
+              gh issue create --title "${TITLE}" --body "${BASE}" --label "${LABEL}"
+              echo "Created new drift issue"
+            fi
+            exit 0
+          fi
+
+          # --- Summary-Pfad: Marker-Block upserten, Kommentar nur bei Delta. ---
+          BODY="$(render "$BASE" "$DRIFT_SUMMARY")"
+          NEW_ADDRS="$(addresses "$BODY")"
+
+          if [ -z "${EXISTING}" ]; then
+            gh issue create --title "${TITLE}" --body "${BODY}" --label "${LABEL}"
+            echo "Created new drift issue with summary block"
+            exit 0
+          fi
+
+          OLD_BODY="$(gh issue view "${EXISTING}" --json body --jq '.body')"
+          OLD_ADDRS="$(addresses "$OLD_BODY")"
+
+          # Body immer aktualisieren (frischer Timestamp + aktuelle Adressen).
+          gh issue edit "${EXISTING}" --body "${BODY}"
+
+          if [ "$NEW_ADDRS" = "$OLD_ADDRS" ]; then
+            echo "Drift issue #${EXISTING} refreshed, address set unchanged — no comment"
           else
-            gh issue create \
-              --title "${TITLE}" \
-              --body "${BODY}" \
-              --label "${LABEL}"
-            echo "Created new drift issue"
+            DELTA="$(diff <(printf '%s\n' "$OLD_ADDRS") <(printf '%s\n' "$NEW_ADDRS") || true)"
+            gh issue comment "${EXISTING}" --body "$(cat <<CMT_EOF
+          Drifting resource set changed as of ${TIMESTAMP}.
+
+          \`\`\`diff
+          ${DELTA}
+          \`\`\`
+
+          See the issue body for the current drifting resources and [the workflow run](${WORKFLOW_RUN_URL}).
+          CMT_EOF
+          )"
+            echo "Drift issue #${EXISTING} updated, address set changed — comment added"
           fi

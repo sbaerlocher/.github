@@ -100,7 +100,9 @@ All files live in [.github/workflows/](./.github/workflows/).
 - [`deploy-cloudflare-workers.yml`](./.github/workflows/deploy-cloudflare-workers.yml)
   — Cloudflare Workers via Wrangler
 - [`deploy-terraform.yml`](./.github/workflows/deploy-terraform.yml)
-  — Terraform plan & apply with Bitwarden secret injection
+  — Terraform plan & apply with Bitwarden secret injection. In drift mode also
+  emits a value-free `drift_summary` output (drifting resource addresses +
+  actions, never attribute values) for `ops-drift-issue.yml`.
 
 ### Release (4)
 
@@ -118,7 +120,10 @@ All files live in [.github/workflows/](./.github/workflows/).
 - [`ops-terraform-report.yml`](./.github/workflows/ops-terraform-report.yml)
   — Render Terraform pipeline report (Step Summary, metadata artifact, notification)
 - [`ops-drift-issue.yml`](./.github/workflows/ops-drift-issue.yml)
-  — Upsert a GitHub issue when Terraform drift is detected
+  — Upsert a GitHub issue when Terraform drift is detected. With the optional
+  `drift-summary` input it maintains a marker-delimited summary block of the
+  drifting resource addresses in the issue body and comments only when that set
+  changes (no summary → unchanged: comment on every run).
 
 ### AI — Private Repos Only (2)
 
