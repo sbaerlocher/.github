@@ -114,6 +114,12 @@ on:
       drift_detected:
         description: 'Whether drift was detected (drift mode only): true, false, or error'
         value: ${{ jobs.deploy.outputs.drift_detected }}
+      drift_summary:
+        description: |
+          Value-free drift summary (drift mode only): one "<action> <address>"
+          line per drifting resource, capped. Never contains attribute values.
+          Empty string if no drift, not drift mode, or extraction failed.
+        value: ${{ jobs.deploy.outputs.drift_summary }}
     secrets:
       BW_ACCESS_TOKEN:
         required: true
@@ -143,6 +149,7 @@ jobs:
       plan_outcome: ${{ steps.plan.outputs.outcome }}
       apply_outcome: ${{ steps.apply.outputs.outcome }}
       drift_detected: ${{ steps.plan.outputs.drift_detected }}
+      drift_summary: ${{ steps.drift_summary.outputs.summary }}
 
     steps:
       # Fork guard — fail fast BEFORE any checkout or Bitwarden retrieval.
@@ -297,6 +304,54 @@ jobs:
               *) echo "drift_detected=error" >> "$GITHUB_OUTPUT" ;;
             esac
           fi
+
+      # Drift-Summary aus dem frischen Plan ziehen — Position ZWINGEND hier:
+      # die .tfplan liegt noch (Security Cleanup löscht sie am Jobende) und
+      # Terraform ist gegen R2 initialisiert, kein zweites setup/Artefakt nötig.
+      #
+      # LEVEL-A GRENZE (Wert-Freiheit): die jq-Query liest ausschliesslich
+      # .address und .change.actions, fasst .change.before/.after NIE an. Sie
+      # ist ein exaktes Duplikat der Query in scripts/drift-summary.sh — der
+      # Workflow checkt das Consumer-Repo aus, das Skript liegt zur Laufzeit
+      # nicht vor, darum inline. Ändert sich die eine, muss die andere folgen
+      # (Gleichheit von Hand geprüft; scripts/tests/test-drift-summary.sh ist
+      # der Anker der Wert-Freiheit). Nur Drift-Modus (YAGNI). Ein kaputter
+      # Summary darf die Drift-Meldung nie unterdrücken -> Fehler = leerer
+      # String, Step nie fatal.
+      - name: 'Drift Summary Extraction'
+        id: drift_summary
+        if: ${{ inputs.mode == 'drift' && steps.plan.outputs.drift_detected == 'true' }}
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          set +e
+          PLAN_FILE="${{ inputs.environment }}.tfplan"
+          CAP=50
+
+          LINES="$(terraform show -json "$PLAN_FILE" 2>/dev/null | jq -r '
+            .resource_changes // []
+            | map(select((.change.actions // []) != ["no-op"]))
+            | .[]
+            | "\(.change.actions | join("+")) \(.address)"
+          ' 2>/dev/null)"
+
+          SUMMARY=""
+          if [ -n "$LINES" ]; then
+            TOTAL="$(printf '%s\n' "$LINES" | wc -l)"
+            if [ "$TOTAL" -gt "$CAP" ]; then
+              SUMMARY="$(printf '%s\n' "$LINES" | head -n "$CAP")"
+              SUMMARY="$SUMMARY"$'\n'"… $((TOTAL - CAP)) more (truncated)"
+            else
+              SUMMARY="$LINES"
+            fi
+          fi
+
+          DELIM="drift_$(openssl rand -hex 8 2>/dev/null || echo RANDOM$$)"
+          {
+            echo "summary<<${DELIM}"
+            printf '%s\n' "$SUMMARY"
+            echo "${DELIM}"
+          } >> "$GITHUB_OUTPUT"
+          exit 0
 
       - name: 'Plan Artifact Storage'
         if: steps.plan.outputs.outcome != 'error'

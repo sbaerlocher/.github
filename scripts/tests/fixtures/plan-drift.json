@@ -1,0 +1,67 @@
+{
+  "format_version": "1.2",
+  "resource_changes": [
+    {
+      "address": "authentik_group.admins",
+      "type": "authentik_group",
+      "name": "admins",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "name": "admins",
+          "attributes": "SUPERSECRET_TOKEN_abc123_LEAKME"
+        },
+        "after": {
+          "name": "admins",
+          "attributes": "SUPERSECRET_TOKEN_def456_LEAKME"
+        }
+      }
+    },
+    {
+      "address": "authentik_application.grafana",
+      "type": "authentik_application",
+      "name": "grafana",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "meta_launch_url": "https://grafana.example",
+          "client_secret": "sk_live_LEAKME_9f8e7d6c"
+        }
+      }
+    },
+    {
+      "address": "authentik_provider_oauth2.grafana",
+      "type": "authentik_provider_oauth2",
+      "name": "grafana",
+      "change": {
+        "actions": ["delete"],
+        "before": {
+          "client_id": "CLIENT_ID_LEAKME",
+          "client_secret": "OLD_SECRET_LEAKME_1a2b3c"
+        },
+        "after": null
+      }
+    },
+    {
+      "address": "authentik_flow.unchanged",
+      "type": "authentik_flow",
+      "name": "unchanged",
+      "change": {
+        "actions": ["no-op"],
+        "before": {"name": "unchanged", "token": "NOOP_SECRET_LEAKME"},
+        "after": {"name": "unchanged", "token": "NOOP_SECRET_LEAKME"}
+      }
+    },
+    {
+      "address": "authentik_group.replaced",
+      "type": "authentik_group",
+      "name": "replaced",
+      "change": {
+        "actions": ["delete", "create"],
+        "before": {"name": "replaced", "secret": "REPLACE_BEFORE_LEAKME"},
+        "after": {"name": "replaced", "secret": "REPLACE_AFTER_LEAKME"}
+      }
+    }
+  ]
+}

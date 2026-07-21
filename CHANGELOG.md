@@ -20,6 +20,28 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-07-21
+
+### Added
+
+- **`deploy-terraform.yml`, `ops-drift-issue.yml`**: drift issues now show
+  *what* is drifting, and stop growing a duplicate comment every week.
+  `deploy-terraform.yml` gains a `drift_summary` output — in drift mode it runs
+  `terraform show -json` on the fresh plan and extracts one
+  `<action> <address>` line per drifting resource. The extraction reads only
+  `.address` and `.change.actions`, never `.change.before`/`.after`, so no
+  attribute value (which can hold provider secrets) ever reaches the summary;
+  a failing extraction yields an empty string and never suppresses the drift
+  signal. `ops-drift-issue.yml` gains an optional `drift-summary` input: when
+  set, it upserts a marker-delimited summary block into the issue body and adds
+  a comment only when the set of drifting addresses changes. Non-breaking —
+  both additions default to empty and preserve today's behaviour for callers
+  that do not wire them (the drift issue still comments on every run without a
+  summary). Consumer wiring in `authentication` follows in a separate PR once a
+  date tag ships these changes.
+
+---
+
 ## 2026-07-19
 
 ### Fixed
