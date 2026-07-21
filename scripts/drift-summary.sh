@@ -20,11 +20,12 @@ CAP=50
 
 INPUT="$(cat)"
 
-# Alle Aktionen ausser reinem ["no-op"]. Replace ist ["delete","create"] und
-# bleibt drin. Nur .address + .change.actions werden gelesen.
+# Echte Änderungen: no-op (kein Drift) und read (aufgeschobene
+# Data-Source-Reads, keine Konfig-Drift, nur Rauschen) rausfiltern. Replace ist
+# ["delete","create"] und bleibt drin. Nur .address + .change.actions gelesen.
 LINES="$(printf '%s' "$INPUT" | jq -r '
   .resource_changes // []
-  | map(select((.change.actions // []) != ["no-op"]))
+  | map(select((.change.actions // []) != ["no-op"] and (.change.actions // []) != ["read"]))
   | .[]
   | "\(.change.actions | join("+")) \(.address)"
 ' 2>/dev/null)" || LINES=""

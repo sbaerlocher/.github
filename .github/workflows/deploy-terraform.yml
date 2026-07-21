@@ -329,7 +329,7 @@ jobs:
 
           LINES="$(terraform show -json "$PLAN_FILE" 2>/dev/null | jq -r '
             .resource_changes // []
-            | map(select((.change.actions // []) != ["no-op"]))
+            | map(select((.change.actions // []) != ["no-op"] and (.change.actions // []) != ["read"]))
             | .[]
             | "\(.change.actions | join("+")) \(.address)"
           ' 2>/dev/null)"

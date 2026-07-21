@@ -62,6 +62,27 @@
         "before": {"name": "replaced", "secret": "REPLACE_BEFORE_LEAKME"},
         "after": {"name": "replaced", "secret": "REPLACE_AFTER_LEAKME"}
       }
+    },
+    {
+      "address": "data.authentik_user.lookup",
+      "type": "authentik_user",
+      "name": "lookup",
+      "mode": "data",
+      "change": {
+        "actions": ["read"],
+        "before": null,
+        "after": {"username": "svc", "token": "READ_SECRET_LEAKME"}
+      }
+    },
+    {
+      "address": "authentik_group.spaced[\"my key\"]",
+      "type": "authentik_group",
+      "name": "spaced",
+      "change": {
+        "actions": ["update"],
+        "before": {"name": "spaced", "secret": "SPACE_BEFORE_LEAKME"},
+        "after": {"name": "spaced", "secret": "SPACE_AFTER_LEAKME"}
+      }
     }
   ]
 }

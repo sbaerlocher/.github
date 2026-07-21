@@ -52,13 +52,15 @@ addresses)
   # update->replace derselben Resource nicht als Delta zählt, wenn die
   # Adressmenge gleich bleibt. (Delta = Adressmenge, siehe Konzept.)
   # Nur Zeilen im Code-Fence innerhalb des Blocks zählen — Heading und
-  # Leerzeilen bleiben draussen. Adresse = zweites Feld.
+  # Leerzeilen bleiben draussen. Adresse = alles nach dem ersten Space (die
+  # Aktions-Spalte ist per join("+") space-frei, die Adresse kann Spaces in
+  # for_each-Keys enthalten, z. B. authentik_group.admins["my key"]).
   printf '%s' "$body" |
     awk -v s="$START" -v e="$END" '
         $0 == s { inb = 1; next }
         $0 == e { inb = 0; fence = 0; next }
         inb && $0 == "```" { fence = !fence; next }
-        inb && fence && $2 != "" { print $2 }
+        inb && fence && $0 ~ / / { sub(/^[^ ]+ /, ""); print }
       ' |
     sort -u
   ;;

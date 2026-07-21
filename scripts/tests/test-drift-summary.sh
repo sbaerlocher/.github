@@ -24,6 +24,14 @@ if echo "$OUT" | grep -q 'authentik_flow.unchanged'; then
   fail "no-op resource must be filtered out"
 fi
 
+# 2b — data-source read (aufgeschoben) ist kein Drift, muss gefiltert sein.
+if echo "$OUT" | grep -q 'data.authentik_user.lookup'; then
+  fail "read data source must be filtered out"
+fi
+
+# 2c — Adresse mit Space (for_each-String-Key) bleibt vollständig erhalten.
+echo "$OUT" | grep -qF 'authentik_group.spaced["my key"]' || fail "spaced address truncated/missing"
+
 # 3 — WERT-FREIHEIT (Anker der Level-A-Grenze): kein Attributwert aus
 # before/after darf im Output landen. Failt zuerst, wenn die Query je
 # .change.before/.after anfasst.

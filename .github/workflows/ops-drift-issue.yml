@@ -83,21 +83,16 @@ jobs:
       issues: write
 
     steps:
-      # Body-Skript nur holen, wenn ein Summary geliefert wird — der leere Pfad
-      # (bestehende Caller ohne drift-summary) braucht keinen Checkout und
-      # verhält sich exakt wie zuvor. `github.action_ref` = Datums-Tag, unter dem
-      # dieser reusable aufgerufen wird; Fallback `main`, falls leer (erster
-      # Live-Lauf verifizieren). Der reusable checkt sonst das Consumer-Repo aus,
-      # nicht diesen Repo — darum expliziter Checkout von sbaerlocher/.github.
-      - name: Checkout body script
-        if: ${{ inputs.drift-summary != '' }}
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          repository: sbaerlocher/.github
-          ref: ${{ github.action_ref || 'main' }}
-          path: .drift-issue-tooling
-          persist-credentials: false
-
+      # Body-Logik ist inline, nicht via Checkout des Skripts. Grund: ein
+      # reusable Workflow hat keinen Kontext, der seinen EIGENEN Aufruf-Ref
+      # exponiert (`github.action_ref` ist in `workflow_call`-Steps leer,
+      # `github.workflow_ref` ist der Caller). Ein Checkout müsste auf `@main`
+      # zurückfallen — mutable Ref für ausführbaren Code, genau was das
+      # Datums-Tag-Pinning verhindern soll. Darum dieselbe Linie wie die
+      # Inline-jq in `deploy-terraform.yml`: die render/addresses-Logik ist ein
+      # Duplikat von scripts/drift-issue-body.sh, das per
+      # scripts/tests/test-drift-issue-body.sh getestete Referenz bleibt.
+      # Ändert sich die eine, muss die andere folgen (Gleichheit von Hand).
       - name: Upsert drift issue
         env:
           GH_TOKEN: ${{ github.token }}
@@ -110,6 +105,39 @@ jobs:
           DRIFT_SUMMARY: ${{ inputs.drift-summary }}
         run: |
           set -euo pipefail
+
+          START='<!-- drift-summary:start -->'
+          END='<!-- drift-summary:end -->'
+
+          # strip_block/render/addresses spiegeln scripts/drift-issue-body.sh.
+          strip_block() {
+            awk -v s="$START" -v e="$END" '
+              $0 == s { skip = 1; next }
+              $0 == e { skip = 0; next }
+              !skip   { print }
+            '
+          }
+          render() { # render <base> <summary>
+            local clean
+            clean="$(printf '%s' "$1" | strip_block)"
+            clean="$(printf '%s\n' "$clean" | sed -e :a -e '/^\n*$/{$d;N;ba}')"
+            if [ -z "$2" ]; then
+              printf '%s\n' "$clean"
+              return
+            fi
+            printf '%s\n\n%s\n\n### Drifting resources\n\n```\n%s\n```\n\n%s\n' \
+              "$clean" "$START" "$2" "$END"
+          }
+          addresses() { # addresses <body>
+            printf '%s' "$1" |
+              awk -v s="$START" -v e="$END" '
+                $0 == s { inb = 1; next }
+                $0 == e { inb = 0; fence = 0; next }
+                inb && $0 == "```" { fence = !fence; next }
+                inb && fence && $0 ~ / / { sub(/^[^ ]+ /, ""); print }
+              ' |
+              sort -u
+          }
 
           TITLE="${TITLE_TEMPLATE//\{project\}/${PROJECT_NAME}}"
           TITLE="${TITLE//\{environment\}/${ENVIRONMENT}}"
@@ -150,9 +178,8 @@ jobs:
           fi
 
           # --- Summary-Pfad: Marker-Block upserten, Kommentar nur bei Delta. ---
-          BODY_TOOL=".drift-issue-tooling/scripts/drift-issue-body.sh"
-          BODY="$("$BODY_TOOL" render "$BASE" "$DRIFT_SUMMARY")"
-          NEW_ADDRS="$("$BODY_TOOL" addresses "$BODY")"
+          BODY="$(render "$BASE" "$DRIFT_SUMMARY")"
+          NEW_ADDRS="$(addresses "$BODY")"
 
           if [ -z "${EXISTING}" ]; then
             gh issue create --title "${TITLE}" --body "${BODY}" --label "${LABEL}"
@@ -161,7 +188,7 @@ jobs:
           fi
 
           OLD_BODY="$(gh issue view "${EXISTING}" --json body --jq '.body')"
-          OLD_ADDRS="$("$BODY_TOOL" addresses "$OLD_BODY")"
+          OLD_ADDRS="$(addresses "$OLD_BODY")"
 
           # Body immer aktualisieren (frischer Timestamp + aktuelle Adressen).
           gh issue edit "${EXISTING}" --body "${BODY}"

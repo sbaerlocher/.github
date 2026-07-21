@@ -54,4 +54,19 @@ ADDRS_R="$("$SCRIPT" addresses "$BODY_R")"
 EMPTY_ADDRS="$("$SCRIPT" addresses "$BASE")"
 [ -z "$EMPTY_ADDRS" ] || fail "addresses on body without block must be empty"
 
+# 5 — Adresse mit Space (for_each-String-Key) wird vollständig extrahiert, nicht
+# am ersten Space abgeschnitten (sonst kollabieren zwei Adressen unter sort -u
+# und ein Delta wird verschluckt).
+SPACED='update authentik_group.admins["my key"]
+update authentik_group.admins["other key"]'
+BODY_S="$("$SCRIPT" render "$BASE" "$SPACED")"
+ADDRS_S="$("$SCRIPT" addresses "$BODY_S")"
+EXP_S='authentik_group.admins["my key"]
+authentik_group.admins["other key"]'
+[ "$ADDRS_S" = "$EXP_S" ] || fail "spaced addresses truncated:
+got:
+$ADDRS_S
+want:
+$EXP_S"
+
 echo "PASS: drift-issue-body.sh"
