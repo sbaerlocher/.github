@@ -1,8 +1,6 @@
 name: AI - Code Review
 
 on:
-  pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
   workflow_call:
     inputs:
       model:
@@ -43,9 +41,9 @@ permissions:
   contents: read
 
 concurrency:
-  # Dual-trigger workflow: `inputs.*` is undefined on `pull_request:` and
-  # only populated under `workflow_call:`. Expressions below fall back to
-  # the original hardcoded behaviour when inputs are missing.
+  # Reusable library: reached only via `workflow_call:`, so `inputs.*` is
+  # always defined. The `github.event.pull_request.number` fallback still
+  # covers callers triggered outside a PR context (e.g. workflow_dispatch).
   group: >-
     claude-review-${{ github.event.pull_request.number || github.run_id }}${{
       inputs.concurrency-suffix && format('-{0}', inputs.concurrency-suffix) || ''

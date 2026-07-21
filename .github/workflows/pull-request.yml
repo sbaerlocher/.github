@@ -1,0 +1,27 @@
+name: Pull Request
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+  id-token: write
+  security-events: write
+  actions: read
+
+jobs:
+  claude-review:
+    name: Claude Code Review
+    uses: ./.github/workflows/ai-claude-review.yml
+    secrets: inherit
+
+  code-scan:
+    name: Code Scanning
+    uses: ./.github/workflows/security-code.yml
+    with:
+      languages: '["actions"]'
+    secrets: inherit
