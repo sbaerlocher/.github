@@ -1,0 +1,22 @@
+name: Weekly Security
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  config:
+    name: Config Security
+    uses: ./.github/workflows/security-config.yml
+    secrets: inherit
+
+  secrets:
+    name: Secret Scanning
+    uses: ./.github/workflows/security-secrets.yml
+    secrets: inherit

@@ -1,0 +1,32 @@
+name: Merge to Main
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write # Tag-Push
+
+jobs:
+  date-tag:
+    name: Cut Date Tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Create date tag if absent
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG=$(date -u +%Y-%m-%d)
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "Tag $TAG exists, nothing to do."
+            exit 0
+          fi
+          git tag "$TAG"
+          git push origin "$TAG"
