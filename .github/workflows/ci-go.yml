@@ -405,6 +405,12 @@ jobs:
   security-scan:
     name: Scan Security (${{ matrix.scanner }})
     runs-on: ubuntu-latest
+    # Job-level grant: SARIF upload (enable-sarif-upload) needs
+    # security-events: write on push events.
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     needs: [setup, test-and-lint, test-and-lint-postgres]
     if: >-
       always() &&
@@ -498,6 +504,13 @@ jobs:
   codeql-analysis:
     name: Analyze Code
     runs-on: ubuntu-latest
+    # Job-level grant: the workflow-level default is contents: read, but
+    # uploading CodeQL results needs security-events: write on push events
+    # (public-repo pull_request uploads succeed with a read token).
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     needs: [setup, test-and-lint, test-and-lint-postgres]
     if: >-
       always() &&

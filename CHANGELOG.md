@@ -20,12 +20,37 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-07-22
+
+### Fixed
+
+- **`ci-go.yml`, `ci-js.yml`**: CodeQL and scanner SARIF uploads no longer fail
+  with `Resource not accessible by integration` on `push` events. The
+  workflow-level `permissions: contents: read` downgraded the caller's token
+  for every job — public-repo `pull_request` uploads succeed with a read
+  token, which masked the gap until a consumer ran the pipeline on push
+  (post-merge revalidation). The `codeql-analysis` (ci-go) and `security-scan`
+  (ci-go, ci-js) jobs now carry job-level `actions: read` +
+  `security-events: write`. No input or output changes; callers already
+  granting `security-events: write` need no change.
+
+### Dependencies
+
+- **`actions/setup-node`**: v6.5.0 → v7.0.0 (`sbom-npm/action.yml`,
+  `ci-js.yml`, `deploy-cloudflare-workers.yml`, `e2e-dde.yml`,
+  `e2e-docker.yml`, `release-npm.yml`, `security-code.yml`,
+  `security-deps.yml`).
+- **`anthropics/claude-code-action`**: v1.0.176 → v1.0.177 (`ai-claude.yml`),
+  plus a digest bump on the `v1` ref (`ai-claude-review.yml`).
+
+---
+
 ## 2026-07-21
 
 ### Added
 
 - **`deploy-terraform.yml`, `ops-drift-issue.yml`**: drift issues now show
-  *what* is drifting, and stop growing a duplicate comment every week.
+  _what_ is drifting, and stop growing a duplicate comment every week.
   `deploy-terraform.yml` gains a `drift_summary` output — in drift mode it runs
   `terraform show -json` on the fresh plan and extracts one
   `<action> <address>` line per drifting resource. The extraction reads only
@@ -110,9 +135,9 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   - `security-secrets.yml`: `Scan with Gitleaks` (unchanged) + `Scan Secrets`
     (replaces `Scan with TruffleHog`, `Detect Patterns`, `Create Report`)
   - `security-deps.yml`: `Scan Dependencies` (replaces `Dependency Review
-    (GitHub)`, `Audit Go`, `Audit JavaScript`, `Audit Python`, `Create Report`)
+(GitHub)`, `Audit Go`, `Audit JavaScript`, `Audit Python`, `Create Report`)
   - `security-containers.yml`: `Scan Container Image` (replaces `Scan with
-    Trivy`, `Scan with Grype`, `Analyze Images`, `Create Report`)
+Trivy`, `Scan with Grype`, `Analyze Images`, `Create Report`)
   - `security-config.yml`: `Scan Configuration` (replaces `Trivy Config Scan`,
     `Terraform Security`, `Scan Kubernetes`, `Scan Ansible`, `Create Report`)
 
