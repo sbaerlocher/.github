@@ -403,6 +403,11 @@ jobs:
   security-scan:
     name: Security (${{ matrix.scanner }})
     runs-on: ubuntu-latest
+    # Job-level grant: SARIF upload (enable-sarif-upload) needs
+    # security-events: write on push events.
+    permissions:
+      contents: read
+      security-events: write
     needs: [setup, quality-and-test]
     if: inputs.primary && inputs.enable-security-scans && needs.setup.outputs.should-run-security == 'true' && (needs.quality-and-test.result == 'success' || needs.quality-and-test.result == 'skipped')
     timeout-minutes: 15
