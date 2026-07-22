@@ -408,6 +408,7 @@ jobs:
     # Job-level grant: SARIF upload (enable-sarif-upload) needs
     # security-events: write on push events.
     permissions:
+      actions: read
       contents: read
       security-events: write
     needs: [setup, test-and-lint, test-and-lint-postgres]
@@ -507,6 +508,7 @@ jobs:
     # uploading CodeQL results needs security-events: write on push events
     # (public-repo pull_request uploads succeed with a read token).
     permissions:
+      actions: read
       contents: read
       security-events: write
     needs: [setup, test-and-lint, test-and-lint-postgres]
