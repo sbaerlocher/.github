@@ -11,9 +11,10 @@
 #                      test:coverage, ...) stay in pnpm/go and are not mirrored
 #                      as just recipes.
 #
-# The five standard verbs below are the guaranteed common denominator across
-# every repo: default, dev, build, test, lint, fmt. Repos add their own recipes
-# on top; these five keep their names and meaning everywhere.
+# The five standard task verbs below — dev, build, test, lint, fmt — are the
+# guaranteed common denominator across every repo, plus default to list them.
+# Repos add their own recipes on top; these keep their names and meaning
+# everywhere.
 #
 # Delegation pattern: each recipe shows both the dde-backed and the native form.
 # Keep the line that fits the repo, delete the other.
@@ -24,7 +25,7 @@ default:
 
 # dev → start the local dev loop
 dev:
-    # dde project:start        # dde-backed runtime (containers up, watchers)
+    # dde project:up           # dde-backed runtime (containers up, watchers)
     pnpm dev                   # native toolchain fallback
 
 # build → produce the deployable/build artifact
