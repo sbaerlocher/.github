@@ -1,0 +1,49 @@
+# Reference justfile — org-wide task-runner standard for sbaerlocher repos.
+#
+# Runner layering (do not collapse these into one another):
+#   1. dde project:*   Runtime layer, priority 1, untouched (containers, db,
+#                      migrations, observability, mailpit, shell). just delegates
+#                      to dde where a project uses it, never replaces it.
+#   2. just <verb>     Task entrypoint. The same verbs mean the same thing in
+#                      every repo. This file is that contract.
+#   3. pnpm / go /     Toolchain underneath, called *by* just, never a peer
+#      wrangler         runner. Toolchain-specific scripts (check:watch,
+#                      test:coverage, ...) stay in pnpm/go and are not mirrored
+#                      as just recipes.
+#
+# The five standard task verbs below — dev, build, test, lint, fmt — are the
+# guaranteed common denominator across every repo, plus default to list them.
+# Repos add their own recipes on top; these keep their names and meaning
+# everywhere.
+#
+# Delegation pattern: each recipe shows both the dde-backed and the native form.
+# Keep the line that fits the repo, delete the other.
+
+# default → list available recipes
+default:
+    @just --list
+
+# dev → start the local dev loop
+dev:
+    # dde project:up           # dde-backed runtime (containers up, watchers)
+    pnpm dev                   # native toolchain fallback
+
+# build → produce the deployable/build artifact
+build:
+    # dde project:exec pnpm build
+    pnpm build
+
+# test → run the test suite
+test:
+    # dde project:exec pnpm test
+    pnpm test
+
+# lint → static checks
+lint:
+    # dde project:exec pnpm lint
+    pnpm lint
+
+# fmt → format sources in place
+fmt:
+    # dde project:exec pnpm fmt
+    pnpm fmt
