@@ -32,6 +32,14 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### Changed
 
+- **`renovate-js.json`**: TypeScript **major** updates now require manual
+  approval (`dependencyDashboardApproval: true` on `major`). Type-checker
+  wrappers (`svelte-check`, `vue-tsc`, `@astrojs/check`) call internal
+  TypeScript APIs (`typescript.sys`) that break across TS majors, so an
+  auto-opened TS major fails typecheck until the wrappers ship a compatible
+  release. The bump is listed under **Pending Approval** on each repo's
+  dependency dashboard; tick the checkbox once that repo's wrappers support the
+  new major. Approval is per-repo. Minor/patch TS updates keep flowing.
 - **`renovate-base.json`**: `lockFileMaintenance` is now enabled (weekly,
   Monday before 6am) and automerges on green, matching the non-major automerge
   policy. Inherited by all stack presets, so lockfile refreshes land without
