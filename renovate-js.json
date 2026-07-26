@@ -215,6 +215,12 @@
       ]
     },
     {
+      "description": "TypeScript major updates require manual approval before a PR is opened. The type-checker wrappers (svelte-check, vue-tsc, @astrojs/check) call internal TypeScript APIs (e.g. typescript.sys) that break across TS majors, so a TS major auto-opened before those wrappers ship a compatible release fails typecheck in CI (observed TS 6->7 crashing svelte-check on useCaseSensitiveFileNames). Renovate cannot defer a group until peers catch up - groupName only merges what is already pending in the same run - so grouping does not solve this. dependencyDashboardApproval lists the bump under 'Pending Approval' on each repo's dependency dashboard without opening a broken PR; tick the checkbox once that repo's wrappers support the new major. Approval is per-repo, so a repo that is ready is not blocked by one that is not. Minor/patch TS updates keep flowing via the TypeScript group above. tsc itself is TypeScript, so it needs no separate wrapper handling.",
+      "matchPackageNames": ["typescript"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    },
+    {
       "description": "Production dependencies - extra stability",
       "matchDepTypes": ["dependencies"],
       "minimumReleaseAge": "5 days",
