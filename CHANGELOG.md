@@ -22,11 +22,16 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ## 2026-07-26
 
-### Changed
+### ⚠ BREAKING
 
 - **`ai-claude-review.yml`**: default `model` bumped `claude-opus-4-8` →
-  `claude-opus-5` for both review passes. Non-breaking — the `model` input
-  still overrides, and consumers on a cheaper tier are unaffected.
+  `claude-opus-5` for both review passes. Callers that do not set `model`
+  pick this up automatically on the next tag bump — review behaviour and
+  per-PR token cost change accordingly. Migration: pin the previous
+  behaviour with `with: { model: claude-opus-4-8 }`, or set a cheaper tier.
+
+### Changed
+
 - **`renovate-base.json`**: `lockFileMaintenance` is now enabled (weekly,
   Monday before 6am) and automerges on green, matching the non-major automerge
   policy. Inherited by all stack presets, so lockfile refreshes land without
