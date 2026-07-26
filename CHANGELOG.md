@@ -20,6 +20,26 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-07-26
+
+### Changed
+
+- **`renovate-base.json`**: `lockFileMaintenance` is now enabled (weekly,
+  Monday before 6am) and automerges on green, matching the non-major automerge
+  policy. Inherited by all stack presets, so lockfile refreshes land without
+  manual review in consumer repos. No workflow input/output changes.
+
+### Added
+
+- **`just` runner reference template**: new template for consumers adopting
+  `just` as a task runner.
+
+### Dependencies
+
+- **GitHub Actions**: batched updates across reusables (`#245`, `#246`, `#247`).
+- **`actions/setup-go`**: → v7.
+- **`anthropics/claude-code-action`**: → v1.0.181.
+
 ## 2026-07-22
 
 ### Fixed
