@@ -40,6 +40,8 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 - **`actions/setup-go`**: → v7.
 - **`anthropics/claude-code-action`**: → v1.0.181.
 
+---
+
 ## 2026-07-22
 
 ### Fixed
