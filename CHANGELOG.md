@@ -20,6 +20,34 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-07-27
+
+### Changed
+
+- **Renovate presets — automerge scope widened.** The stability rules for
+  `node`, `typescript`, `pnpm` (`renovate-js.json`), Terraform Core and the
+  critical providers (`renovate-terraform.json`), the critical platform Helm
+  charts (`renovate-kubernetes.json`) and the Go runtime (`renovate-go.json`)
+  set `automerge: false` **without** `matchUpdateTypes`, so they gated every
+  update type instead of only the breaking ones their descriptions describe.
+  Renovate therefore never enabled auto-merge on those PRs, the ruleset's
+  Renovate bypass never applied, and each one needed a manual approval.
+  Each rule is now split: grouping, release age, priority and labels keep
+  matching every update type, and a second rule carries `automerge: false`
+  scoped to the breaking types only.
+
+  **Consumers scanning before a bump:** critical Terraform providers and
+  critical platform Helm charts now automerge **patch** bumps unattended
+  where they previously waited for a manual merge. `minimumReleaseAge`
+  (7 days) still applies. Terraform Core and the Go runtime gate
+  `major` + `minor`, because neither has left major `1` — gating on `major`
+  alone would never match and would have let a state-format or
+  language-version bump through. To keep a package fully manual in one repo,
+  re-add a rule with `automerge: false` and no `matchUpdateTypes` in that
+  repo's own `renovate.json`.
+
+---
+
 ## 2026-07-26
 
 ### ⚠ BREAKING
