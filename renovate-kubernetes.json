@@ -46,7 +46,7 @@
       "semanticCommitScope": "kustomize"
     },
     {
-      "description": "Critical platform charts - extra stability",
+      "description": "Critical platform charts - extra stability. Release age, priority and labels apply to every update type; the automerge decision is split out below.",
       "matchManagers": ["helm-values", "helmfile"],
       "matchPackageNames": [
         "cert-manager",
@@ -60,9 +60,25 @@
         "vault"
       ],
       "minimumReleaseAge": "7 days",
-      "automerge": false,
       "prPriority": 5,
       "labels": ["platform", "critical"]
+    },
+    {
+      "description": "Critical platform charts major/minor - manual merge. These charts carry CRDs and cluster-wide controllers where a minor can already ship a CRD schema change, so minor stays manual too. Patch falls through to the base non-major automerge rule and never needs an approval.",
+      "matchManagers": ["helm-values", "helmfile"],
+      "matchPackageNames": [
+        "cert-manager",
+        "external-secrets",
+        "ingress-nginx",
+        "metallb",
+        "longhorn",
+        "prometheus-stack",
+        "loki",
+        "grafana",
+        "vault"
+      ],
+      "matchUpdateTypes": ["major", "minor"],
+      "automerge": false
     }
   ],
   "customManagers": [

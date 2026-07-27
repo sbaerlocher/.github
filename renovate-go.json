@@ -5,15 +5,21 @@
   "postUpdateOptions": ["gomodTidy", "gomodUpdateImportPaths"],
   "packageRules": [
     {
-      "description": "Go version updates - higher stability",
+      "description": "Go version updates - higher stability. Grouping, release age and priority apply to every update type; the automerge decision is split out below.",
       "matchManagers": ["gomod"],
       "matchDepTypes": ["golang"],
       "groupName": "Go version",
       "semanticCommitScope": "go",
       "minimumReleaseAge": "14 days",
-      "automerge": false,
       "labels": ["go", "golang-version"],
       "prPriority": 20
+    },
+    {
+      "description": "Go runtime major/minor - manual merge. Go has no v2, so every toolchain release is a 1.x minor and gating on major alone would never match. A minor (1.25 -> 1.26) changes the language version selected by the go directive (e.g. loop variable scoping in 1.22) and re-runs gomodTidy and gomodUpdateImportPaths against the new toolchain. Patch (1.25.11 -> 1.25.12) falls through to the base non-major automerge rule and never needs an approval.",
+      "matchManagers": ["gomod"],
+      "matchDepTypes": ["golang"],
+      "matchUpdateTypes": ["major", "minor"],
+      "automerge": false
     },
     {
       "description": "Go ecosystem packages - golang.org/x, go.uber.org",

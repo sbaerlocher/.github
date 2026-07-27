@@ -4,25 +4,36 @@
   "extends": ["github>sbaerlocher/.github:renovate-base#main"],
   "packageRules": [
     {
-      "description": "Node.js version updates - higher stability",
+      "description": "Node.js version updates - higher stability. Grouping, release age and priority apply to every update type; only the automerge decision is split out below.",
       "matchManagers": ["nvm"],
       "matchPackageNames": ["node"],
       "groupName": "Node.js",
       "semanticCommitScope": "node",
       "minimumReleaseAge": "14 days",
-      "automerge": false,
       "prPriority": 20,
       "labels": ["nodejs"]
     },
     {
-      "description": "TypeScript - manual review for breaking changes",
+      "description": "Node.js major - manual merge. Restates the inherited base major gate rather than adding a new one; kept explicit because the reason is Node-specific: a runtime major (22 -> 24) can break the CI runners and the Wrangler runtime. Patch/minor (22.0.1 -> 22.0.2) fall through to the base non-major automerge rule, so Renovate self-merges them via the ruleset bypass and they never need an approval.",
+      "matchManagers": ["nvm"],
+      "matchPackageNames": ["node"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    },
+    {
+      "description": "TypeScript - grouping, release age and priority for every update type; the automerge decision is split out below.",
       "matchPackageNames": ["typescript"],
       "groupName": "TypeScript",
       "semanticCommitScope": "typescript",
-      "automerge": false,
       "prPriority": 5,
       "minimumReleaseAge": "7 days",
       "labels": ["typescript"]
+    },
+    {
+      "description": "TypeScript major - manual merge. Restates the inherited base major gate; kept explicit because a TS major additionally breaks the type-checker wrappers, which is why the dependencyDashboardApproval rule below holds the PR back entirely. Patch/minor automerge on green.",
+      "matchPackageNames": ["typescript"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false
     },
     {
       "description": "Code quality tools - ESLint, typescript-eslint and Prettier (must bump together due to peer deps). separateMultipleMajor: false collapses groupSlug from major-N-code-quality-tools to major-code-quality-tools so co-dependent majors share one branch/PR.",
@@ -146,14 +157,20 @@
       "separateMultipleMajor": false
     },
     {
-      "description": "Group pnpm package manager",
+      "description": "Group pnpm package manager - grouping, release age and priority for every update type; the automerge decision is split out below.",
       "matchManagers": ["npm"],
       "matchPackageNames": ["pnpm"],
       "groupName": "pnpm",
       "semanticCommitScope": "pnpm",
-      "automerge": false,
       "prPriority": 5,
       "minimumReleaseAge": "7 days"
+    },
+    {
+      "description": "pnpm major - manual merge. Restates the inherited base major gate; kept explicit because a package-manager major breaks `install` itself, which runs before every CI check, and the preset lands in all consumer repos at once. Patch/minor (11.15.0 -> 11.15.1) fall through to the base non-major automerge rule and never need an approval.",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["pnpm"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false
     },
     {
       "description": "Group @types packages",

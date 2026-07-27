@@ -25,15 +25,21 @@
       "enabled": false
     },
     {
-      "description": "Terraform Core version updates - higher stability",
+      "description": "Terraform Core version updates - higher stability. Grouping, release age and priority apply to every update type; the automerge decision is split out below.",
       "matchManagers": ["terraform-version"],
       "matchPackageNames": ["hashicorp/terraform"],
       "groupName": "Terraform Core",
       "semanticCommitScope": "terraform",
       "minimumReleaseAge": "14 days",
-      "automerge": false,
       "labels": ["terraform-core"],
       "prPriority": 20
+    },
+    {
+      "description": "Terraform Core major/minor - manual merge. Terraform has been on major 1 since 2021, so every feature release is a 1.x minor and gating on major alone would never match. A minor (1.15 -> 1.16) can bump the state format version, which is a one-way change that reverting the PR does not undo once apply has run. Patch (1.15.7 -> 1.15.8) falls through to the base non-major automerge rule and never needs an approval.",
+      "matchManagers": ["terraform-version"],
+      "matchPackageNames": ["hashicorp/terraform"],
+      "matchUpdateTypes": ["major", "minor"],
+      "automerge": false
     },
     {
       "description": "Group Terraform Providers by patch/minor",
@@ -57,7 +63,7 @@
       "semanticCommitScope": "providers"
     },
     {
-      "description": "Critical providers - extra stability",
+      "description": "Critical providers - extra stability. Release age, priority and labels apply to every update type; the automerge decision is split out below.",
       "matchManagers": ["terraform"],
       "matchDatasources": ["terraform-provider"],
       "matchPackageNames": [
@@ -69,9 +75,23 @@
         "integrations/github"
       ],
       "minimumReleaseAge": "7 days",
-      "automerge": false,
       "prPriority": 5,
       "labels": ["terraform", "critical-provider"]
+    },
+    {
+      "description": "Critical providers major/minor - manual merge. These providers touch live infrastructure and a minor can already change resource semantics or add a forced replacement, so minor stays manual too. Patch falls through to the base non-major automerge rule and never needs an approval.",
+      "matchManagers": ["terraform"],
+      "matchDatasources": ["terraform-provider"],
+      "matchPackageNames": [
+        "hashicorp/aws",
+        "hashicorp/azurerm",
+        "hashicorp/google",
+        "hetznercloud/hcloud",
+        "cloudflare/cloudflare",
+        "integrations/github"
+      ],
+      "matchUpdateTypes": ["major", "minor"],
+      "automerge": false
     },
     {
       "description": "Terraform Modules updates",
