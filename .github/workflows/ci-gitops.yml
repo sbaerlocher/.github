@@ -327,7 +327,7 @@ jobs:
           version: v${{ inputs.helm-version }}
 
       - name: Install kubeconform
-        uses: sbaerlocher/.github/.github/actions/install-kubeconform@2026-07-23
+        uses: sbaerlocher/.github/.github/actions/install-kubeconform@2026-07-27
         with:
           version: ${{ inputs.kubeconform-version }}
 
@@ -405,7 +405,7 @@ jobs:
           persist-credentials: false
 
       - name: Install kubeconform
-        uses: sbaerlocher/.github/.github/actions/install-kubeconform@2026-07-23
+        uses: sbaerlocher/.github/.github/actions/install-kubeconform@2026-07-27
         with:
           version: ${{ inputs.kubeconform-version }}
 
