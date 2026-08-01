@@ -63,6 +63,22 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   independently and produce the same visible failure, so lifting only the
   turn budget just trades the turn wall for the clock wall.
 
+### Changed
+
+- **`security-secrets.yml` — dropped the report-only generic pattern greps.**
+  The `password:`/`apiKey:`/`token:` greps over YAML warned but could never
+  fail the job by design, and in Ansible and GitOps repos they mostly matched
+  variable names next to `secretKeyRef`. No gate is lost — the step could not
+  fail by design, so only warning-level log output disappears. Gitleaks and
+  TruffleHog remain the secret scanners, within their own limits: TruffleHog
+  runs `--only-verified` over the pushed diff, and gitleaks' generic rules are
+  entropy-gated, so a low-entropy hardcoded value is caught by neither. The
+  input name
+  `enable-pattern-detection` and the fail behaviour of the AWS-key and
+  private-key checks are unchanged; its description and the report row now
+  name the two checks that actually run. Consumers scanning before a bump:
+  no action needed.
+
 ---
 
 ## 2026-07-27

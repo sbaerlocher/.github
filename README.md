@@ -86,14 +86,14 @@ All files live in [.github/workflows/](./.github/workflows/).
 
 ### Security — Scanning & Analysis (6)
 
-| File                                                                     | Tools                          |
-| ------------------------------------------------------------------------ | ------------------------------ |
-| [`security-code.yml`](./.github/workflows/security-code.yml)             | CodeQL (multi-language SAST)   |
-| [`security-config.yml`](./.github/workflows/security-config.yml)         | Checkov, kubeconform, kubesec  |
-| [`security-containers.yml`](./.github/workflows/security-containers.yml) | Trivy + Grype                  |
-| [`security-deps.yml`](./.github/workflows/security-deps.yml)             | govulncheck, npm audit, safety |
-| [`security-sbom.yml`](./.github/workflows/security-sbom.yml)             | CycloneDX SBOM generation      |
-| [`security-secrets.yml`](./.github/workflows/security-secrets.yml)       | Gitleaks + TruffleHog          |
+| File                                                                     | Tools                              |
+| ------------------------------------------------------------------------ | ---------------------------------- |
+| [`security-code.yml`](./.github/workflows/security-code.yml)             | CodeQL (multi-language SAST)       |
+| [`security-config.yml`](./.github/workflows/security-config.yml)         | Checkov, kubeconform, kubesec      |
+| [`security-containers.yml`](./.github/workflows/security-containers.yml) | Trivy + Grype                      |
+| [`security-deps.yml`](./.github/workflows/security-deps.yml)             | govulncheck, npm audit, safety     |
+| [`security-sbom.yml`](./.github/workflows/security-sbom.yml)             | CycloneDX SBOM generation          |
+| [`security-secrets.yml`](./.github/workflows/security-secrets.yml)       | Gitleaks, TruffleHog, key patterns |
 
 ### Deploy (2)
 
