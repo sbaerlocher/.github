@@ -1,0 +1,6 @@
+# Test fixtures are byte-compared by scripts/tests/*.sh — reformatting them
+# would break the self-checks.
+scripts/tests/fixtures/
+
+.venv/
+node_modules/

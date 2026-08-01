@@ -69,4 +69,17 @@ $ADDRS_S
 want:
 $EXP_S"
 
+# 6 — Trailing Whitespace-Zeilen im Basis-Body werden gekappt, damit der
+# Abstand vor dem Marker-Block stabil bleibt. Command-Substitution allein
+# strippt nur echte Leerzeilen am Ende, nicht eine Zeile aus Spaces.
+BASE_TRAILING="$BASE
+
+   "
+BODY_T="$("$SCRIPT" render "$BASE_TRAILING" "$SUMMARY")"
+[ "$BODY_T" = "$BODY1" ] || fail "trailing whitespace-only lines not trimmed:
+got:
+$(printf '%s' "$BODY_T" | od -c | tail -5)
+want:
+$(printf '%s' "$BODY1" | od -c | tail -5)"
+
 echo "PASS: drift-issue-body.sh"

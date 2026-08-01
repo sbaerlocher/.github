@@ -62,5 +62,5 @@ If `lefthook` is installed, enable local hooks with:
 lefthook install
 ```
 
-Hooks check staged files only and cover a subset of `just lint`, so they are
+Hooks check staged files only and run YAML and JSON checks alone, so they are
 not a substitute for running the recipe.
