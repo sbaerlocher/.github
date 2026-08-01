@@ -110,7 +110,7 @@ on:
     outputs:
       coverage:
         description: 'Test coverage percentage'
-        value: ${{ jobs.test.outputs.coverage }}
+        value: ${{ jobs.quality-and-test.outputs.coverage }}
     secrets:
       CODECOV_TOKEN:
         required: false
