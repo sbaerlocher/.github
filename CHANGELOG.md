@@ -45,6 +45,23 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   `lefthook.yml`, `CONTRIBUTING.md` prose and a script comment. Repository-local
   only, consumer repos are unaffected. `templates/justfile` stays the reference
   template for consumers and is unchanged.
+- **`ai-claude-review.yml` — review budgets are now configurable.** New
+  optional `max-turns-first` (default `100`), `max-turns-followup`
+  (default `40`) and `timeout-minutes` (default `30`) inputs. All three
+  were previously hard-coded, so a consumer could not raise them without
+  forking the workflow. Defaults match the previous values — no behaviour
+  change unless a caller sets them.
+
+  **When to raise `max-turns-followup`:** the `40` default assumes a
+  follow-up only inspects the delta since the last review. On a PR whose
+  follow-up still spans many changed files, the budget can run out before
+  the review submits its closing verdict — the job then fails after having
+  posted its inline comments, and the stale `CHANGES_REQUESTED` from the
+  first pass keeps blocking the merge.
+
+  **Raise `timeout-minutes` alongside it.** The two limits bind
+  independently and produce the same visible failure, so lifting only the
+  turn budget just trades the turn wall for the clock wall.
 
 ---
 
