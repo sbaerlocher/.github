@@ -40,16 +40,27 @@ Before opening a PR:
 
 ## Local Checks
 
-This repository is mostly YAML, Markdown, and Renovate JSON. Recommended
-checks:
+This repository is mostly YAML, Markdown, and Renovate JSON. The task
+entrypoint is [`just`](https://just.systems), the org-wide command runner —
+run it without arguments to list the recipes:
 
 ```bash
-yamllint .github/workflows .github/actions .github/ISSUE_TEMPLATE
-jq empty renovate.json .github/renovate.json renovate-*.json
+just lint   # yamllint, Renovate JSON validity, actionlint
+just test   # script self-checks under scripts/tests/
+just fmt    # prettier over Markdown and JSON
 ```
+
+Run `just lint` and `just test` before opening a PR. `fmt` reflows Markdown
+tables repo-wide, so keep its output out of otherwise unrelated changes.
+
+Recipes call `yamllint`, `jq`, `actionlint`, and `prettier` directly — install
+those separately, `just` does not vendor them.
 
 If `lefthook` is installed, enable local hooks with:
 
 ```bash
 lefthook install
 ```
+
+Hooks check staged files only and cover a subset of `just lint`, so they are
+not a substitute for running the recipe.

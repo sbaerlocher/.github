@@ -265,6 +265,26 @@ its default `false` and rely on artifact uploads instead.
 
 ---
 
+## Working on This Repository
+
+Local tasks run through [`just`](https://just.systems), the org-wide command
+runner. Run it without arguments to list the recipes:
+
+| Recipe      | What it does                                 |
+| ----------- | -------------------------------------------- |
+| `just`      | List all recipes                             |
+| `just lint` | yamllint, Renovate JSON validity, actionlint |
+| `just test` | Script self-checks under `scripts/tests/`    |
+| `just fmt`  | prettier over Markdown and JSON              |
+
+There is no `build` or `dev` recipe — this repository ships no build artifact
+and has no dev loop. `templates/justfile` is the reference template consumer
+repositories copy, and carries the full standard verb set.
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full contribution workflow.
+
+---
+
 ## Related Documentation
 
 - [REVIEW.md](./REVIEW.md) — code review guidelines for this repo
