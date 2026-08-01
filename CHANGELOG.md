@@ -20,6 +20,34 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-08-01
+
+### Fixed
+
+- **`ci-js.yml` — `coverage` output resolved to an empty string.** The
+  `workflow_call` output pointed at `jobs.test`, but no such job exists; the
+  job exporting coverage is `quality-and-test`. Consumers reading
+  `needs.<job>.outputs.coverage` received `''` on every run and now get the
+  actual percentage (or `N/A` when coverage is disabled). Not breaking — the
+  previous value carried no information — but review any consumer that treated
+  the empty string as "coverage is off".
+- **`scripts/drift-issue-body.sh` — GNU-only sed idiom.** Trailing blank lines
+  were trimmed via `sed -e :a -e '/^\n*$/{$d;N;ba}'`, which aborts on BSD sed
+  with `unexpected EOF`. Replaced with a portable awk equivalent so the script
+  and its self-check run on macOS. Local runs only; CI runners are Linux and
+  were never affected. Scoped to the script — `ops-drift-issue.yml:123` still
+  carries an inline copy of the same idiom, left for a follow-up.
+
+### Added
+
+- **`justfile` — task entrypoint for this repository.** `just lint`,
+  `just test` and `just fmt` replace the checks previously spread across
+  `lefthook.yml`, `CONTRIBUTING.md` prose and a script comment. Repository-local
+  only, consumer repos are unaffected. `templates/justfile` stays the reference
+  template for consumers and is unchanged.
+
+---
+
 ## 2026-07-27
 
 ### Changed

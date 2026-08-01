@@ -1,0 +1,8 @@
+# Fixtures stand in for real tool output (terraform plan JSON), so they stay in
+# the shape that tool emits rather than the shape prettier prefers. The current
+# self-checks parse them with jq and would survive a reformat; that is not a
+# property worth depending on.
+scripts/tests/fixtures/
+
+.venv/
+node_modules/

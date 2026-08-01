@@ -35,8 +35,13 @@ render)
   base="${2:-}"
   summary="${3:-}"
   clean="$(printf '%s' "$base" | strip_block)"
-  # Trailing leerzeilen des Basis-Bodys kappen, damit der Abstand stabil ist.
-  clean="$(printf '%s\n' "$clean" | sed -e :a -e '/^\n*$/{$d;N;ba}')"
+  # Trailing Leerzeilen des Basis-Bodys kappen, damit der Abstand stabil ist.
+  # awk statt `sed -e :a -e '/^\n*$/{$d;N;ba}'`: das sed-Idiom ist GNU-only und
+  # bricht auf BSD-sed (macOS) mit "unexpected EOF (pending }'s)" ab.
+  clean="$(printf '%s\n' "$clean" | awk '
+    /^[[:space:]]*$/ { blanks = blanks $0 "\n"; next }
+    { printf "%s", blanks; blanks = ""; print }
+  ')"
   if [ -z "$summary" ]; then
     printf '%s\n' "$clean"
     exit 0
