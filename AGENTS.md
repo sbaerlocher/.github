@@ -211,14 +211,14 @@ consumers have an escape hatch.
 
 **Purpose**: Comprehensive security scanning (SAST, secrets, dependencies, containers)
 
-| Workflow        | File                        | Description                | Tools                   |
-| --------------- | --------------------------- | -------------------------- | ----------------------- |
-| SAST            | `security-code.yml`         | Static code analysis       | CodeQL (multi-language) |
-| Config Security | `security-config.yml`       | IaC security               | Checkov, Kubeconform    |
-| Dependencies    | `security-deps.yml`         | Dependency vulnerabilities | govulncheck, npm audit  |
-| Secrets         | `security-secrets.yml`      | Secret detection           | Gitleaks, TruffleHog    |
-| Containers      | `security-containers.yml`   | Container scanning         | Trivy, Grype            |
-| Supply Chain    | `security-sbom.yml`         | SBOM & signing             | Cosign, CycloneDX       |
+| Workflow        | File                      | Description                | Tools                              |
+| --------------- | ------------------------- | -------------------------- | ---------------------------------- |
+| SAST            | `security-code.yml`       | Static code analysis       | CodeQL (multi-language)            |
+| Config Security | `security-config.yml`     | IaC security               | Checkov, Kubeconform               |
+| Dependencies    | `security-deps.yml`       | Dependency vulnerabilities | govulncheck, npm audit             |
+| Secrets         | `security-secrets.yml`    | Secret detection           | Gitleaks, TruffleHog, key patterns |
+| Containers      | `security-containers.yml` | Container scanning         | Trivy, Grype                       |
+| Supply Chain    | `security-sbom.yml`       | SBOM & signing             | Cosign, CycloneDX                  |
 
 **Strategy**:
 
