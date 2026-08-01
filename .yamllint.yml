@@ -10,3 +10,5 @@ rules:
 
 ignore: |
   .git/
+  .venv/
+  node_modules/

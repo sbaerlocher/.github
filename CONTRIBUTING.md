@@ -53,8 +53,11 @@ just fmt    # prettier over Markdown and JSON
 Run `just lint` and `just test` before opening a PR. `fmt` reflows Markdown
 tables repo-wide, so keep its output out of otherwise unrelated changes.
 
-Recipes call `yamllint`, `jq`, `actionlint`, and `prettier` directly — install
-those separately, `just` does not vendor them.
+Recipes call `yamllint`, `jq`, `actionlint`, `shellcheck`, and `prettier`
+directly — install those separately, `just` does not vendor them. Without
+`shellcheck` on `PATH`, actionlint skips its embedded shell checks silently
+rather than failing, so `just lint` would pass with less coverage than it
+reports.
 
 If `lefthook` is installed, enable local hooks with:
 

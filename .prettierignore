@@ -1,5 +1,7 @@
-# Test fixtures are byte-compared by scripts/tests/*.sh — reformatting them
-# would break the self-checks.
+# Fixtures stand in for real tool output (terraform plan JSON), so they stay in
+# the shape that tool emits rather than the shape prettier prefers. The current
+# self-checks parse them with jq and would survive a reformat; that is not a
+# property worth depending on.
 scripts/tests/fixtures/
 
 .venv/

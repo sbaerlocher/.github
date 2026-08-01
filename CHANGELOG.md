@@ -35,12 +35,13 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   were trimmed via `sed -e :a -e '/^\n*$/{$d;N;ba}'`, which aborts on BSD sed
   with `unexpected EOF`. Replaced with a portable awk equivalent so the script
   and its self-check run on macOS. Local runs only; CI runners are Linux and
-  were never affected.
+  were never affected. Scoped to the script — `ops-drift-issue.yml:123` still
+  carries an inline copy of the same idiom, left for a follow-up.
 
 ### Added
 
-- **`justfile` — task entrypoint for this repository.** `just lint`, `just
-test` and `just fmt` replace the checks previously spread across
+- **`justfile` — task entrypoint for this repository.** `just lint`,
+  `just test` and `just fmt` replace the checks previously spread across
   `lefthook.yml`, `CONTRIBUTING.md` prose and a script comment. Repository-local
   only, consumer repos are unaffected. `templates/justfile` stays the reference
   template for consumers and is unchanged.
