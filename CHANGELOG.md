@@ -152,6 +152,24 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   repositories without it go from red to green, and existing
   `enable-gitrepo-validation: false` opt-outs keep working. Consumers can drop
   those opt-out lines once they bump to a tag containing this change.
+- **`ci-gitops.yml` parses `spec.paths` correctly and no longer splits paths on
+  spaces.** The `Validate GitRepo paths` step anchored its `grep` on exactly
+  four leading spaces, so a sequence written at its parent's indentation —
+  `paths:` followed by `  - platform`, the form Rancher's own GitRepo examples
+  use — parsed to nothing, the loop had no iterations, and the step still
+  printed "validated successfully!". The unquoted `for path in $PATHS` also
+  word-split any path containing a space into phantom entries that then failed
+  the directory check. The `grep` now accepts any indentation, the paths are
+  collected into an array through a quoted read loop, and the block gains
+  `set -euo pipefail`. An empty result is no longer silent but is also not an
+  error: `spec.paths` is optional in Fleet and its absence means "scan the
+  repository root", so the step emits a `::warning::` naming the file and the
+  two possible causes — no `paths:` declared, or entries beyond the 100-line
+  window the heuristic reads. Not breaking: manifests that parsed before parse
+  the same way, and no input signature changes. Repositories whose sequence
+  indentation had been skipped now get their paths checked for real, so a
+  missing directory or a missing `fleet.yaml` surfaces as the warning it always
+  should have been.
 
 ### Added
 
@@ -347,6 +365,16 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   only of spaces or tabs is now trimmed too, where sed left it in place. Not
   breaking for CI — runners are Linux and the sed form worked there; the fix
   matters for anyone reproducing the block locally on macOS.
+
+### Dependencies
+
+- **GitHub Actions**: `github/codeql-action` → v4.37.4 across `ci-go.yml`,
+  `ci-js.yml`, `ci-terraform.yml`, `release-docker.yml`, `security-code.yml`,
+  `security-config.yml` and `security-containers.yml`.
+  The inner `sbaerlocher/.github` refs moved to `2026-08-01` —
+  `install-kubeconform` in `ci-gitops.yml`, `project` in `e2e-dde.yml`,
+  `sbom-npm` in `release-npm.yml` and `security-sbom.yml`, and `setup-dde` in
+  the `project` composite action.
 
 ## 2026-08-01
 
