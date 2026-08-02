@@ -295,6 +295,7 @@ jobs:
         env:
           GITREPO_FILE: ${{ inputs.gitrepo-file }}
         run: |
+          set -euo pipefail
           echo "Validating GitRepo paths..."
           ERRORS=0
 
@@ -307,9 +308,36 @@ jobs:
             exit 1
           fi
 
-          PATHS=$(grep -A 100 "paths:" "${GITREPO_FILE}" | grep "^    - " | sed 's/^    - //')
+          # Line heuristic, not a YAML parser: it reads at most 100 lines after
+          # the first `paths:` and only accepts entries indented with exactly
+          # four spaces. A list further down the manifest, or indented
+          # differently, is invisible to it. `|| true` keeps the non-match from
+          # tripping `pipefail`, so the empty result is judged below instead of
+          # aborting the step without a message.
+          PATHS=$(grep -A 100 "paths:" "${GITREPO_FILE}" | grep "^    - " | sed 's/^    - //' || true)
 
-          for path in $PATHS; do
+          # An empty result is an error, not a pass. Reporting success here
+          # would make an unparsable manifest indistinguishable from a valid
+          # one, which is the failure this guard exists for.
+          if [ -z "${PATHS}" ]; then
+            echo "ERROR: no paths parsed from ${GITREPO_FILE%%$'\n'*}"
+            echo "Either the manifest declares no 'paths:', or its entries sit"
+            echo "beyond the 100-line window or are not indented with exactly"
+            echo "four spaces."
+            exit 1
+          fi
+
+          # Read loop instead of `mapfile -t`: mapfile is a bash-4 builtin and
+          # macOS still ships bash 3.2 as /bin/bash, so the block would break
+          # the moment it runs outside ubuntu-latest. Quoting the expansion
+          # keeps a path containing spaces one entry instead of splitting it
+          # into phantom ones.
+          paths=()
+          while IFS= read -r path; do
+            paths+=("$path")
+          done <<< "${PATHS}"
+
+          for path in "${paths[@]}"; do
             if [ ! -d "$path" ]; then
               echo "WARNING: Path $path in GitRepo does not exist"
             elif [ ! -f "$path/fleet.yaml" ]; then
