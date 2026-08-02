@@ -5,7 +5,7 @@ Centralized CI/CD building blocks for all repositories under
 each workflow by date tag and let Renovate keep them current.
 
 - **Model:** rolling release with date tags (`YYYY-MM-DD`)
-- **Total workflows:** 24
+- **Reusable workflows:** 24 (plus 4 internal to this repo)
 - **Last updated:** 2026-07-18
 
 See [AGENTS.md](./AGENTS.md) for AI-agent context.
