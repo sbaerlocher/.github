@@ -14,6 +14,28 @@ permissions:
   actions: read
 
 jobs:
+  # `just lint` and `just test` hung on no trigger at all, so the script
+  # self-checks never ran in CI. actionlint comes from the container fallback
+  # in the justfile (the runner has Docker), which also brings shellcheck —
+  # a bare binary would skip the embedded shell checks silently.
+  checks:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install just and yamllint
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y just
+          pip install yamllint
+
+      - name: Lint
+        run: just lint
+
+      - name: Test
+        run: just test
+
   claude-review:
     name: Claude Code Review
     uses: ./.github/workflows/ai-claude-review.yml
