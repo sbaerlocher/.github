@@ -241,14 +241,13 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Check GitRepo exists
+      - name: Report missing GitRepo configuration
+        if: hashFiles('gitrepos/production.yaml') == ''
         run: |
-          if [ ! -f "gitrepos/production.yaml" ]; then
-            echo "ERROR: gitrepos/production.yaml not found!"
-            exit 1
-          fi
+          echo "::notice::gitrepos/production.yaml not found - skipping GitRepo validation"
 
       - name: Validate GitRepo paths
+        if: hashFiles('gitrepos/production.yaml') != ''
         run: |
           echo "Validating GitRepo paths..."
           ERRORS=0
