@@ -302,7 +302,7 @@ jobs:
           # A glob or an unreadable path would otherwise die mid-pipeline with
           # a bare "No such file or directory".
           if [ ! -f "${GITREPO_FILE}" ]; then
-            echo "ERROR: ${GITREPO_FILE} is not a readable file"
+            echo "ERROR: ${GITREPO_FILE%%$'\n'*} is not a readable file"
             echo "gitrepo-file takes a single literal path, not a glob"
             exit 1
           fi
