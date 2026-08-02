@@ -124,31 +124,45 @@ jobs:
       # Install Playwright dependencies
       - name: Install dependencies
         working-directory: ${{ inputs.playwright-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm) pnpm install --frozen-lockfile ;;
             bun) bun install --frozen-lockfile ;;
             yarn) yarn install --frozen-lockfile ;;
             npm) npm ci ;;
           esac
 
+      # PLAYWRIGHT_BROWSERS stays unquoted in the install call: it is a
+      # space-separated browser list (e.g. `chromium firefox`) and must split
+      # into separate arguments.
       - name: Install Playwright browsers
         working-directory: ${{ inputs.playwright-directory }}
+        env:
+          PLAYWRIGHT_BROWSERS: ${{ inputs.playwright-browsers }}
         run: |
-          case "${{ inputs.playwright-browsers }}" in
+          # shellcheck disable=SC2086 # browser list must word-split
+          case "$PLAYWRIGHT_BROWSERS" in
             all) npx playwright install --with-deps ;;
-            *) npx playwright install --with-deps ${{ inputs.playwright-browsers }} ;;
+            *) npx playwright install --with-deps $PLAYWRIGHT_BROWSERS ;;
           esac
 
+      # TEST_COMMAND stays unquoted: it may carry arguments after the script
+      # name and must word-split. See the same note in ci-js.yml.
       # Run E2E Tests
       - name: Run Playwright tests
         working-directory: ${{ inputs.playwright-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
+          TEST_COMMAND: ${{ inputs.test-command }}
         run: |
-          case "${{ inputs.package-manager }}" in
-            pnpm) pnpm ${{ inputs.test-command }} ;;
-            bun) bun run ${{ inputs.test-command }} ;;
-            yarn) yarn ${{ inputs.test-command }} ;;
-            npm) npm run ${{ inputs.test-command }} ;;
+          # shellcheck disable=SC2086 # test-command may carry arguments
+          case "$PACKAGE_MANAGER" in
+            pnpm) pnpm $TEST_COMMAND ;;
+            bun) bun run $TEST_COMMAND ;;
+            yarn) yarn $TEST_COMMAND ;;
+            npm) npm run $TEST_COMMAND ;;
           esac
 
       # Save container logs on failure

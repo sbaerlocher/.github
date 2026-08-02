@@ -103,8 +103,10 @@ jobs:
 
       - name: Get cache directory
         id: cache-dir
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               echo "dir=$(pnpm store path)" >> "$GITHUB_OUTPUT"
               ;;
@@ -126,8 +128,10 @@ jobs:
 
       - name: Install dependencies
         working-directory: ${{ inputs.working-directory-prefix }}/${{ matrix.worker }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               pnpm install --frozen-lockfile
               ;;
@@ -142,21 +146,24 @@ jobs:
       - name: Run build scripts
         if: inputs.run-scripts
         working-directory: ${{ inputs.working-directory-prefix }}/${{ matrix.worker }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
+          WORKER: ${{ matrix.worker }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               if ! pnpm build; then
-                echo "::warning::Build script failed or not found for ${{ matrix.worker }}"
+                echo "::warning::Build script failed or not found for $WORKER"
               fi
               ;;
             bun)
               if ! bun run build; then
-                echo "::warning::Build script failed or not found for ${{ matrix.worker }}"
+                echo "::warning::Build script failed or not found for $WORKER"
               fi
               ;;
             npm)
               if ! npm run build; then
-                echo "::warning::Build script failed or not found for ${{ matrix.worker }}"
+                echo "::warning::Build script failed or not found for $WORKER"
               fi
               ;;
           esac

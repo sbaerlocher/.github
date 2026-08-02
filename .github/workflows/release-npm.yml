@@ -173,8 +173,10 @@ jobs:
 
       - name: Install dependencies
         working-directory: ${{ inputs.working-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               pnpm install --frozen-lockfile
               ;;
@@ -192,8 +194,10 @@ jobs:
       - name: Run tests
         if: inputs.run-tests
         working-directory: ${{ inputs.working-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               pnpm test
               ;;
@@ -211,8 +215,10 @@ jobs:
       - name: Run build
         if: inputs.run-build
         working-directory: ${{ inputs.working-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               pnpm build
               ;;
@@ -261,8 +267,10 @@ jobs:
 
       - name: Install dependencies
         working-directory: ${{ inputs.working-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               pnpm install --frozen-lockfile
               ;;
@@ -280,8 +288,10 @@ jobs:
       - name: Build package
         if: inputs.run-build
         working-directory: ${{ inputs.working-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               pnpm build
               ;;
@@ -302,12 +312,13 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           CUSTOM_PUBLISH_CMD: ${{ inputs.publish-command }}
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
           echo "🧪 Dry-run mode - not actually publishing"
 
           if [ -z "$CUSTOM_PUBLISH_CMD" ]; then
             # Use default publish command based on package manager
-            case "${{ inputs.package-manager }}" in
+            case "$PACKAGE_MANAGER" in
               pnpm)
                 pnpm publish --dry-run --no-git-checks
                 ;;
@@ -333,17 +344,20 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           CUSTOM_PUBLISH_CMD: ${{ inputs.publish-command }}
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
+          REGISTRY_URL: ${{ inputs.registry-url }}
+          ENABLE_PROVENANCE: ${{ inputs.enable-provenance }}
         run: |
-          echo "Publishing to NPM registry: ${{ inputs.registry-url }}"
+          echo "Publishing to NPM registry: $REGISTRY_URL"
 
           PUBLISH_ARGS=""
-          if [ "${{ inputs.enable-provenance }}" == "true" ]; then
+          if [ "$ENABLE_PROVENANCE" == "true" ]; then
             PUBLISH_ARGS="--provenance"
           fi
 
           if [ -z "$CUSTOM_PUBLISH_CMD" ]; then
             # Use default publish command based on package manager
-            case "${{ inputs.package-manager }}" in
+            case "$PACKAGE_MANAGER" in
               pnpm)
                 pnpm publish --no-git-checks --access public $PUBLISH_ARGS
                 ;;
@@ -453,11 +467,20 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
+      # The heredoc delimiter is quoted ('EOF'), so nothing in the body is
+      # expanded by the shell. Every value the template needs is therefore
+      # computed into a variable first and substituted with envsubst-free
+      # `printf`-style assembly below, which keeps caller-controlled inputs
+      # out of both the expression layer and the shell's expansion pass.
       - name: Generate changelog
         if: inputs.generate-changelog
         id: changelog
+        env:
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
+          RELEASE_VERSION: ${{ needs.pre-release-checks.outputs.version }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          VERSION="v${{ needs.pre-release-checks.outputs.version }}"
+          VERSION="v$RELEASE_VERSION"
 
           # Get previous tag
           PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
@@ -470,20 +493,32 @@ jobs:
             CHANGELOG=$(git log --pretty=format:"- %s (%h)" HEAD)
           fi
 
+          # Resolved before the heredoc: the quoted delimiter below switches off
+          # expansion inside the body, so a command substitution there would be
+          # emitted literally rather than evaluated.
+          PACKAGE_NAME=$(node -p "require(process.argv[1] + '/package.json').name" "$WORKING_DIRECTORY")
+
           # Save to file
-          cat > /tmp/changelog.md << EOF
+          {
+            cat << 'EOF'
           ## What's Changed
 
-          $CHANGELOG
+          EOF
+            printf '%s\n' "$CHANGELOG"
+            cat << 'EOF'
 
           ## Installation
 
-          \`\`\`bash
-          npm install $(node -p "require('${{ inputs.working-directory }}/package.json').name")@${{ needs.pre-release-checks.outputs.version }}
-          \`\`\`
-
-          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${VERSION}
+          ```bash
           EOF
+            printf 'npm install %s@%s\n' "$PACKAGE_NAME" "$RELEASE_VERSION"
+            cat << 'EOF'
+          ```
+
+          EOF
+            printf '**Full Changelog**: https://github.com/%s/compare/%s...%s\n' \
+              "$REPOSITORY" "$PREVIOUS_TAG" "$VERSION"
+          } > /tmp/changelog.md
 
           echo "changelog_file=/tmp/changelog.md" >> "$GITHUB_OUTPUT"
 
