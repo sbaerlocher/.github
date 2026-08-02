@@ -96,6 +96,19 @@ jobs:
         run: |
           VERSION="${INPUT_VERSION#v}"  # Remove 'v' prefix if present
 
+          # Guard vor den `sed`-Aufrufen unten: `$VERSION` landet im
+          # s-Ausdruck selbst. Ein `/` beendet ihn vorzeitig, `&` und `\`
+          # sind in der Replacement-Hälfte Metazeichen. Git-Tag-Namen dürfen
+          # Slashes tragen und das `v*`-Filter der Caller schliesst sie nicht
+          # aus. Erster Step im Job, deshalb deckt der Guard auch das zweite,
+          # unabhängige `VERSION="${INPUT_VERSION#v}"` im Package-Step ab.
+          case "$VERSION" in
+            *[/\\\&\|]*)
+              echo "::error::version must not contain / \\ & or | (got: $VERSION)"
+              exit 1
+              ;;
+          esac
+
           # Temp-Datei plus `mv` statt `sed -i "…"`: die suffixlose `-i`-Form ist
           # GNU-only. BSD-sed (macOS) liest das Script als Backup-Suffix und
           # bricht mit "invalid command code" ab, ohne die Datei zu ändern.
@@ -115,6 +128,16 @@ jobs:
           CHART_PATH: ${{ inputs.chart-path }}
           IMAGE_DIGEST: ${{ inputs.image-digest }}
         run: |
+          # Gleicher Guard wie beim Version-Step, hier für den `|`-Delimiter:
+          # `docker/build-push-action` liefert immer `sha256:<hex>`, ein
+          # fremder Caller kann den Input aber frei setzen.
+          case "$IMAGE_DIGEST" in
+            *[/\\\&\|]*)
+              echo "::error::image-digest must not contain / \\ & or | (got: $IMAGE_DIGEST)"
+              exit 1
+              ;;
+          esac
+
           # Update values.yaml: clear tag and set digest
           # Temp-Datei plus `mv` statt `sed -i "…"` — GNU-only, siehe Kommentar
           # im Schritt "Update Chart version and appVersion".
