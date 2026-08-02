@@ -22,6 +22,20 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ## 2026-08-02
 
+### ⚠ BREAKING
+
+- **`security-secrets.yml` no longer takes `file-patterns`.** The input was
+  declared with a default of `'*.tf,*.yml,*.yaml,*.json,*.env.example'` but no
+  step ever read it — the scan scope lives in two hard-wired `--include=` lists,
+  one for AWS keys (`*.tf`/`*.yml`/`*.yaml`/`*.json`) and one for private-key
+  content (`*.pem`/`*.key`). A caller setting it got no change in behaviour and
+  no warning. It is removed rather than wired up: the job checks two fixed key
+  formats, not a configurable file tree, and one shared pattern list does not
+  fit two steps with different semantics — the `*.env.example` portion of the
+  default is meaningless for the private-key step, whose narrow includes are
+  deliberate. Scan behaviour is unchanged by this removal.
+  **Migration:** remove the `file-patterns:` line from your call.
+
 ### Changed
 
 - **`ci-ansible.yml` passes its inputs through `env:` instead of interpolating
