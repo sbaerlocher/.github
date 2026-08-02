@@ -188,7 +188,10 @@ jobs:
           echo "Validating fleet.yaml files..."
           ERRORS=0
 
-          for file in $(find ${FLEET_PATHS} -name "fleet.yaml" 2>/dev/null); do
+          # `while read` over `find -print0` instead of `for file in $(find ...)`:
+          # word-splitting breaks on paths containing spaces. Process substitution
+          # rather than a pipe so the ERRORS increments stay in this shell.
+          while IFS= read -r -d '' file; do
             echo "Checking $file..."
 
             if ! grep -q "defaultNamespace:" "$file"; then
@@ -210,7 +213,7 @@ jobs:
                 echo "INFO: $file uses helm lifecycle options for plain manifests"
               fi
             fi
-          done
+          done < <(find ${FLEET_PATHS} -name "fleet.yaml" -print0 2>/dev/null)
 
           if [ $ERRORS -gt 0 ]; then
             echo "Found $ERRORS errors in fleet.yaml files"
