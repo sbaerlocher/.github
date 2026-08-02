@@ -72,7 +72,10 @@ on:
         required: false
         default: true
       fleet-paths:
-        description: 'Space-separated paths to search for fleet.yaml files'
+        description: |
+          Space-separated paths to search for fleet.yaml files.
+          Expanded unquoted so the separate paths survive word splitting —
+          pass static caller configuration only, never event-controlled data.
         type: string
         required: false
         default: 'platform applications'
@@ -166,9 +169,11 @@ jobs:
           persist-credentials: false
 
       - name: Check fleet.yaml files exist
+        env:
+          FLEET_PATHS: ${{ inputs.fleet-paths }}
         run: |
-          echo "Checking for fleet.yaml files in: ${{ inputs.fleet-paths }}"
-          FLEET_FILES=$(find ${{ inputs.fleet-paths }} -name "fleet.yaml" 2>/dev/null | wc -l)
+          echo "Checking for fleet.yaml files in: ${FLEET_PATHS}"
+          FLEET_FILES=$(find ${FLEET_PATHS} -name "fleet.yaml" 2>/dev/null | wc -l)
           echo "Found $FLEET_FILES fleet.yaml files"
 
           if [ "$FLEET_FILES" -eq 0 ]; then
@@ -177,11 +182,13 @@ jobs:
           fi
 
       - name: Validate fleet.yaml structure
+        env:
+          FLEET_PATHS: ${{ inputs.fleet-paths }}
         run: |
           echo "Validating fleet.yaml files..."
           ERRORS=0
 
-          for file in $(find ${{ inputs.fleet-paths }} -name "fleet.yaml" 2>/dev/null); do
+          for file in $(find ${FLEET_PATHS} -name "fleet.yaml" 2>/dev/null); do
             echo "Checking $file..."
 
             if ! grep -q "defaultNamespace:" "$file"; then
@@ -286,11 +293,13 @@ jobs:
             ${{ runner.os }}-helm-
 
       - name: Lint Helm Charts
+        env:
+          FLEET_PATHS: ${{ inputs.fleet-paths }}
         run: |
-          echo "Linting Helm charts in: ${{ inputs.fleet-paths }}"
+          echo "Linting Helm charts in: ${FLEET_PATHS}"
           ERRORS=0
 
-          for dir in $(echo "${{ inputs.fleet-paths }}" | tr ' ' '\n' | while read p; do echo "$p"/*; done); do
+          for dir in $(echo "${FLEET_PATHS}" | tr ' ' '\n' | while read -r p; do echo "$p"/*; done); do
             if [ -f "$dir/Chart.yaml" ]; then
               echo "Linting $dir..."
               if ! helm lint "$dir"; then
