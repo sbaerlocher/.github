@@ -100,7 +100,7 @@ on:
     outputs:
       coverage:
         description: 'Test coverage percentage'
-        value: ${{ jobs.test-and-lint.outputs.coverage || jobs.test-and-lint-postgres.outputs.coverage }}
+        value: ${{ jobs.test-and-lint.outputs.coverage }}
       version:
         description: 'Version extracted from git ref or sha'
         value: ${{ jobs.setup.outputs.version }}
@@ -161,145 +161,27 @@ jobs:
     name: Test & Lint
     runs-on: ubuntu-latest
     needs: setup
-    if: needs.setup.outputs.should-run-tests == 'true' && !inputs.enable-postgres
+    if: needs.setup.outputs.should-run-tests == 'true'
     outputs:
       coverage: ${{ steps.coverage.outputs.coverage }}
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: ${{ inputs.go-version }}
-          check-latest: true
-          cache: true
-          cache-dependency-path: go.sum
-
-      - name: Run pre-build commands
-        if: inputs.pre-build-commands != ''
-        run: ${{ inputs.pre-build-commands }}
-
-      - name: Download and verify dependencies
-        run: |
-          go mod download
-          go mod verify
-
-      - name: Run go vet
-        run: go vet ./...
-
-      - name: Check formatting
-        run: |
-          if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
-            echo "::error::The following files are not formatted:"
-            gofmt -s -l .
-            exit 1
-          fi
-
-      - name: Run staticcheck
-        uses: dominikh/staticcheck-action@9716614d4101e79b4340dd97b10e54d68234e431 # v1.4.1
-        with:
-          # renovate: datasource=github-releases depName=dominikh/go-tools
-          version: '2025.1.1'
-          install-go: false
-
-      - name: Set test environment variables
-        if: inputs.test-env-vars != ''
-        env:
-          TEST_ENV_VARS: ${{ inputs.test-env-vars }}
-        run: |
-          set -euo pipefail
-          # $GITHUB_ENV is line-based: a newline inside a key or value would inject
-          # additional environment entries for every following step.
-          if ! printf '%s' "$TEST_ENV_VARS" \
-            | jq -e 'to_entries | any(.[]; ((.key, (.value | tostring)) | contains("\n"))) | not' >/dev/null; then
-            echo "Error: multi-line test-env-vars keys or values are not supported" >&2
-            exit 1
-          fi
-          printf '%s' "$TEST_ENV_VARS" \
-            | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
-
-      - name: Run tests with coverage
-        env:
-          GO_ENV: test
-        run: |
-          go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
-
-      - name: Run integration tests
-        if: inputs.enable-integration-tests && hashFiles('tests/integration/**') != ''
-        run: |
-          go test -v -tags=integration -timeout=10m ./tests/integration/...
-
-      - name: Generate coverage report
-        id: coverage
-        run: |
-          go tool cover -html=coverage.out -o coverage.html
-          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
-          echo "coverage=$COVERAGE" >> "$GITHUB_OUTPUT"
-          echo "Test coverage: $COVERAGE"
-
-      - name: Upload coverage to Codecov
-        if: inputs.enable-codecov
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
-        with:
-          files: ./coverage.out
-          flags: unittests
-          token: ${{ secrets.CODECOV_TOKEN }}
-        continue-on-error: true
-
-      - name: Upload coverage artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: ${{ inputs.artifact-name-prefix }}coverage-report
-          path: coverage.html
-          retention-days: 30
-
-      - name: Build and test binary
-        if: inputs.binary-path != ''
-        env:
-          BINARY_PATH: ${{ inputs.binary-path }}
-          VERSION: ${{ needs.setup.outputs.version }}
-        run: |
-          mkdir -p bin
-          BINARY_NAME=$(basename "$BINARY_PATH")
-          go build -ldflags="-s -w -X main.version=$VERSION" -o "bin/${BINARY_NAME}" "$BINARY_PATH"
-
-          if [ ! -f "bin/${BINARY_NAME}" ]; then
-            echo "::error::Binary was not created"
-            exit 1
-          fi
-
-          if [ ! -x "bin/${BINARY_NAME}" ]; then
-            echo "::error::Binary is not executable"
-            exit 1
-          fi
-
-          echo "Testing --version flag..."
-          if ! "./bin/${BINARY_NAME}" --version; then
-            echo "::warning::Binary --version command failed (not critical)"
-          fi
-
-          echo "Testing --help flag..."
-          if ! "./bin/${BINARY_NAME}" --help; then
-            echo "::warning::Binary --help command failed (not critical)"
-          fi
-
-          echo "Binary tests passed successfully"
-
-  test-and-lint-postgres:
-    name: Test & Lint (PostgreSQL)
-    runs-on: ubuntu-latest
-    needs: setup
-    if: needs.setup.outputs.should-run-tests == 'true' && inputs.enable-postgres
-    outputs:
-      coverage: ${{ steps.coverage.outputs.coverage }}
-
+    # `services:` takes no `if:`, so the service is gated on its image: an
+    # empty `image:` makes the runner skip the container, which is the
+    # documented way to declare a conditional service. Gating `ports:` instead
+    # does not work — an empty entry becomes a bare `-p` on the `docker create`
+    # line and fails the job — and leaving the mapping unconditional while the
+    # container runs would expose a Postgres seeded from the `postgres-*`
+    # defaults on localhost:5432 for every Go CI run in the org, including
+    # callers that never asked for one.
+    #
+    # Renovate's built-in github-actions manager does read service images, but
+    # skips any value containing `$` ("contains-variable"), so the marker below
+    # hands this one to the custom manager in the root `renovate.json`, which
+    # captures tag and digest and keeps the pin updated.
     services:
       postgres:
-        image: postgres:18-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
+        # renovate-expression: datasource=docker depName=postgres versioning=docker
+        image: ${{ inputs.enable-postgres && 'postgres:18-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15' || '' }}
         env:
           POSTGRES_DB: ${{ inputs.postgres-db }}
           POSTGRES_USER: ${{ inputs.postgres-user }}
@@ -351,14 +233,17 @@ jobs:
 
       - name: Set test environment variables
         env:
+          ENABLE_POSTGRES: ${{ inputs.enable-postgres }}
           POSTGRES_USER: ${{ inputs.postgres-user }}
           POSTGRES_PASSWORD: ${{ inputs.postgres-password }}
           POSTGRES_DB: ${{ inputs.postgres-db }}
           TEST_ENV_VARS: ${{ inputs.test-env-vars }}
         run: |
           set -euo pipefail
-          printf 'DATABASE_URL=postgres://%s:%s@localhost:5432/%s?sslmode=disable\n' \
-            "$POSTGRES_USER" "$POSTGRES_PASSWORD" "$POSTGRES_DB" >> "$GITHUB_ENV"
+          if [ "$ENABLE_POSTGRES" = "true" ]; then
+            printf 'DATABASE_URL=postgres://%s:%s@localhost:5432/%s?sslmode=disable\n' \
+              "$POSTGRES_USER" "$POSTGRES_PASSWORD" "$POSTGRES_DB" >> "$GITHUB_ENV"
+          fi
 
           if [ -n "${TEST_ENV_VARS:-}" ]; then
             # $GITHUB_ENV is line-based: a newline inside a key or value would inject
@@ -448,7 +333,7 @@ jobs:
       actions: read
       contents: read
       security-events: write
-    needs: [setup, test-and-lint, test-and-lint-postgres]
+    needs: [setup, test-and-lint]
     if: >-
       always() &&
       inputs.enable-security-scans &&
@@ -548,7 +433,7 @@ jobs:
       actions: read
       contents: read
       security-events: write
-    needs: [setup, test-and-lint, test-and-lint-postgres]
+    needs: [setup, test-and-lint]
     if: >-
       always() &&
       inputs.enable-codeql &&
