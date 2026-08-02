@@ -22,6 +22,19 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ## 2026-08-02
 
+### Changed
+
+- **`release-helm.yml` — GNU-only `sed -i` when patching Chart.yaml and
+  values.yaml.** Four in-place edits used the suffixless `sed -i "…"` form,
+  which is GNU-only: BSD sed (macOS) reads the script as the backup suffix and
+  aborts with `invalid command code`, leaving the file untouched. Replaced with
+  a portable temp-file-plus-`mv` form; `yq` was not introduced for four
+  substitutions. No behaviour change on CI — the job pins
+  `runs-on: ubuntu-latest` and the GNU form worked there; this removes the trap
+  for anyone reproducing the steps locally on macOS or moving the job to a
+  macOS runner. The chart paths are now quoted, so a chart path containing
+  spaces no longer word-splits.
+
 ### Fixed
 
 - **`ops-drift-issue.yml` — GNU-only sed idiom in the inline `render()`.** The

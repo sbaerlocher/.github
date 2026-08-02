@@ -92,8 +92,12 @@ jobs:
           VERSION="${{ inputs.version }}"
           VERSION="${VERSION#v}"  # Remove 'v' prefix if present
 
-          sed -i "s/^version:.*/version: $VERSION/" ${{ inputs.chart-path }}/Chart.yaml
-          sed -i "s/^appVersion:.*/appVersion: \"$VERSION\"/" ${{ inputs.chart-path }}/Chart.yaml
+          # Temp-Datei plus `mv` statt `sed -i "…"`: die suffixlose `-i`-Form ist
+          # GNU-only. BSD-sed (macOS) liest das Script als Backup-Suffix und
+          # bricht mit "invalid command code" ab, ohne die Datei zu ändern.
+          CHART="${{ inputs.chart-path }}/Chart.yaml"
+          sed "s/^version:.*/version: $VERSION/" "$CHART" > "$CHART.tmp" && mv "$CHART.tmp" "$CHART"
+          sed "s/^appVersion:.*/appVersion: \"$VERSION\"/" "$CHART" > "$CHART.tmp" && mv "$CHART.tmp" "$CHART"
 
           echo "Updated Chart.yaml:"
           grep -E "(version|appVersion):" ${{ inputs.chart-path }}/Chart.yaml
@@ -104,8 +108,11 @@ jobs:
           DIGEST="${{ inputs.image-digest }}"
 
           # Update values.yaml: clear tag and set digest
-          sed -i 's/^  tag:.*/  tag: ""/' ${{ inputs.chart-path }}/values.yaml
-          sed -i "s|^  digest:.*|  digest: \"$DIGEST\"|" ${{ inputs.chart-path }}/values.yaml
+          # Temp-Datei plus `mv` statt `sed -i "…"` — GNU-only, siehe Kommentar
+          # im Schritt "Update Chart version and appVersion".
+          VALUES="${{ inputs.chart-path }}/values.yaml"
+          sed 's/^  tag:.*/  tag: ""/' "$VALUES" > "$VALUES.tmp" && mv "$VALUES.tmp" "$VALUES"
+          sed "s|^  digest:.*|  digest: \"$DIGEST\"|" "$VALUES" > "$VALUES.tmp" && mv "$VALUES.tmp" "$VALUES"
 
           echo "Updated values.yaml:"
           grep -A 3 "^image:" ${{ inputs.chart-path }}/values.yaml
