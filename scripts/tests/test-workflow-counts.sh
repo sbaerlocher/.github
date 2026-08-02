@@ -44,7 +44,15 @@ for path in paths:
         doc = yaml.safe_load(fh) or {}
     # YAML 1.1 resolves an unquoted `on:` key to the boolean True.
     triggers = doc.get("on", doc.get(True))
-    reusable = isinstance(triggers, dict) and "workflow_call" in triggers
+    # All three trigger spellings count: the block mapping (`on:\n  workflow_call:`),
+    # the flow sequence (`on: [workflow_call]`) and the bare scalar
+    # (`on: workflow_call`). Accepting only the mapping would undercount.
+    if isinstance(triggers, dict):
+        reusable = "workflow_call" in triggers
+    elif isinstance(triggers, list):
+        reusable = "workflow_call" in triggers
+    else:
+        reusable = triggers == "workflow_call"
     print(f"{'reusable' if reusable else 'internal'}\t{os.path.basename(path)}")
 PY
 )" || fail "could not parse the workflow files"
@@ -110,9 +118,11 @@ grep -qF "# $TOTAL files: $REUSABLE reusable + $INTERNAL internal" "$AGENTS" ||
 grep -qE "^### Internal Workflows \($INTERNAL\)$" "$AGENTS" ||
   fail "AGENTS.md: heading must read '### Internal Workflows ($INTERNAL)'"
 
+# Stop at the next heading of any level, not just `### ` — the Composite
+# Actions section that follows starts with `## ` and carries its own table.
 SECTION="$(
   awk '/^### Internal Workflows \(/ { inside = 1; next }
-       inside && /^### / { exit }
+       inside && /^#{1,6} / { exit }
        inside && /^\| / { print }' "$AGENTS"
 )"
 [ -n "$SECTION" ] || fail "AGENTS.md: Internal Workflows section has no table rows"
