@@ -79,11 +79,32 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   name the two checks that actually run. Consumers scanning before a bump:
   no action needed.
 
+### Dependencies
+
+- **GitHub Actions**: `docker/login-action` → v4.6.0, plus digest bumps in
+  `ci-gitops.yml`, `e2e-dde.yml`, `release-npm.yml` and `security-sbom.yml`.
+  The inner `sbaerlocher/.github` refs in the `project` composite action and
+  the reusables moved to `2026-07-29`.
+
 ---
 
-## 2026-07-27
+## 2026-07-29
 
 ### Changed
+
+- **Dependencies.** GitHub Actions digest bumps across `ai-claude.yml`,
+  `ci-ansible.yml`, `ci-gitops.yml`, `e2e-dde.yml`, `release-docker.yml`,
+  `release-npm.yml`, `security-code.yml`, `security-config.yml`,
+  `security-deps.yml`, `security-sbom.yml`, `security-secrets.yml` and the
+  `project` composite action, including `actions/setup-python` v6 → v7. The
+  inner `sbaerlocher/.github` ref in `project/action.yml` moved to
+  `2026-07-28`. No inputs, outputs or defaults changed.
+
+---
+
+## 2026-07-28
+
+### ⚠ BREAKING
 
 - **Renovate presets — automerge scope widened.** The stability rules for
   `node`, `typescript`, `pnpm` (`renovate-js.json`), Terraform Core and the
@@ -106,6 +127,15 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   language-version bump through. To keep a package fully manual in one repo,
   re-add a rule with `automerge: false` and no `matchUpdateTypes` in that
   repo's own `renovate.json`.
+
+---
+
+## 2026-07-27
+
+### Changed
+
+- **Dependencies.** `docker/login-action` bumped to v4.5.0. No inputs,
+  outputs or defaults changed.
 
 ---
 
@@ -141,9 +171,20 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### Dependencies
 
-- **GitHub Actions**: batched updates across reusables (`#245`, `#246`, `#247`).
+- **GitHub Actions**: batched updates across reusables (`#246`, `#247`).
 - **`actions/setup-go`**: → v7.
 - **`anthropics/claude-code-action`**: → v1.0.181.
+
+---
+
+## 2026-07-23
+
+### Changed
+
+- **Dependencies.** GitHub Actions digest bumps across `ai-claude-review.yml`,
+  `ai-claude.yml`, `ci-gitops.yml`, `e2e-dde.yml`, `release-npm.yml`,
+  `security-sbom.yml` and the `project` composite action. No inputs, outputs
+  or defaults changed.
 
 ---
 
@@ -1469,6 +1510,24 @@ edit` / branch-ruleset bootstrap script. Neither doc is being relocated
   - `packages: write` is now only granted to the `sign-container` job
   - Workflow-level permissions reduced to `contents: write` and `id-token: write`
   - Maintains full functionality for container image signing and SBOM attachment
+
+---
+
+## 2026-02-19
+
+### Fixed
+
+- **`security-code.yml`**: `paths-ignore` in the CodeQL configuration was
+  written as a newline-separated string, which CodeQL does not accept.
+  Converted to a YAML array so the exclusions apply.
+
+### Changed
+
+- **Dependencies.** GitHub Actions digest bumps across `ai-claude-review.yml`,
+  `ai-claude.yml`, `ci-go.yml`, `ci-js.yml`, `ci-terraform.yml`,
+  `helm-test.yml`, `release-docker.yml`, `security-code.yml`,
+  `security-config.yml`, `security-containers.yml` and
+  `security-secrets.yml`.
 
 ---
 
