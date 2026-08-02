@@ -40,6 +40,23 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### Added
 
+- **`ci-gitops.yml` takes `gitrepo-file` and `require-gitrepo-file`.** The
+  GitRepo manifest path was hard-coded at four call sites (both step
+  conditions, the `::notice::` text and the `grep`), so a repo keeping the
+  manifest anywhere but `gitrepos/production.yaml` could not use the job at
+  all. `gitrepo-file` (default `gitrepos/production.yaml`) states the location
+  once; it takes a single literal path, not a glob. `require-gitrepo-file`
+  (default `false`) restores the ability to make a missing manifest fail: the
+  change above turned absence into a `::notice::` for every consumer, which is
+  right for repos whose GitRepo resources live elsewhere but hides an
+  accidental rename or deletion in repos whose Fleet deployment hangs off the
+  file. Those repos set `require-gitrepo-file: true` and get a red job again —
+  it is enforced inside `validate-gitrepo`, so it needs
+  `enable-gitrepo-validation: true` to have any effect. The path reaches the
+  `run:` blocks via `env:` rather than direct `${{ }}` interpolation, matching
+  the hardening the yamllint step carries in the same release. Not breaking —
+  both inputs are optional and their defaults reproduce the current behaviour
+  exactly.
 - **Drift check for the workflow counts stated in the docs.** Three places
   carried a count and no two agreed: `AGENTS.md` said "24 reusable workflows"
   in one section and "24 reusable + 1 internal self-test" in another, while the
