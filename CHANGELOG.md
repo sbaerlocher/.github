@@ -20,6 +20,21 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-08-02
+
+### Fixed
+
+- **`ops-drift-issue.yml` — GNU-only sed idiom in the inline `render()`.** The
+  workflow carries an inline copy of `scripts/drift-issue-body.sh`, and the
+  copy still trimmed trailing blank lines via
+  `sed -e :a -e '/^\n*$/{$d;N;ba}'` — the same GNU-only idiom the script shed
+  on 2026-08-01, which aborts on BSD sed with `unexpected EOF`. Replaced with
+  the identical portable awk equivalent, so script and workflow agree again.
+  Side effect of the awk form, matching the script: a trailing line consisting
+  only of spaces or tabs is now trimmed too, where sed left it in place. Not
+  breaking for CI — runners are Linux and the sed form worked there; the fix
+  matters for anyone reproducing the block locally on macOS.
+
 ## 2026-08-01
 
 ### Fixed
@@ -35,8 +50,8 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   were trimmed via `sed -e :a -e '/^\n*$/{$d;N;ba}'`, which aborts on BSD sed
   with `unexpected EOF`. Replaced with a portable awk equivalent so the script
   and its self-check run on macOS. Local runs only; CI runners are Linux and
-  were never affected. Scoped to the script — `ops-drift-issue.yml:123` still
-  carries an inline copy of the same idiom, left for a follow-up.
+  were never affected. Scoped to the script — the inline copy in
+  `ops-drift-issue.yml` was left for a follow-up and landed on 2026-08-02.
 
 ### Added
 

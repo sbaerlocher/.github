@@ -120,7 +120,13 @@ jobs:
           render() { # render <base> <summary>
             local clean
             clean="$(printf '%s' "$1" | strip_block)"
-            clean="$(printf '%s\n' "$clean" | sed -e :a -e '/^\n*$/{$d;N;ba}')"
+            # Trailing Leerzeilen des Basis-Bodys kappen, damit der Abstand stabil ist.
+            # awk statt `sed -e :a -e '/^\n*$/{$d;N;ba}'`: das sed-Idiom ist GNU-only und
+            # bricht auf BSD-sed (macOS) mit "unexpected EOF (pending }'s)" ab.
+            clean="$(printf '%s\n' "$clean" | awk '
+              /^[[:space:]]*$/ { blanks = blanks $0 "\n"; next }
+              { printf "%s", blanks; blanks = ""; print }
+            ')"
             if [ -z "$2" ]; then
               printf '%s\n' "$clean"
               return
