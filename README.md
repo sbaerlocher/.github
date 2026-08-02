@@ -273,10 +273,11 @@ runner. Run it without arguments to list the recipes:
 | Recipe            | What it does                                              |
 | ----------------- | --------------------------------------------------------- |
 | `just`            | List all recipes                                          |
-| `just lint`       | yamllint, Renovate JSON validity, actionlint              |
+| `just lint`       | yamllint, Renovate JSON validity, actionlint, `fmt-check` |
 | `just actionlint` | actionlint alone — local binary or container, by coverage |
 | `just test`       | Script self-checks under `scripts/tests/`                 |
 | `just fmt`        | prettier over Markdown and JSON                           |
+| `just fmt-check`  | prettier `--check` — the formatting gate inside `lint`    |
 
 There is no `build` or `dev` recipe — this repository ships no build artifact
 and has no dev loop. `templates/justfile` is the reference template consumer

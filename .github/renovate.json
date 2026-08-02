@@ -10,6 +10,14 @@
         "actionlint_image\\s*:=\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^\"@]+)\""
       ],
       "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Track the prettier version used by the justfile fmt and fmt-check recipes",
+      "managerFilePatterns": ["/(^|/)justfile$/"],
+      "matchStrings": ["prettier_version\\s*:=\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "prettier",
+      "datasourceTemplate": "npm"
     }
   ]
 }

@@ -68,7 +68,7 @@ matrix re-uses the same `with:` block.
 ## Inputs
 
 | Input               | Default        | Description                                                              |
-|---------------------|----------------|--------------------------------------------------------------------------|
+| ------------------- | -------------- | ------------------------------------------------------------------------ |
 | `command`           | `up`           | dde project subcommand (`up`, `down`, `restart`, `update`, ...).         |
 | `version`           | `latest`       | dde version (`v2.0.0-alpha.5`, `2.0.0-alpha.5`, or `latest`).            |
 | `working-directory` | `.`            | Directory with `.dde/config.yml`. Fails fast if missing.                 |
@@ -82,7 +82,7 @@ matrix re-uses the same `with:` block.
 ## Outputs
 
 | Output        | Description                                              |
-|---------------|----------------------------------------------------------|
+| ------------- | -------------------------------------------------------- |
 | `version`     | Resolved tag that was installed (e.g. `v2.0.0-alpha.5`). |
 | `binary-path` | Absolute path to the installed `dde` binary.             |
 
@@ -97,7 +97,7 @@ the simplest pattern:
   uses: sbaerlocher/.github/.github/actions/project@2026-04-30
   with:
     command: down
-    working-directory: ./apps/web   # match the up working-directory
+    working-directory: ./apps/web # match the up working-directory
 ```
 
 For longer-lived runners (self-hosted) you may also want

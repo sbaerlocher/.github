@@ -9,10 +9,11 @@
 
 GitHub rundet jeden Job auf die volle billed Minute auf. Die vier geteilten
 Security-Reusables splitten in viele separate Jobs (je eigener Runner-Spin-up
-+ Checkout + eigene Minuten-Aufrundung). Einzelne Scan-Jobs laufen teils nur
-6–13 s, werden aber jeder auf 1 volle Minute aufgerundet → der Split kostet
-fast reine Rundungs-Steuer. Gemessen ~902 billable min/mo fleetweit
-(367 secrets + 535 deps/config/containers).
+
+- Checkout + eigene Minuten-Aufrundung). Einzelne Scan-Jobs laufen teils nur
+  6–13 s, werden aber jeder auf 1 volle Minute aufgerundet → der Split kostet
+  fast reine Rundungs-Steuer. Gemessen ~902 billable min/mo fleetweit
+  (367 secrets + 535 deps/config/containers).
 
 ## Ziel
 
@@ -22,12 +23,12 @@ eigenem Job.
 
 ## Änderungen pro Workflow
 
-| Workflow                 | Vorher  | Nachher                                                                      | Runner gespart |
-| ------------------------ | ------- | --------------------------------------------------------------------------- | -------------- |
-| `security-secrets.yml`   | 4 Jobs  | `gitleaks` (isoliert, `pull-requests:read`) + `secret-scan` (trufflehog + pattern + report, `contents:read`) | 2 |
-| `security-deps.yml`      | 5 Jobs  | 1 Job `dependency-scan`, Steps behalten ihre `if:`-Guards                    | 4              |
-| `security-containers.yml`| 4 Jobs  | 1 Job `container-scan`                                                       | 3              |
-| `security-config.yml`    | 5 Jobs  | 1 Job `config-scan`                                                          | 4              |
+| Workflow                  | Vorher | Nachher                                                                                                      | Runner gespart |
+| ------------------------- | ------ | ------------------------------------------------------------------------------------------------------------ | -------------- |
+| `security-secrets.yml`    | 4 Jobs | `gitleaks` (isoliert, `pull-requests:read`) + `secret-scan` (trufflehog + pattern + report, `contents:read`) | 2              |
+| `security-deps.yml`       | 5 Jobs | 1 Job `dependency-scan`, Steps behalten ihre `if:`-Guards                                                    | 4              |
+| `security-containers.yml` | 4 Jobs | 1 Job `container-scan`                                                                                       | 3              |
+| `security-config.yml`     | 5 Jobs | 1 Job `config-scan`                                                                                          | 4              |
 
 ## Trade-off (nicht wegwischen)
 

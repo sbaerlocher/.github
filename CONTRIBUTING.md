@@ -45,10 +45,11 @@ entrypoint is [`just`](https://just.systems), the org-wide command runner —
 run it without arguments to list the recipes:
 
 ```bash
-just lint         # yamllint, Renovate JSON validity, actionlint
+just lint         # yamllint, Renovate JSON validity, actionlint, fmt-check
 just actionlint   # actionlint alone (local binary or container)
 just test         # script self-checks under scripts/tests/
 just fmt          # prettier over Markdown and JSON
+just fmt-check    # prettier --check, no writes — the formatting gate in `lint`
 ```
 
 Run `just lint` and `just test` before opening a PR — the `Lint and Test` job
@@ -56,8 +57,9 @@ in `pull-request.yml` runs both again, so a local failure is a CI failure.
 `fmt` reflows Markdown tables repo-wide, so keep its output out of otherwise
 unrelated changes.
 
-Recipes call `yamllint`, `jq`, and `prettier` directly — install those
-separately, `just` does not vendor them.
+Recipes call `yamllint` and `jq` directly — install those separately, `just`
+does not vendor them. `prettier` is the exception: `fmt` and `fmt-check` fetch
+a pinned version through `npx`, so only Node has to be present.
 
 `actionlint` is the exception — it needs no manual install. `just actionlint`
 picks a path by coverage rather than by preference:

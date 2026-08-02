@@ -21,13 +21,13 @@ wird.
 
 ## Änderungen pro Workflow
 
-| Workflow           | Änderung                                                                 |
-| ------------------ | ----------------------------------------------------------------------- |
+| Workflow           | Änderung                                                                                                             |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
 | `ci-go.yml`        | Keine — `security-scan` + `codeql-analysis` gaten bereits (`needs: [setup, test-and-lint, test-and-lint-postgres]`). |
-| `ci-js.yml`        | Keine — `security-scan` gatet bereits (`needs: [setup, quality-and-test]`). |
-| `ci-terraform.yml` | `lint` + `trivy` bekommen `needs: validation`.                          |
-| `ci-ansible.yml`   | `lint` + `yamllint` bekommen `needs: validation`.                        |
-| `ci-gitops.yml`    | Alle 6 Nicht-Gate-Jobs bekommen `needs: [validate-yaml]` + Guard-`if:`.  |
+| `ci-js.yml`        | Keine — `security-scan` gatet bereits (`needs: [setup, quality-and-test]`).                                          |
+| `ci-terraform.yml` | `lint` + `trivy` bekommen `needs: validation`.                                                                       |
+| `ci-ansible.yml`   | `lint` + `yamllint` bekommen `needs: validation`.                                                                    |
+| `ci-gitops.yml`    | Alle 6 Nicht-Gate-Jobs bekommen `needs: [validate-yaml]` + Guard-`if:`.                                              |
 
 ## Zwei needs-Muster
 
@@ -38,7 +38,7 @@ die abhängigen Jobs übersprungen. `lint` behält sein bestehendes
 
 **gitops — `needs` + always()-Guard:** Der Gate-Job `validate-yaml` ist
 bedingt (`if: inputs.enable-yaml-lint`). Plain `needs` würde die abhängigen
-Jobs mit-skippen, wenn das Gate *deaktiviert* ist. Guard:
+Jobs mit-skippen, wenn das Gate _deaktiviert_ ist. Guard:
 
 ```yaml
 needs: [validate-yaml]

@@ -47,11 +47,20 @@ actionlint_ignores := "-ignore 'SC2086' -ignore 'SC2002' -ignore 'SC2015'"
 # anywhere else. Keep the assignment on one line; the manager regex expects it.
 actionlint_image := "rhysd/actionlint:1.7.7"
 
+# prettier version used by both `fmt` and `fmt-check`. Pinned because the two
+# recipes have to agree: an unpinned `npx prettier` resolves to whatever is
+# current, so a formatting change in a new release would turn `lint` red on a
+# commit that nobody touched. There is no package.json here to pin it instead.
+# Renovate keeps this current via the custom manager in .github/renovate.json.
+# Keep the assignment on one line; the manager regex expects it.
+prettier_version := "3.9.6"
+
 # lint → static checks over YAML, Renovate presets and workflow definitions
 lint:
     yamllint .
     jq empty renovate.json .github/renovate.json renovate-*.json
     just actionlint
+    just fmt-check
 
 # Coverage decides the order, not locality: actionlint needs shellcheck for its
 # embedded shell checks and skips them *silently* without it, so a local binary
@@ -88,4 +97,12 @@ test:
 
 # fmt → format Markdown and JSON in place
 fmt:
-    prettier --write '**/*.md' '**/*.json'
+    npx -y prettier@{{ prettier_version }} --write '**/*.md' '**/*.json'
+
+# fmt-check → verify Markdown and JSON formatting without writing
+#
+# Wired into `lint` so formatting drift fails the same gate as YAML and workflow
+# problems. Without it the repo drifted back to seven unclean files after the
+# last cleanup: `fmt` alone only helps whoever remembers to run it.
+fmt-check:
+    npx -y prettier@{{ prettier_version }} --check '**/*.md' '**/*.json'
