@@ -83,6 +83,7 @@ test:
     scripts/tests/test-drift-summary.sh
     scripts/tests/test-drift-issue-body.sh
     scripts/tests/test-drift-issue-parity.sh
+    scripts/tests/test-workflow-counts.sh
 
 # fmt → format Markdown and JSON in place
 fmt:

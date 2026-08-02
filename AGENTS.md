@@ -24,8 +24,11 @@ directly impacting the CI/CD pipelines of multiple projects.
 
 **Current Statistics**:
 
-- **Total Workflows**: 24 reusable workflows (see [.github/workflows/](./.github/workflows/))
-- **Categories**: CI (5), Security (6), Deploy (2), Release (4), Operations (3), AI (2), E2E (2)
+- **Total Workflows**: 28 files in [.github/workflows/](./.github/workflows/) — 24 reusable
+  (`workflow_call`) plus 4 internal workflows that run only in this repo
+  (`merge.yml`, `pull-request.yml`, `test-actions-dde.yml`, `weekly-security.yml`)
+- **Reusable Categories**: CI (5), Security (6), Deploy (2), Release (4), Operations (3),
+  AI (2), E2E (2)
 - **Consumers**: applications, infrastructure, authentication, observability, functions,
   sbaerlocher.ch, tsmetrics, and more
 
@@ -296,14 +299,17 @@ swaps `compose-file` / `compose-profile` for `project-directory` /
 `wait-url`. Linux-only (`dde system:install` requires Docker, which hosted
 macOS runners don't ship).
 
-### Internal Self-Tests (1)
+### Internal Workflows (4)
 
-**Purpose**: Smoke-test composite actions in this repo when their sources
-change. Not reusable from consumer repos.
+**Purpose**: This repository's own CI and release plumbing. None of these
+carry a `workflow_call` trigger — they are not reusable from consumer repos.
 
-| Workflow         | File                     | Description                            |
-| ---------------- | ------------------------ | -------------------------------------- |
-| Test dde actions | `test-actions-dde.yml`   | Smoke-test `setup-dde` on Linux/macOS  |
+| Workflow         | File                     | Description                                  |
+| ---------------- | ------------------------ | -------------------------------------------- |
+| Test dde actions | `test-actions-dde.yml`   | Smoke-test `setup-dde` on Linux/macOS        |
+| Pull Request     | `pull-request.yml`       | `just lint` + `just test` on PRs to `main`   |
+| Merge to Main    | `merge.yml`              | Cuts the `YYYY-MM-DD` date tag on push       |
+| Weekly Security  | `weekly-security.yml`    | Scheduled config + secret self-scan (Mon)    |
 
 ---
 
@@ -556,7 +562,7 @@ Ensure lock files are committed:
 ```text
 .github/
 ├── .github/
-│   ├── workflows/           # 24 reusable workflows + 1 internal self-test
+│   ├── workflows/           # 28 files: 24 reusable + 4 internal
 │   │   ├── ai-*.yml        # AI workflows
 │   │   ├── ci-*.yml        # CI workflows
 │   │   ├── deploy-*.yml    # Deploy workflows
@@ -564,7 +570,10 @@ Ensure lock files are committed:
 │   │   ├── ops-*.yml       # Operations workflows
 │   │   ├── release-*.yml   # Release workflows
 │   │   ├── security-*.yml  # Security workflows
-│   │   └── test-*.yml      # Internal self-tests (NOT reusable)
+│   │   ├── test-*.yml      # Internal self-tests (NOT reusable)
+│   │   ├── merge.yml       # Internal: cuts the date tag on push to main
+│   │   ├── pull-request.yml # Internal: lint + test on this repo's PRs
+│   │   └── weekly-security.yml # Internal: scheduled self-scan
 │   ├── ISSUE_TEMPLATE/     # Org-default issue forms
 │   ├── CODEOWNERS          # Repository owners
 │   ├── pull_request_template.md

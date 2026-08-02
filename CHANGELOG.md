@@ -40,6 +40,19 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### Added
 
+- **Drift check for the workflow counts stated in the docs.** Three places
+  carried a count and no two agreed: `AGENTS.md` said "24 reusable workflows"
+  in one section and "24 reusable + 1 internal self-test" in another, while the
+  GitHub repo description said "27 production-ready workflows". The tree holds
+  28 files — 24 with a `workflow_call` trigger, 4 internal. `AGENTS.md` is the
+  first file an agent reads, so a wrong count there seeds wrong assumptions for
+  a whole session. The docs now state the file/reusable/internal split and name
+  the four internal workflows, and `scripts/tests/test-workflow-counts.sh`
+  (wired into `just test`) derives all three numbers from `.github/workflows/`
+  and fails when the docs disagree. Classification parses the `on:` mapping
+  rather than grepping for the bare token, which also appears in prose
+  comments, and covers both `.yml` and `.yaml`. No consumer impact —
+  documentation and a repo-local test only.
 - **Parity self-check for the inline body logic in `ops-drift-issue.yml`.**
   The workflow keeps its own copy of `strip_block`/`render`/`addresses` from
   `scripts/drift-issue-body.sh` — deliberately, since a reusable workflow has
