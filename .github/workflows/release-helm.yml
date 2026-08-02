@@ -96,6 +96,26 @@ jobs:
         run: |
           VERSION="${INPUT_VERSION#v}"  # Remove 'v' prefix if present
 
+          # Guard vor den `sed`-Aufrufen unten: `$VERSION` landet im
+          # s-Ausdruck selbst. `/` beendet ihn vorzeitig, `&` und `\` sind in
+          # der Replacement-Hälfte Metazeichen, ein Newline bricht das Script
+          # mit "unterminated s command" ab. Allowlist statt Denylist, damit
+          # die Klasse geschlossen ist. Git-Tag-Namen dürfen Slashes tragen
+          # und das `v*`-Filter der Caller schliesst sie nicht aus.
+          # Dieser Step läuft ohne `if:` und vor dem Package-Step, ein
+          # `exit 1` bricht also den Job ab, bevor das zweite, unabhängige
+          # `VERSION="${INPUT_VERSION#v}"` dort ausgewertet wird.
+          # Der abgelehnte Wert geht per `printf %q` ins Log, nicht in die
+          # `::error::`-Annotation: ein Newline darin würde sonst als neues
+          # Workflow-Kommando geparst.
+          case "$VERSION" in
+            *[!A-Za-z0-9._+-]*)
+              echo "::error::version must match [A-Za-z0-9._+-]+ — rejected, see log"
+              printf 'rejected version: %q\n' "$VERSION"
+              exit 1
+              ;;
+          esac
+
           # Temp-Datei plus `mv` statt `sed -i "…"`: die suffixlose `-i`-Form ist
           # GNU-only. BSD-sed (macOS) liest das Script als Backup-Suffix und
           # bricht mit "invalid command code" ab, ohne die Datei zu ändern.
@@ -115,6 +135,18 @@ jobs:
           CHART_PATH: ${{ inputs.chart-path }}
           IMAGE_DIGEST: ${{ inputs.image-digest }}
         run: |
+          # Gleicher Guard wie beim Version-Step, hier für den `|`-Delimiter:
+          # `docker/build-push-action` liefert immer `sha256:<hex>`, ein
+          # fremder Caller kann den Input aber frei setzen. Der leere Fall
+          # ist durch `if: inputs.image-digest != ''` schon ausgeschlossen.
+          case "$IMAGE_DIGEST" in
+            *[!A-Za-z0-9:]*)
+              echo "::error::image-digest must match [A-Za-z0-9:]+ — rejected, see log"
+              printf 'rejected image-digest: %q\n' "$IMAGE_DIGEST"
+              exit 1
+              ;;
+          esac
+
           # Update values.yaml: clear tag and set digest
           # Temp-Datei plus `mv` statt `sed -i "…"` — GNU-only, siehe Kommentar
           # im Schritt "Update Chart version and appVersion".
