@@ -88,39 +88,62 @@ jobs:
           version: ${{ inputs.helm-version }}
 
       - name: Update Chart version and appVersion
+        env:
+          # Inputs als Environment statt via `${{ }}` in den Script-Body: so
+          # parst bash die Werte als Daten, nicht als Shell-Quelltext.
+          CHART_PATH: ${{ inputs.chart-path }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          VERSION="${{ inputs.version }}"
-          VERSION="${VERSION#v}"  # Remove 'v' prefix if present
+          VERSION="${INPUT_VERSION#v}"  # Remove 'v' prefix if present
 
-          sed -i "s/^version:.*/version: $VERSION/" ${{ inputs.chart-path }}/Chart.yaml
-          sed -i "s/^appVersion:.*/appVersion: \"$VERSION\"/" ${{ inputs.chart-path }}/Chart.yaml
+          # Temp-Datei plus `mv` statt `sed -i "…"`: die suffixlose `-i`-Form ist
+          # GNU-only. BSD-sed (macOS) liest das Script als Backup-Suffix und
+          # bricht mit "invalid command code" ab, ohne die Datei zu ändern.
+          # Temp-Datei unter $RUNNER_TEMP, damit ein sed-Fehler keine `.tmp`
+          # im Chart-Verzeichnis liegen lässt, die `helm package` mitpackt.
+          CHART="$CHART_PATH/Chart.yaml"
+          TMP="$RUNNER_TEMP/Chart.yaml"
+          sed "s/^version:.*/version: $VERSION/" "$CHART" > "$TMP" && mv "$TMP" "$CHART"
+          sed "s/^appVersion:.*/appVersion: \"$VERSION\"/" "$CHART" > "$TMP" && mv "$TMP" "$CHART"
 
           echo "Updated Chart.yaml:"
-          grep -E "(version|appVersion):" ${{ inputs.chart-path }}/Chart.yaml
+          grep -E "(version|appVersion):" "$CHART"
 
       - name: Update values.yaml with image digest
         if: inputs.image-digest != ''
+        env:
+          CHART_PATH: ${{ inputs.chart-path }}
+          IMAGE_DIGEST: ${{ inputs.image-digest }}
         run: |
-          DIGEST="${{ inputs.image-digest }}"
-
           # Update values.yaml: clear tag and set digest
-          sed -i 's/^  tag:.*/  tag: ""/' ${{ inputs.chart-path }}/values.yaml
-          sed -i "s|^  digest:.*|  digest: \"$DIGEST\"|" ${{ inputs.chart-path }}/values.yaml
+          # Temp-Datei plus `mv` statt `sed -i "…"` — GNU-only, siehe Kommentar
+          # im Schritt "Update Chart version and appVersion".
+          VALUES="$CHART_PATH/values.yaml"
+          TMP="$RUNNER_TEMP/values.yaml"
+          sed 's/^  tag:.*/  tag: ""/' "$VALUES" > "$TMP" && mv "$TMP" "$VALUES"
+          sed "s|^  digest:.*|  digest: \"$IMAGE_DIGEST\"|" "$VALUES" > "$TMP" && mv "$TMP" "$VALUES"
 
           echo "Updated values.yaml:"
-          grep -A 3 "^image:" ${{ inputs.chart-path }}/values.yaml
+          grep -A 3 "^image:" "$VALUES"
 
       - name: Package and publish Helm chart
+        env:
+          CHART_PATH: ${{ inputs.chart-path }}
+          CHART_NAME: ${{ inputs.chart-name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          REGISTRY: ${{ inputs.registry }}
+          REGISTRY_PATH: ${{ inputs.registry-path }}
+          REGISTRY_TOKEN: ${{ secrets.registry-token }}
+          REGISTRY_USERNAME: ${{ secrets.registry-username || github.actor }}
         run: |
           # Package chart
-          helm package ${{ inputs.chart-path }} --destination .
+          helm package "$CHART_PATH" --destination .
 
           # Login to registry
-          echo "${{ secrets.registry-token }}" | helm registry login "${{ inputs.registry }}" --username "${{ secrets.registry-username || github.actor }}" --password-stdin
+          echo "$REGISTRY_TOKEN" | helm registry login "$REGISTRY" --username "$REGISTRY_USERNAME" --password-stdin
 
           # Push chart
-          VERSION="${{ inputs.version }}"
-          VERSION="${VERSION#v}"
-          helm push "${{ inputs.chart-name }}-$VERSION.tgz" "oci://${{ inputs.registry }}/${{ inputs.registry-path }}"
+          VERSION="${INPUT_VERSION#v}"
+          helm push "$CHART_NAME-$VERSION.tgz" "oci://$REGISTRY/$REGISTRY_PATH"
 
           echo "✅ Helm chart published successfully"
