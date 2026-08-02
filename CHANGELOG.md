@@ -22,6 +22,22 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ## 2026-08-02
 
+### Fixed
+
+- **`ci-gitops.yml` no longer fails when `gitrepos/production.yaml` is
+  absent.** The GitRepo existence step exited 1 on a missing file, and
+  `enable-gitrepo-validation` defaults to `true` — so every GitOps consumer
+  whose Fleet `GitRepo` resources live elsewhere (provisioned by Ansible, for
+  example) stayed permanently red unless it opted out explicitly. Absence now
+  means "nothing to validate": the step reports it with a `::notice::` and
+  `Validate GitRepo paths` is gated on
+  `hashFiles('gitrepos/production.yaml') != ''`, matching how
+  `validate-kubernetes` in the same file already reports having no manifests
+  to check. Not breaking — repositories carrying the file see no change,
+  repositories without it go from red to green, and existing
+  `enable-gitrepo-validation: false` opt-outs keep working. Consumers can drop
+  those opt-out lines once they bump to a tag containing this change.
+
 ### Added
 
 - **Parity self-check for the inline body logic in `ops-drift-issue.yml`.**
