@@ -295,6 +295,7 @@ jobs:
         env:
           GITREPO_FILE: ${{ inputs.gitrepo-file }}
         run: |
+          set -euo pipefail
           echo "Validating GitRepo paths..."
           ERRORS=0
 
@@ -307,9 +308,39 @@ jobs:
             exit 1
           fi
 
-          PATHS=$(grep -A 100 "paths:" "${GITREPO_FILE}" | grep "^    - " | sed 's/^    - //')
+          # Line heuristic, not a YAML parser: it reads at most 100 lines after
+          # the first `paths:`. Any indentation is accepted, because a YAML
+          # sequence may sit at its parent's level — `paths:` followed by
+          # `  - platform` is what Rancher's own GitRepo examples use, and
+          # anchoring on four spaces would silently skip it. `|| true` keeps a
+          # non-match from tripping `pipefail`, so an empty result is judged
+          # below instead of aborting the step without a message.
+          PATHS=$(grep -A 100 "paths:" "${GITREPO_FILE}" | grep -E "^ +- " | sed -E 's/^ +- //' || true)
 
-          for path in $PATHS; do
+          # No paths is not an error: `spec.paths` is optional in Fleet, and
+          # omitting it means "scan the repository root". Warn instead, so the
+          # case stays visible without failing manifests that rely on it.
+          if [ -z "${PATHS}" ]; then
+            echo "::warning::No paths parsed from ${GITREPO_FILE%%$'\n'*}"
+            echo "Either the manifest declares no 'paths:' (Fleet then scans the"
+            echo "repository root), or its entries sit beyond the 100-line window."
+          fi
+
+          # Read loop instead of `mapfile -t`, which is a bash-4 builtin: the
+          # runner is bash 5, but the neighbouring loops in this file avoid it
+          # for portability and this one stays consistent with them. Quoting
+          # the expansion is the load-bearing part — it keeps a path containing
+          # spaces one entry instead of splitting it into phantom ones.
+          # `${paths[@]+…}` guards the empty-array case, which `set -u` rejects
+          # on bash < 4.4.
+          paths=()
+          if [ -n "${PATHS}" ]; then
+            while IFS= read -r path; do
+              paths+=("$path")
+            done <<< "${PATHS}"
+          fi
+
+          for path in ${paths[@]+"${paths[@]}"}; do
             if [ ! -d "$path" ]; then
               echo "WARNING: Path $path in GitRepo does not exist"
             elif [ ! -f "$path/fleet.yaml" ]; then
