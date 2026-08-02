@@ -366,6 +366,16 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   breaking for CI — runners are Linux and the sed form worked there; the fix
   matters for anyone reproducing the block locally on macOS.
 
+### Dependencies
+
+- **GitHub Actions**: `github/codeql-action` → v4.37.4 across `ci-go.yml`,
+  `ci-js.yml`, `ci-terraform.yml`, `release-docker.yml`, `security-code.yml`,
+  `security-config.yml` and `security-containers.yml`.
+  The inner `sbaerlocher/.github` refs moved to `2026-08-01` —
+  `install-kubeconform` in `ci-gitops.yml`, `project` in `e2e-dde.yml`,
+  `sbom-npm` in `release-npm.yml` and `security-sbom.yml`, and `setup-dde` in
+  the `project` composite action.
+
 ## 2026-08-01
 
 ### Fixed
