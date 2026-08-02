@@ -64,6 +64,24 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   no hardcoded line range to go stale), sources it, and compares its output
   against the script over the same inputs. Behaviour-based rather than
   textual, so indentation and comment churn do not produce false failures.
+- **Parity self-check for the inline drift jq query in
+  `deploy-terraform.yml`.** The `Drift Summary Extraction` step duplicates the
+  jq query from `scripts/drift-summary.sh` — deliberately, since the workflow
+  checks out the consumer repository and the script is not on disk at runtime
+  — and the contract was again "Gleichheit von Hand geprüft" with nothing
+  enforcing it. That query is the anchor of the value-freedom guarantee: it
+  reads only `.address` and `.change.actions`, never `.change.before/.after`,
+  so a widened copy would push attribute values (which can carry secrets) into
+  a GitHub issue body. `scripts/tests/test-drift-summary-parity.sh` now
+  extracts the query from the workflow YAML (parsed, no hardcoded line range),
+  runs it against the existing `plan-drift.json` fixture alongside the script,
+  and compares the output, asserting that no `LEAKME` marker from
+  `before`/`after` reaches it. The step's whole `run:` block then executes
+  against a stubbed `terraform` and a temporary `GITHUB_OUTPUT`, so the
+  duplicated cap — its value, the threshold at exactly `CAP` resources, and the
+  `… N more (truncated)` notice — is exercised rather than re-derived by the
+  test. No consumer impact — the workflow change is a comment, plus a
+  repository-local test.
 
 ### Changed
 
