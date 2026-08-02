@@ -180,16 +180,16 @@ jobs:
         run: |
           case "${{ inputs.package-manager }}" in
             pnpm)
-              echo "dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+              echo "dir=$(pnpm store path)" >> "$GITHUB_OUTPUT"
               ;;
             bun)
-              echo "dir=$HOME/.bun/install/cache" >> $GITHUB_OUTPUT
+              echo "dir=$HOME/.bun/install/cache" >> "$GITHUB_OUTPUT"
               ;;
             yarn)
-              echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+              echo "dir=$(yarn cache dir)" >> "$GITHUB_OUTPUT"
               ;;
             npm)
-              echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
+              echo "dir=$(npm config get cache)" >> "$GITHUB_OUTPUT"
               ;;
           esac
 
@@ -440,13 +440,13 @@ jobs:
         run: |
           case "${{ inputs.package-manager }}" in
             pnpm)
-              echo "dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+              echo "dir=$(pnpm store path)" >> "$GITHUB_OUTPUT"
               ;;
             yarn)
-              echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+              echo "dir=$(yarn cache dir)" >> "$GITHUB_OUTPUT"
               ;;
             npm)
-              echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
+              echo "dir=$(npm config get cache)" >> "$GITHUB_OUTPUT"
               ;;
           esac
 

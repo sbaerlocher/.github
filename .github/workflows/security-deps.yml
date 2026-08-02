@@ -173,13 +173,13 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
         run: |
           if [ -f "pnpm-lock.yaml" ]; then
-            echo "pm=pnpm" >> $GITHUB_OUTPUT
+            echo "pm=pnpm" >> "$GITHUB_OUTPUT"
           elif [ -f "yarn.lock" ]; then
-            echo "pm=yarn" >> $GITHUB_OUTPUT
+            echo "pm=yarn" >> "$GITHUB_OUTPUT"
           elif [ -f "bun.lockb" ]; then
-            echo "pm=bun" >> $GITHUB_OUTPUT
+            echo "pm=bun" >> "$GITHUB_OUTPUT"
           else
-            echo "pm=npm" >> $GITHUB_OUTPUT
+            echo "pm=npm" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Setup pnpm

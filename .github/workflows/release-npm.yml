@@ -127,7 +127,7 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Package version: $VERSION"
 
       - name: Check if version already published
@@ -143,10 +143,10 @@ jobs:
 
           if npm view "$PACKAGE_NAME@$VERSION" version 2>/dev/null; then
             echo "::warning::Version $VERSION is already published to NPM"
-            echo "should-publish=false" >> $GITHUB_OUTPUT
+            echo "should-publish=false" >> "$GITHUB_OUTPUT"
           else
             echo "✓ Version $VERSION not yet published"
-            echo "should-publish=true" >> $GITHUB_OUTPUT
+            echo "should-publish=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Validate package.json
@@ -464,7 +464,7 @@ jobs:
 
           if [ -n "$PREVIOUS_TAG" ]; then
             echo "Generating changelog from $PREVIOUS_TAG to $VERSION"
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" $PREVIOUS_TAG..HEAD)
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" "$PREVIOUS_TAG..HEAD")
           else
             echo "No previous tag found, using all commits"
             CHANGELOG=$(git log --pretty=format:"- %s (%h)" HEAD)
@@ -485,7 +485,7 @@ jobs:
           **Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${VERSION}
           EOF
 
-          echo "changelog_file=/tmp/changelog.md" >> $GITHUB_OUTPUT
+          echo "changelog_file=/tmp/changelog.md" >> "$GITHUB_OUTPUT"
 
       - name: Download SBOM artifact
         if: inputs.enable-sbom
