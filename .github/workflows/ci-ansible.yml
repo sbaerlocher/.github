@@ -98,30 +98,42 @@ jobs:
             ansible-collections-${{ runner.os }}-
 
       - name: Install Ansible
+        env:
+          ANSIBLE_VERSION: ${{ inputs.ansible-version }}
         run: |
-          echo "::group::Install Ansible ${{ inputs.ansible-version }}"
-          pip install ansible==${{ inputs.ansible-version }} requests
+          set -euo pipefail
+          echo "::group::Install Ansible $ANSIBLE_VERSION"
+          pip install "ansible==$ANSIBLE_VERSION" requests
           ansible --version
           echo "::endgroup::"
 
       - name: Install Ansible Collections
         working-directory: ${{ inputs.working-directory }}
+        env:
+          REQUIREMENTS_FILE: ${{ inputs.requirements-file }}
         run: |
+          set -euo pipefail
           echo "::group::Install Ansible Collections"
-          if [ -f "${{ inputs.requirements-file }}" ]; then
-            echo "Installing collections from ${{ inputs.requirements-file }}..."
-            ansible-galaxy collection install -r ${{ inputs.requirements-file }}
+          if [ -f "$REQUIREMENTS_FILE" ]; then
+            echo "Installing collections from $REQUIREMENTS_FILE..."
+            ansible-galaxy collection install -r "$REQUIREMENTS_FILE"
           else
-            echo "::warning::No requirements file found at ${{ inputs.requirements-file }}"
+            echo "::warning::No requirements file found at $REQUIREMENTS_FILE"
           fi
           echo "::endgroup::"
 
       - name: Ansible Syntax Check
         working-directory: ${{ inputs.working-directory }}
+        env:
+          # Unquoted at the call site below so a glob like `playbooks/*.yml`
+          # still expands into one argv word per playbook; keep it that way.
+          PLAYBOOK_FILE: ${{ inputs.playbook-file }}
         run: |
+          set -euo pipefail
           echo "::group::Ansible Syntax Check"
-          echo "Checking syntax of ${{ inputs.playbook-file }}..."
-          ansible-playbook --syntax-check ${{ inputs.playbook-file }}
+          echo "Checking syntax of $PLAYBOOK_FILE..."
+          # shellcheck disable=SC2086 # intentional: see env comment above
+          ansible-playbook --syntax-check $PLAYBOOK_FILE
           echo "::notice::Ansible syntax check passed ✅"
           echo "::endgroup::"
 
@@ -147,21 +159,31 @@ jobs:
           # Note: cache disabled because not all projects have requirements.txt
 
       - name: Install ansible-lint
+        env:
+          ANSIBLE_VERSION: ${{ inputs.ansible-version }}
         run: |
+          set -euo pipefail
           echo "::group::Install ansible-lint"
-          pip install ansible==${{ inputs.ansible-version }} ansible-lint
+          pip install "ansible==$ANSIBLE_VERSION" ansible-lint
           ansible-lint --version
           echo "::endgroup::"
 
       - name: Run ansible-lint
         working-directory: ${{ inputs.working-directory }}
+        env:
+          # Unquoted at the call sites below so a glob like `playbooks/*.yml`
+          # still expands into one argv word per playbook; keep it that way.
+          PLAYBOOK_FILE: ${{ inputs.playbook-file }}
+          STRICT: ${{ inputs.ansible-lint-strict }}
         run: |
+          set -euo pipefail
           echo "::group::Run ansible-lint"
-          echo "Linting ${{ inputs.playbook-file }}..."
-          if [ "${{ inputs.ansible-lint-strict }}" = "true" ]; then
-            ansible-lint ${{ inputs.playbook-file }}
+          echo "Linting $PLAYBOOK_FILE..."
+          # shellcheck disable=SC2086 # intentional: see env comment above
+          if [ "$STRICT" = "true" ]; then
+            ansible-lint $PLAYBOOK_FILE
           else
-            ansible-lint ${{ inputs.playbook-file }} || true
+            ansible-lint $PLAYBOOK_FILE || true
           fi
           echo "::endgroup::"
 
@@ -187,15 +209,20 @@ jobs:
 
       - name: Install yamllint
         run: |
+          set -euo pipefail
           pip install yamllint
           yamllint --version
 
       - name: Run yamllint
         working-directory: ${{ inputs.working-directory }}
+        env:
+          STRICT: ${{ inputs.yamllint-strict }}
         run: |
+          set -euo pipefail
           echo "::group::Run yamllint"
-          echo "Linting YAML files in ${{ inputs.working-directory }}..."
-          if [ "${{ inputs.yamllint-strict }}" = "true" ]; then
+          # $PWD is the step's working-directory, set above
+          echo "Linting YAML files in $PWD..."
+          if [ "$STRICT" = "true" ]; then
             yamllint -f parsable .
           else
             yamllint -f parsable . || true
