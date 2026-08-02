@@ -203,8 +203,12 @@ jobs:
 
       - name: Set test environment variables
         if: inputs.test-env-vars != ''
+        env:
+          TEST_ENV_VARS: ${{ inputs.test-env-vars }}
         run: |
-          echo '${{ inputs.test-env-vars }}' | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> $GITHUB_ENV
+          set -euo pipefail
+          printf '%s' "$TEST_ENV_VARS" \
+            | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
 
       - name: Run tests with coverage
         env:
@@ -331,11 +335,18 @@ jobs:
           install-go: false
 
       - name: Set test environment variables
+        env:
+          POSTGRES_USER: ${{ inputs.postgres-user }}
+          POSTGRES_PASSWORD: ${{ inputs.postgres-password }}
+          POSTGRES_DB: ${{ inputs.postgres-db }}
+          TEST_ENV_VARS: ${{ inputs.test-env-vars }}
         run: |
-          echo "DATABASE_URL=postgres://${{ inputs.postgres-user }}:${{ inputs.postgres-password }}@localhost:5432/${{ inputs.postgres-db }}?sslmode=disable" >> $GITHUB_ENV
+          set -euo pipefail
+          echo "DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB}?sslmode=disable" >> "$GITHUB_ENV"
 
-          if [[ -n "${{ inputs.test-env-vars }}" ]]; then
-            echo '${{ inputs.test-env-vars }}' | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> $GITHUB_ENV
+          if [ -n "${TEST_ENV_VARS:-}" ]; then
+            printf '%s' "$TEST_ENV_VARS" \
+              | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
           fi
 
       - name: Run tests with coverage
