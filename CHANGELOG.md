@@ -73,6 +73,16 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   Reachable because Git tag names may contain slashes and the callers' `v*` tag
   filter does not exclude them; as a `workflow_call` reusable, a caller can
   feed either input from any source.
+- **`security-config.yml` and `ci-gitops.yml` — bash-4-only `mapfile` when
+  collecting manifests.** The kubesec and kubeconform steps built their
+  `manifests` array with `mapfile -t`, a bash 4 builtin. macOS still ships bash
+  3.2 as `/bin/bash`, where the call dies with `command not found` and the step
+  scans nothing. Replaced with the portable `while IFS= read -r … done < <(…)`
+  form, which keeps the loop in the current shell so the array survives. The
+  explicit `manifests=()` init also keeps `${#manifests[@]}` defined under the
+  `set -euo pipefail` in `ci-gitops.yml` when `find` returns nothing. Same
+  latent-portability class as the `release-helm.yml` `sed -i` fix below; no
+  behaviour change on CI, since both jobs pin `runs-on: ubuntu-latest`.
 - **`release-helm.yml` — GNU-only `sed -i` when patching Chart.yaml and
   values.yaml.** Four in-place edits used the suffixless `sed -i "…"` form,
   which is GNU-only: BSD sed (macOS) reads the script as the backup suffix and
