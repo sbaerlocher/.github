@@ -36,6 +36,17 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   deliberate. Scan behaviour is unchanged by this removal.
   **Migration:** remove the `file-patterns:` line from your call.
 
+- **`ai-claude-review.yml` now fails the job when no review was posted.** The
+  `anthropics/claude-code-action` workflow validation refuses to review a PR
+  that changes a workflow file, but exits 0 — the `claude-review` check went
+  green with no review attached, indistinguishable from a clean pass. A guard
+  step now asserts a Claude bot review exists on the current head SHA and exits
+  1 otherwise, leaving a single marker comment on the PR. Migration: consumers
+  listing this context in `required_status_checks` will see PRs that touch the
+  review workflow itself blocked until reviewed manually — merge those with an
+  admin bypass, or drop the context from the ruleset if that is not the
+  intended policy.
+
 ### Changed
 
 - **`ci-go.yml` passes the `Set test environment variables` step's inputs

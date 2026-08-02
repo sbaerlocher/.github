@@ -264,3 +264,57 @@ jobs:
               }
             '
             ```
+
+      # The action's workflow validation refuses to run when the PR changes a
+      # workflow file that differs from the default branch — but it exits 0, so
+      # the check goes green with no review attached. Indistinguishable from a
+      # clean review in the PR checklist. Assert a review actually landed on the
+      # current head SHA (a follow-up run already has older reviews from the same
+      # bot, so counting reviews alone would pass vacuously).
+      #
+      # `!cancelled()` rather than `always()`: this workflow cancels in-progress
+      # runs by default, and a superseded run has no review on its head SHA —
+      # `always()` would red the check while the newer run posts a real review.
+      # Failures of the action step itself are still covered.
+      - name: Assert a review was posted
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          # Marker keeps the comment idempotent across re-runs and later pushes,
+          # same upsert idea as ops-drift-issue.yml.
+          MARKER: '<!-- claude-review-missing -->'
+        run: |
+          set -euo pipefail
+
+          # Same bot predicate as the `mode` step above rather than its
+          # `bot-login` output: that output falls back to a hard-coded
+          # `claude[bot]` on a first review, which would make this assertion
+          # fail for any consumer whose app posts under a different login.
+          # `--paginate` because reviews come back oldest-first, 30 per page.
+          COUNT=$(gh api --paginate "repos/$REPO/pulls/$PR/reviews" \
+            | jq -s 'add // [] | [.[]
+                | select(.user.type == "Bot"
+                    and (.user.login | test("claude"; "i"))
+                    and .commit_id == env.HEAD_SHA)] | length')
+
+          if [ "$COUNT" -gt 0 ]; then
+            echo "Review found on $HEAD_SHA."
+            exit 0
+          fi
+
+          # Neutral wording: this also fires on a genuinely failed action step
+          # (expired token, exhausted --max-turns, job timeout), where naming
+          # the workflow validation would point at the wrong cause.
+          POSTED=$(gh api --paginate "repos/$REPO/issues/$PR/comments" \
+            | jq -s --arg m "$MARKER" 'add // [] | [.[] | select(.body | contains($m))] | length')
+
+          if [ "$POSTED" -eq 0 ]; then
+            gh pr comment "$PR" --repo "$REPO" --body "$(printf '%s\n%s' "$MARKER" \
+              'No Claude Code Review was posted for this commit, so this check cannot confirm the diff was reviewed. See the job log for the cause and review manually before merging.')"
+          fi
+
+          echo "::error::No review on $HEAD_SHA — the review did not run."
+          exit 1
