@@ -38,6 +38,22 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### Changed
 
+- **`ci-go.yml` passes the `Set test environment variables` step's inputs
+  through `env:` instead of interpolating them into the `run:` block.** The step
+  wrapped `${{ inputs.test-env-vars }}` in single quotes, which is not an
+  escape: interpolation happens before the shell sees the line, so a value
+  containing an apostrophe closed the string early and the remainder was parsed
+  as shell code — writing to `$GITHUB_ENV`, and thus affecting every later step
+  of the job. The step exists in both `test-and-lint` and
+  `test-and-lint-postgres` and both are fixed; the postgres copy's
+  `DATABASE_URL` line, in the same block, moved to `env:` with it. The blocks
+  also gained `set -euo pipefail`, pipe `test-env-vars` through `printf '%s'`
+  instead of `echo` (which mangles values with a leading `-` or backslashes),
+  and quote `$GITHUB_ENV`. Same pattern as the `ci-ansible.yml` entry below.
+  **No behaviour change for valid or invalid JSON:** invalid `test-env-vars`
+  failed the step before and still does. Only values that previously broke
+  shell quoting — apostrophes, leading `-`, backslashes — behave differently:
+  they now work instead of erroring. No input signature changes.
 - **`ci-ansible.yml` passes its inputs through `env:` instead of interpolating
   them into `run:` blocks.** Every `${{ inputs.* }}` reference in a shell body
   became a step-level `env:` entry read as a shell variable, matching the
