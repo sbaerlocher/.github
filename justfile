@@ -20,7 +20,7 @@ default:
 #   SC2086  37x, deliberately unquoted GitHub expressions in `run:` blocks
 #   SC2044  ci-gitops.yml:184, for-over-find on a config-supplied path
 #   SC2162  ci-gitops.yml:293, read without -r on a config-supplied path
-#   SC2016  ops-drift-issue.yml:127, single quotes around a markdown fence
+#   SC2016  ops-drift-issue.yml:134, single quotes around a markdown fence
 # The latter three deserve a fix of their own; touching reusables the whole
 # fleet consumes does not belong in a task-runner change.
 
