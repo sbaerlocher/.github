@@ -35,9 +35,9 @@ render)
   base="${2:-}"
   summary="${3:-}"
   clean="$(printf '%s' "$base" | strip_block)"
-  # Trailing Leerzeilen des Basis-Bodys kappen, damit der Abstand stabil ist.
-  # awk statt `sed -e :a -e '/^\n*$/{$d;N;ba}'`: das sed-Idiom ist GNU-only und
-  # bricht auf BSD-sed (macOS) mit "unexpected EOF (pending }'s)" ab.
+  # Trim trailing blank lines off the base body so the spacing stays stable.
+  # awk instead of `sed -e :a -e '/^\n*$/{$d;N;ba}'`: that sed idiom is GNU-only
+  # and aborts on BSD sed (macOS) with "unexpected EOF (pending }'s)".
   clean="$(printf '%s\n' "$clean" | awk '
     /^[[:space:]]*$/ { blanks = blanks $0 "\n"; next }
     { printf "%s", blanks; blanks = ""; print }
@@ -52,14 +52,14 @@ render)
   ;;
 addresses)
   body="${2:-}"
-  # Zeilen im Block: "<action> <address>". Adresse = zweites Feld. Sortiert,
-  # eindeutig — die Aktions-Spalte bewusst ignoriert, damit ein Wechsel
-  # update->replace derselben Resource nicht als Delta zählt, wenn die
-  # Adressmenge gleich bleibt. (Delta = Adressmenge, siehe Konzept.)
-  # Nur Zeilen im Code-Fence innerhalb des Blocks zählen — Heading und
-  # Leerzeilen bleiben draussen. Adresse = alles nach dem ersten Space (die
-  # Aktions-Spalte ist per join("+") space-frei, die Adresse kann Spaces in
-  # for_each-Keys enthalten, z. B. authentik_group.admins["my key"]).
+  # Lines inside the block: "<action> <address>". Sorted and unique — the action
+  # column is deliberately ignored so a switch from update->replace on the same
+  # resource does not count as a delta while the address set stays the same.
+  # (Delta = address set.)
+  # Only lines inside the code fence within the block count — heading and blank
+  # lines stay out. Address = everything after the first space (the action
+  # column is space-free thanks to join("+"), while the address may contain
+  # spaces in for_each keys, e.g. authentik_group.admins["my key"]).
   printf '%s' "$body" |
     awk -v s="$START" -v e="$END" '
         $0 == s { inb = 1; next }

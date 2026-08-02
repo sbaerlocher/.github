@@ -83,19 +83,19 @@ jobs:
       issues: write
 
     steps:
-      # Body-Logik ist inline, nicht via Checkout des Skripts. Grund: ein
-      # reusable Workflow hat keinen Kontext, der seinen EIGENEN Aufruf-Ref
-      # exponiert (`github.action_ref` ist in `workflow_call`-Steps leer,
-      # `github.workflow_ref` ist der Caller). Ein Checkout müsste auf `@main`
-      # zurückfallen — mutable Ref für ausführbaren Code, genau was das
-      # Datums-Tag-Pinning verhindern soll. Darum dieselbe Linie wie die
-      # Inline-jq in `deploy-terraform.yml`: die render/addresses-Logik ist ein
-      # Duplikat von scripts/drift-issue-body.sh, das per
-      # scripts/tests/test-drift-issue-body.sh getestete Referenz bleibt.
-      # Ändert sich die eine, muss die andere folgen — die Gleichheit prüft
-      # scripts/tests/test-drift-issue-parity.sh, das den Funktions-Block hier
-      # aus dem YAML zieht und gegen das Skript laufen lässt. Nicht mehr von
-      # Hand: genau diese Kopie war zweimal auseinandergelaufen.
+      # The body logic is inline rather than checked out from the script. Reason:
+      # a reusable workflow has no context that exposes its OWN calling ref
+      # (`github.action_ref` is empty in `workflow_call` steps, and
+      # `github.workflow_ref` is the caller). A checkout would have to fall back
+      # to `@main` — a mutable ref for executable code, exactly what date-tag
+      # pinning is meant to prevent. Hence the same approach as the inline jq in
+      # `deploy-terraform.yml`: the render/addresses logic duplicates
+      # scripts/drift-issue-body.sh, which remains the reference tested by
+      # scripts/tests/test-drift-issue-body.sh.
+      # When one changes, the other must follow;
+      # scripts/tests/test-drift-issue-parity.sh enforces that equality by
+      # extracting the function block here from the YAML and running it against
+      # the script. No longer by hand: this very copy had drifted apart twice.
       - name: Upsert drift issue
         env:
           GH_TOKEN: ${{ github.token }}
@@ -112,7 +112,7 @@ jobs:
           START='<!-- drift-summary:start -->'
           END='<!-- drift-summary:end -->'
 
-          # strip_block/render/addresses spiegeln scripts/drift-issue-body.sh.
+          # strip_block/render/addresses mirror scripts/drift-issue-body.sh.
           strip_block() {
             awk -v s="$START" -v e="$END" '
               $0 == s { skip = 1; next }
@@ -123,9 +123,9 @@ jobs:
           render() { # render <base> <summary>
             local clean
             clean="$(printf '%s' "$1" | strip_block)"
-            # Trailing Leerzeilen des Basis-Bodys kappen, damit der Abstand stabil ist.
-            # awk statt `sed -e :a -e '/^\n*$/{$d;N;ba}'`: das sed-Idiom ist GNU-only und
-            # bricht auf BSD-sed (macOS) mit "unexpected EOF (pending }'s)" ab.
+            # Trim trailing blank lines off the base body so the spacing stays stable.
+            # awk instead of `sed -e :a -e '/^\n*$/{$d;N;ba}'`: that sed idiom is GNU-only
+            # and aborts on BSD sed (macOS) with "unexpected EOF (pending }'s)".
             clean="$(printf '%s\n' "$clean" | awk '
               /^[[:space:]]*$/ { blanks = blanks $0 "\n"; next }
               { printf "%s", blanks; blanks = ""; print }
@@ -175,7 +175,7 @@ jobs:
             --jq ".[] | select(.title == \"${TITLE}\") | .number" \
             | head -1)
 
-          # --- Leerer Pfad: kein Summary -> exakt bisheriges Verhalten. --------
+          # --- Empty path: no summary -> exactly the previous behaviour. -------
           if [ -z "${DRIFT_SUMMARY}" ]; then
             if [ -n "${EXISTING}" ]; then
               gh issue comment "${EXISTING}" --body "${BASE}"
@@ -187,7 +187,7 @@ jobs:
             exit 0
           fi
 
-          # --- Summary-Pfad: Marker-Block upserten, Kommentar nur bei Delta. ---
+          # --- Summary path: upsert marker block, comment only on a delta. -----
           BODY="$(render "$BASE" "$DRIFT_SUMMARY")"
           NEW_ADDRS="$(addresses "$BODY")"
 
@@ -200,7 +200,7 @@ jobs:
           OLD_BODY="$(gh issue view "${EXISTING}" --json body --jq '.body')"
           OLD_ADDRS="$(addresses "$OLD_BODY")"
 
-          # Body immer aktualisieren (frischer Timestamp + aktuelle Adressen).
+          # Always refresh the body (fresh timestamp + current addresses).
           gh issue edit "${EXISTING}" --body "${BODY}"
 
           if [ "$NEW_ADDRS" = "$OLD_ADDRS" ]; then

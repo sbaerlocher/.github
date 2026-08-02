@@ -4,7 +4,7 @@
 #
 # The workflow keeps its own copy on purpose (a reusable workflow cannot check
 # out its own ref — see the comment above the `Upsert drift issue` step), and
-# the contract there says "Gleichheit von Hand". That hand-sync drifted twice
+# the contract there said "kept equal by hand". That hand-sync drifted twice
 # and both times was caught by eye. This closes it.
 #
 # Behaviour-based, not textual: the workflow's `run:` block is extracted from

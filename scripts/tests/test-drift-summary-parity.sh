@@ -4,7 +4,7 @@
 #
 # The workflow keeps its own copy on purpose (it checks out the consumer repo,
 # so the script is not on disk at runtime — see the comment above the step),
-# and the contract there says "Gleichheit von Hand". Nothing enforced it. This
+# and the contract there said "kept equal by hand". Nothing enforced it. This
 # closes it, same pattern as test-drift-issue-parity.sh.
 #
 # Behaviour-based, not textual: the `run:` block is extracted from the YAML
@@ -77,7 +77,7 @@ $WORKFLOW_OUT
 script:
 $SCRIPT_OUT"
 
-# 2 — WERT-FREIHEIT: the level-A comment above the step claims the inline query
+# 2 — VALUE FREEDOM: the level-A comment above the step claims the inline query
 # never touches .change.before/.after. The fixture carries LEAKME markers in
 # both, so a query that widened its field selection shows up right here. Drift
 # on this one would be a secret leak into a GitHub issue body.
