@@ -44,6 +44,37 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   environment variables makes every use a plain quoted `"$VAR"`, so a chart
   path with spaces now works end to end and the expression-injection surface
   on these steps is closed.
+- **`just lint` no longer needs a hand-installed actionlint.** The actionlint
+  call moved into its own `just actionlint` recipe that picks a path by
+  coverage: the local binary when `actionlint` and `shellcheck` are both on
+  `PATH`, otherwise the `rhysd/actionlint` container (which ships shellcheck),
+  and a local-only run with a warning when neither shellcheck nor Docker is
+  available. With no actionlint and no Docker it fails naming both options
+  instead of `command not found`. Renovate tracks the image tag through a
+  custom manager in this repo's own `.github/renovate.json`; the shared
+  `renovate-base.json` preset that consumers extend is untouched. Local-only
+  change — no reusable workflow or action is affected.
+
+  Two shellcheck codes joined the muted list as a result: `SC2002`
+  (`ci-js.yml:350`) and `SC2015` (`deploy-cloudflare-workers.yml:86`). Both are
+  pre-existing and were simply invisible before — actionlint skips its embedded
+  shell checks _silently_ when shellcheck is missing, which every local run
+  without the container did. The container image carries shellcheck, so they
+  surface now. Muted by code rather than by switching the pass off, matching
+  the existing three; fixing them means touching reusables the whole fleet
+  consumes and belongs in its own change. Note that `-ignore` is a regex over
+  the message text, so both mutes are repo-wide and forward-looking rather than
+  pinned to the cited lines.
+
+- **`ci-gitops.yml` — `fleet-paths` is passed through `env:` in every step.**
+  The two fleet-validation steps and the Helm-lint step interpolated
+  `${{ inputs.fleet-paths }}` directly into their `run:` blocks, which CodeQL
+  flags as potential code injection; the two kubeconform steps already used
+  `env: FLEET_PATHS`. All five uses now go through `env:`, so the file is
+  consistent and the recurring Code Scanning alerts at those sites disappear.
+  Not breaking: the value is still expanded unquoted, so the space-separated
+  paths keep the same word-splitting behaviour. The chart loop also moved to
+  `read -r`, matching the equivalent loop in the kubeconform step.
 
 ### Fixed
 
@@ -57,18 +88,6 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   only of spaces or tabs is now trimmed too, where sed left it in place. Not
   breaking for CI — runners are Linux and the sed form worked there; the fix
   matters for anyone reproducing the block locally on macOS.
-
-### Changed
-
-- **`ci-gitops.yml` — `fleet-paths` is passed through `env:` in every step.**
-  The two fleet-validation steps and the Helm-lint step interpolated
-  `${{ inputs.fleet-paths }}` directly into their `run:` blocks, which CodeQL
-  flags as potential code injection; the two kubeconform steps already used
-  `env: FLEET_PATHS`. All five uses now go through `env:`, so the file is
-  consistent and the recurring Code Scanning alerts at those sites disappear.
-  Not breaking: the value is still expanded unquoted, so the space-separated
-  paths keep the same word-splitting behaviour. The chart loop also moved to
-  `read -r`, matching the equivalent loop in the kubeconform step.
 
 ## 2026-08-01
 
