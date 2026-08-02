@@ -313,9 +313,11 @@ jobs:
       # .address und .change.actions, fasst .change.before/.after NIE an. Sie
       # ist ein exaktes Duplikat der Query in scripts/drift-summary.sh — der
       # Workflow checkt das Consumer-Repo aus, das Skript liegt zur Laufzeit
-      # nicht vor, darum inline. Ändert sich die eine, muss die andere folgen
-      # (Gleichheit von Hand geprüft; scripts/tests/test-drift-summary.sh ist
-      # der Anker der Wert-Freiheit). Nur Drift-Modus (YAGNI). Ein kaputter
+      # nicht vor, darum inline. Ändert sich die eine, muss die andere folgen —
+      # die Gleichheit prüft scripts/tests/test-drift-summary-parity.sh, das
+      # die jq-Query hier aus dem YAML zieht und gegen das Skript laufen lässt.
+      # Nicht mehr von Hand (scripts/tests/test-drift-summary.sh bleibt der
+      # Anker der Wert-Freiheit). Nur Drift-Modus (YAGNI). Ein kaputter
       # Summary darf die Drift-Meldung nie unterdrücken -> Fehler = leerer
       # String, Step nie fatal.
       - name: 'Drift Summary Extraction'

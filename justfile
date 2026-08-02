@@ -81,6 +81,7 @@ actionlint:
 # test → run the script self-checks
 test:
     scripts/tests/test-drift-summary.sh
+    scripts/tests/test-drift-summary-parity.sh
     scripts/tests/test-drift-issue-body.sh
     scripts/tests/test-drift-issue-parity.sh
     scripts/tests/test-workflow-counts.sh
