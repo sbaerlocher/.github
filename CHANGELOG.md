@@ -32,8 +32,18 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   substitutions. No behaviour change on CI — the job pins
   `runs-on: ubuntu-latest` and the GNU form worked there; this removes the trap
   for anyone reproducing the steps locally on macOS or moving the job to a
-  macOS runner. The chart paths are now quoted, so a chart path containing
-  spaces no longer word-splits.
+  macOS runner. Temp files are written under `$RUNNER_TEMP`, so a failed `sed`
+  cannot leave a stray `.tmp` in the chart directory for `helm package` to
+  archive.
+- **`release-helm.yml` — `chart-path`, `version`, `image-digest` and the
+  registry inputs now reach the scripts via `env:`.** They were interpolated
+  into the `run:` body as `${{ … }}`, which splices the value into the shell
+  source before bash parses it — a chart path containing a quote or `$(…)`
+  was executable, and one containing a space word-split at the `grep` and
+  `helm package` call sites, failing the step under `bash -e`. Passing them as
+  environment variables makes every use a plain quoted `"$VAR"`, so a chart
+  path with spaces now works end to end and the expression-injection surface
+  on these steps is closed.
 
 ### Fixed
 
