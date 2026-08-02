@@ -4,25 +4,25 @@
 # Reads the plan JSON on stdin, writes one line per drifting resource to
 # stdout: "<action> <address>" (e.g. "update authentik_group.admins").
 #
-# LEVEL-A GRENZE (Wert-Freiheit): die jq-Query liest ausschliesslich
-# `.address` und `.change.actions`. Sie fasst `.change.before`/`.after`
-# NIE an, damit kein Attributwert (der Secrets enthalten kann, siehe
-# TF_VAR_authentik_token) je in ein GitHub-Issue gelangt. Wer die Query
-# erweitert, bricht zuerst Assertion 3 in test-drift-summary.sh.
+# LEVEL-A BOUNDARY (value freedom): the jq query reads `.address` and
+# `.change.actions` exclusively. It NEVER touches `.change.before`/`.after`,
+# so no attribute value (which may contain secrets, see
+# TF_VAR_authentik_token) can ever reach a GitHub issue. Extending the query
+# breaks assertion 3 in test-drift-summary.sh first.
 #
-# no-op-Resourcen (kein echter Drift) werden herausgefiltert. Der Output ist
-# bei CAP Zeilen gedeckelt (Job-Output-Limit 1 MB). Fehler in `jq` oder
-# kaputter Input -> leerer Output, Exit 0: ein kaputter Summary darf die
-# Drift-Meldung selbst nie unterdrücken.
+# no-op resources (not real drift) are filtered out. The output is capped at
+# CAP lines (job output limit 1 MB). An error in `jq` or a broken input ->
+# empty output, exit 0: a broken summary must never suppress the drift report
+# itself.
 set -uo pipefail
 
 CAP=50
 
 INPUT="$(cat)"
 
-# Echte Änderungen: no-op (kein Drift) und read (aufgeschobene
-# Data-Source-Reads, keine Konfig-Drift, nur Rauschen) rausfiltern. Replace ist
-# ["delete","create"] und bleibt drin. Nur .address + .change.actions gelesen.
+# Real changes only: filter out no-op (no drift) and read (deferred data-source
+# reads, not config drift, just noise). Replace is ["delete","create"] and
+# stays in. Only .address + .change.actions are read.
 LINES="$(printf '%s' "$INPUT" | jq -r '
   .resource_changes // []
   | map(select((.change.actions // []) != ["no-op"] and (.change.actions // []) != ["read"]))
@@ -30,7 +30,7 @@ LINES="$(printf '%s' "$INPUT" | jq -r '
   | "\(.change.actions | join("+")) \(.address)"
 ' 2>/dev/null)" || LINES=""
 
-# Leerer Plan / kaputter Input -> leerer Output, Exit 0.
+# Empty plan / broken input -> empty output, exit 0.
 [ -z "$LINES" ] && exit 0
 
 TOTAL="$(printf '%s\n' "$LINES" | wc -l)"

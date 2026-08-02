@@ -305,21 +305,22 @@ jobs:
             esac
           fi
 
-      # Drift-Summary aus dem frischen Plan ziehen — Position ZWINGEND hier:
-      # die .tfplan liegt noch (Security Cleanup löscht sie am Jobende) und
-      # Terraform ist gegen R2 initialisiert, kein zweites setup/Artefakt nötig.
+      # Extract the drift summary from the fresh plan — this position is
+      # MANDATORY: the .tfplan is still on disk (Security Cleanup removes it at
+      # the end of the job) and Terraform is initialised against R2, so no
+      # second setup or artifact is needed.
       #
-      # LEVEL-A GRENZE (Wert-Freiheit): die jq-Query liest ausschliesslich
-      # .address und .change.actions, fasst .change.before/.after NIE an. Sie
-      # ist ein exaktes Duplikat der Query in scripts/drift-summary.sh — der
-      # Workflow checkt das Consumer-Repo aus, das Skript liegt zur Laufzeit
-      # nicht vor, darum inline. Ändert sich die eine, muss die andere folgen —
-      # die Gleichheit prüft scripts/tests/test-drift-summary-parity.sh, das
-      # die jq-Query hier aus dem YAML zieht und gegen das Skript laufen lässt.
-      # Nicht mehr von Hand (scripts/tests/test-drift-summary.sh bleibt der
-      # Anker der Wert-Freiheit). Nur Drift-Modus (YAGNI). Ein kaputter
-      # Summary darf die Drift-Meldung nie unterdrücken -> Fehler = leerer
-      # String, Step nie fatal.
+      # LEVEL-A BOUNDARY (value freedom): the jq query reads .address and
+      # .change.actions exclusively and NEVER touches .change.before/.after. It
+      # is an exact duplicate of the query in scripts/drift-summary.sh — this
+      # workflow checks out the consumer repo, so the script is not on disk at
+      # runtime, hence the inline copy. When one changes, the other must follow;
+      # scripts/tests/test-drift-summary-parity.sh enforces that equality by
+      # extracting the jq query from this YAML and running it against the
+      # script. No longer by hand (scripts/tests/test-drift-summary.sh remains
+      # the anchor of value freedom). Drift mode only (YAGNI). A broken summary
+      # must never suppress the drift report -> on error the string stays empty
+      # and the step is never fatal.
       - name: 'Drift Summary Extraction'
         id: drift_summary
         if: ${{ inputs.mode == 'drift' && steps.plan.outputs.drift_detected == 'true' }}

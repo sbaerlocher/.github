@@ -115,7 +115,7 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   The workflow keeps its own copy of `strip_block`/`render`/`addresses` from
   `scripts/drift-issue-body.sh` — deliberately, since a reusable workflow has
   no context exposing its own call ref and a checkout would have to fall back
-  to a mutable `@main`. The contract was "Gleichheit von Hand" and it drifted
+  to a mutable `@main`. The contract was "kept equal by hand" and it drifted
   twice unnoticed: the script moved to portable `awk` while the inline copy
   kept the GNU-only `sed` idiom. `scripts/tests/test-drift-issue-parity.sh`
   now extracts the function block from the workflow YAML (parsed, so there is
@@ -126,7 +126,7 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   `deploy-terraform.yml`.** The `Drift Summary Extraction` step duplicates the
   jq query from `scripts/drift-summary.sh` — deliberately, since the workflow
   checks out the consumer repository and the script is not on disk at runtime
-  — and the contract was again "Gleichheit von Hand geprüft" with nothing
+  — and the contract was again "equality checked by hand" with nothing
   enforcing it. That query is the anchor of the value-freedom guarantee: it
   reads only `.address` and `.change.actions`, never `.change.before/.after`,
   so a widened copy would push attribute values (which can carry secrets) into

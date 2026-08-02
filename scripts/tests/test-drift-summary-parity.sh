@@ -4,7 +4,7 @@
 #
 # The workflow keeps its own copy on purpose (it checks out the consumer repo,
 # so the script is not on disk at runtime — see the comment above the step),
-# and the contract there says "Gleichheit von Hand". Nothing enforced it. This
+# and the contract there said "kept equal by hand". Nothing enforced it. This
 # closes it, same pattern as test-drift-issue-parity.sh.
 #
 # Behaviour-based, not textual: the `run:` block is extracted from the YAML
