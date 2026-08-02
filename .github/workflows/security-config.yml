@@ -251,7 +251,13 @@ jobs:
           # Match the same scope the gating step established (find-manifests above):
           # only files under */templates/*. This avoids feeding kubesec non-manifest
           # YAML like Chart.yaml, values.yaml, kustomization.yaml or CI configs.
-          mapfile -t manifests < <(
+          # Read loop instead of `mapfile -t`: mapfile is a bash-4 builtin and
+          # macOS still ships bash 3.2 as /bin/bash, so the block would break
+          # the moment it runs outside ubuntu-latest.
+          manifests=()
+          while IFS= read -r manifest; do
+            manifests+=("$manifest")
+          done < <(
             find . -type f \( -name '*.yaml' -o -name '*.yml' \) -path '*/templates/*'
           )
           if [ ${#manifests[@]} -eq 0 ]; then

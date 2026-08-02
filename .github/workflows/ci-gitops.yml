@@ -447,7 +447,15 @@ jobs:
           set -euo pipefail
           echo "Validating Kubernetes manifests with kubeconform..."
 
-          mapfile -t manifests < <(
+          # Read loop instead of `mapfile -t`: mapfile is a bash-4 builtin and
+          # macOS still ships bash 3.2 as /bin/bash, so the block would break
+          # the moment it runs outside ubuntu-latest. The explicit `manifests=()`
+          # also keeps `${#manifests[@]}` defined under `set -u` when the find
+          # produces no output.
+          manifests=()
+          while IFS= read -r manifest; do
+            manifests+=("$manifest")
+          done < <(
             find ${FLEET_PATHS} \( -name '*.yaml' -o -name '*.yml' \) \
               ! -name 'fleet.yaml' \
               | grep -E '/(templates|manifests)/' \
