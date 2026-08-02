@@ -134,7 +134,7 @@ inputs:
   cancel-in-progress:
     type: boolean
     required: false
-    default: <per-workflow-default>  # CI/security/e2e: true; deploy/release/ops: false
+    default: <per-workflow-default> # CI/security/e2e: true; deploy/release/ops: false
     description: Cancel in-progress runs in the same group.
   concurrency-suffix:
     type: string
@@ -174,13 +174,13 @@ concurrency:
 
 - **Caller-isolated** — `${{ github.workflow }}-${{ github.ref }}`. Used by
   CI, Security, Release, E2E, and most Ops/Deploy workflows. `github.workflow`
-  resolves to the *caller's* workflow name when invoked via `workflow_call`,
+  resolves to the _caller's_ workflow name when invoked via `workflow_call`,
   so different callers automatically get different groups.
 - **Resource-locked** — built from inputs (e.g.
   `${{ inputs.project-name }}-terraform-${{ inputs.environment }}` in
   `deploy-terraform.yml`, or `${{ inputs.project-name }}-${{ inputs.environment }}`
   in `ops-drift-issue.yml`). Used when the workflow guards a shared resource
-  (Terraform state, GitHub-issue list) that must serialise across *all*
+  (Terraform state, GitHub-issue list) that must serialise across _all_
   callers, not just the same caller.
 
 When adding a new reusable workflow, pick the base-group pattern based on
@@ -288,10 +288,10 @@ runs cannot race on `gh issue list`.
 
 **Purpose**: End-to-end testing with Docker Compose or whatwedo dde
 
-| Workflow   | File             | Description                                                     |
-| ---------- | ---------------- | --------------------------------------------------------------- |
-| E2E Docker | `e2e-docker.yml` | E2E tests via Docker Compose + Playwright                       |
-| E2E dde    | `e2e-dde.yml`    | E2E tests via whatwedo `dde project:up` + Playwright (Linux)    |
+| Workflow   | File             | Description                                                  |
+| ---------- | ---------------- | ------------------------------------------------------------ |
+| E2E Docker | `e2e-docker.yml` | E2E tests via Docker Compose + Playwright                    |
+| E2E dde    | `e2e-dde.yml`    | E2E tests via whatwedo `dde project:up` + Playwright (Linux) |
 
 `e2e-dde.yml` is the dde-native counterpart to `e2e-docker.yml`. Inputs
 overlap (Playwright/Node setup is identical); the stack-management surface
@@ -304,12 +304,12 @@ macOS runners don't ship).
 **Purpose**: This repository's own CI and release plumbing. None of these
 carry a `workflow_call` trigger — they are not reusable from consumer repos.
 
-| Workflow         | File                     | Description                                  |
-| ---------------- | ------------------------ | -------------------------------------------- |
-| Test dde actions | `test-actions-dde.yml`   | Smoke-test `setup-dde` on Linux/macOS        |
-| Pull Request     | `pull-request.yml`       | `just lint` + `just test` on PRs to `main`   |
-| Merge to Main    | `merge.yml`              | Cuts the `YYYY-MM-DD` date tag on push       |
-| Weekly Security  | `weekly-security.yml`    | Scheduled config + secret self-scan (Mon)    |
+| Workflow         | File                   | Description                                |
+| ---------------- | ---------------------- | ------------------------------------------ |
+| Test dde actions | `test-actions-dde.yml` | Smoke-test `setup-dde` on Linux/macOS      |
+| Pull Request     | `pull-request.yml`     | `just lint` + `just test` on PRs to `main` |
+| Merge to Main    | `merge.yml`            | Cuts the `YYYY-MM-DD` date tag on push     |
+| Weekly Security  | `weekly-security.yml`  | Scheduled config + secret self-scan (Mon)  |
 
 ---
 
@@ -318,12 +318,12 @@ carry a `workflow_call` trigger — they are not reusable from consumer repos.
 Located under [`.github/actions/`](./.github/actions/). Consume from any
 workflow via `sbaerlocher/.github/.github/actions/<name>@<DATE-TAG>`.
 
-| Action                           | File                                                | Purpose                                                       |
-| -------------------------------- | --------------------------------------------------- | ------------------------------------------------------------- |
-| `setup-dde`                      | `.github/actions/setup-dde/`                        | Install whatwedo dde CLI; optional mkcert + `system:install`  |
-| `project`                        | `.github/actions/project/`                          | Install dde + run any `dde project:<command>` (default `up`)  |
-| `sbom-npm`                       | `.github/actions/sbom-npm/`                         | CycloneDX SBOM for npm/pnpm/yarn/bun (internal helper)        |
-| `validate-observability-configs` | `.github/actions/validate-observability-configs/`   | Validate Grafana Alloy and JSON observability configs         |
+| Action                           | File                                              | Purpose                                                      |
+| -------------------------------- | ------------------------------------------------- | ------------------------------------------------------------ |
+| `setup-dde`                      | `.github/actions/setup-dde/`                      | Install whatwedo dde CLI; optional mkcert + `system:install` |
+| `project`                        | `.github/actions/project/`                        | Install dde + run any `dde project:<command>` (default `up`) |
+| `sbom-npm`                       | `.github/actions/sbom-npm/`                       | CycloneDX SBOM for npm/pnpm/yarn/bun (internal helper)       |
+| `validate-observability-configs` | `.github/actions/validate-observability-configs/` | Validate Grafana Alloy and JSON observability configs        |
 
 ### dde actions (`setup-dde`, `project`)
 
@@ -353,7 +353,7 @@ date tags via the standard github-actions manager.
 The self-test workflow (`test-actions-dde.yml`) is the one place `./...`
 is safe — it's a normal workflow that runs `actions/checkout` first, so
 the workspace coincidentally matches the action's repo. Side-effect of
-the full-path pin: the `smoke-project-*` jobs exercise the *tagged*
+the full-path pin: the `smoke-project-*` jobs exercise the _tagged_
 `setup-dde`, not the in-PR copy, so changes to `setup-dde/action.yml`
 are only validated end-to-end through `project` once a new date tag
 has been cut. Direct changes to `setup-dde` are still covered by the

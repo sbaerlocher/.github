@@ -35,6 +35,19 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   one argument per playbook, and the resolved command lines are otherwise
   unchanged. Four sibling workflows carry the same pattern and follow
   separately.
+- **`just lint` now checks Markdown and JSON formatting.** A new `fmt-check`
+  recipe runs `prettier --check` over the same globs `fmt` writes, and `lint`
+  calls it as a fourth step — so formatting drift fails the `Lint and Test` job
+  instead of accumulating silently. The seven files that had drifted are
+  reformatted in the same change, which is why this touches `AGENTS.md`,
+  `CHANGELOG.md`, four `README.md` files and two design specs beyond the recipe
+  itself. Two supporting changes: `prettier` is pinned to a `prettier_version`
+  variable and fetched via `npx` by both recipes, so `fmt` and the gate can
+  never disagree about what correct formatting is, and Renovate tracks that pin
+  through a new custom manager; and `pull-request.yml` gained a SHA-pinned
+  `actions/setup-node` step, without which `just lint` has no Node in the
+  runner. Consumers are unaffected — this is local tooling and this repo's own
+  CI, no reusable workflow changes behaviour.
 
 ### Fixed
 
@@ -117,7 +130,7 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 ### Changed
 
 - **`ci-gitops.yml` — `yaml-lint-strict` and the yamllint config argument now
-  reach the shell via `env:`.** The *Validate YAML files* step interpolated
+  reach the shell via `env:`.** The _Validate YAML files_ step interpolated
   `${{ inputs.yaml-lint-strict }}` and the `hashFiles('.yamllint.yml')`
   expression directly into its `run:` block, which produces recurring CodeQL
   "potential code injection" findings and diverged from the `env:` pattern the

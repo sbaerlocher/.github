@@ -45,13 +45,13 @@ other `dde project:<command>`), use the sibling
 
 ## Inputs
 
-| Input            | Default        | Description                                                              |
-|------------------|----------------|--------------------------------------------------------------------------|
-| `version`        | `latest`       | Tag to install (`v2.0.0-alpha.5`, `2.0.0-alpha.5`, or `latest`).         |
-| `install-mkcert` | `true`         | Install `mkcert` (and `libnss3-tools` on Linux) for local TLS certs.     |
-| `system-install` | `false`        | Run `dde system:install` (required for `dde project:up`).                |
-| `github-token`   | `github.token` | Token for the GitHub API call that resolves `latest`.                    |
-| `repository`     | `whatwedo/dde` | Source repository. Override for forks or staging mirrors.                |
+| Input            | Default        | Description                                                          |
+| ---------------- | -------------- | -------------------------------------------------------------------- |
+| `version`        | `latest`       | Tag to install (`v2.0.0-alpha.5`, `2.0.0-alpha.5`, or `latest`).     |
+| `install-mkcert` | `true`         | Install `mkcert` (and `libnss3-tools` on Linux) for local TLS certs. |
+| `system-install` | `false`        | Run `dde system:install` (required for `dde project:up`).            |
+| `github-token`   | `github.token` | Token for the GitHub API call that resolves `latest`.                |
+| `repository`     | `whatwedo/dde` | Source repository. Override for forks or staging mirrors.            |
 
 `latest` resolves the most recent published release, including
 pre-releases. The default `github-token` works for public repos and avoids
@@ -60,14 +60,14 @@ unauthenticated rate limits.
 ## Outputs
 
 | Output        | Description                                              |
-|---------------|----------------------------------------------------------|
+| ------------- | -------------------------------------------------------- |
 | `version`     | Resolved tag that was installed (e.g. `v2.0.0-alpha.5`). |
 | `binary-path` | Absolute path to the installed `dde` binary.             |
 
 ## Supported runners
 
 | Runner             | Status                                                       |
-|--------------------|--------------------------------------------------------------|
+| ------------------ | ------------------------------------------------------------ |
 | `ubuntu-latest`    | Supported (`linux-amd64`).                                   |
 | `ubuntu-24.04-arm` | Supported (`linux-arm64`).                                   |
 | `macos-latest`     | Supported (`darwin-arm64`). `mkcert` installed via Homebrew. |
@@ -106,7 +106,7 @@ can isolate dde state into a temp directory:
     system-install: 'true'
   env:
     DDE_CONFIG_DIR: ${{ runner.temp }}/dde-config
-    DDE_DATA_DIR:   ${{ runner.temp }}/dde-data
+    DDE_DATA_DIR: ${{ runner.temp }}/dde-data
 ```
 
 ## Security

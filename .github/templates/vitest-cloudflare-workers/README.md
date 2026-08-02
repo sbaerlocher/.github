@@ -3,10 +3,10 @@
 Org template for testing a Cloudflare Worker (typically an Astro SSR app) with
 two Vitest **projects** in one config:
 
-| Project       | Runs                                   | Speed | What it catches                          |
-| ------------- | -------------------------------------- | ----- | ---------------------------------------- |
-| `unit`        | plain logic in a DOM-ish env, no Worker | fast  | pure functions, components, lib code     |
-| `integration` | the **built** worker inside Miniflare  | slow  | routing, rendering, service bindings     |
+| Project       | Runs                                    | Speed | What it catches                      |
+| ------------- | --------------------------------------- | ----- | ------------------------------------ |
+| `unit`        | plain logic in a DOM-ish env, no Worker | fast  | pure functions, components, lib code |
+| `integration` | the **built** worker inside Miniflare   | slow  | routing, rendering, service bindings |
 
 The integration project loads the real build output and serves any outbound
 service binding from a **mock upstream worker**, so the worker is exercised
@@ -51,8 +51,8 @@ Unit tests stay co-located with source (`src/**/*.test.ts`).
        "test:unit": "vitest run --project unit",
        "test:integration": "vitest run --project integration",
        "test:watch": "vitest --project unit",
-       "test:coverage": "vitest run --coverage"
-     }
+       "test:coverage": "vitest run --coverage",
+     },
    }
    ```
 

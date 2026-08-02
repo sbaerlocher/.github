@@ -22,6 +22,10 @@ jobs:
   # its local-binary path only when actionlint is too; it is not, so the recipe
   # falls through to the rhysd/actionlint container, which bundles both. Either
   # way the embedded shell checks run rather than being silently skipped.
+  #
+  # Node is pinned rather than taken from the image default because `just lint`
+  # now runs `fmt-check`, which fetches prettier via `npx`. The image's Node
+  # major changes without notice; the formatting gate should not.
   local-checks:
     name: Local Checks
     runs-on: ubuntu-latest
@@ -37,6 +41,11 @@ jobs:
 
       - name: Install yamllint
         run: pip install yamllint
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
 
       - name: Run lint
         run: just lint
