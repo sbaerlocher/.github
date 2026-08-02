@@ -16,25 +16,29 @@ default:
 #
 # actionlint's shellcheck findings are suppressed by message code rather than
 # by turning the whole pass off, so the quoting classes that matter for scripts
-# shipped to consumers stay visible. Currently muted, all pre-existing:
+# shipped to consumers stay visible. Currently muted:
 #   SC2086  37x, deliberately unquoted GitHub expressions in `run:` blocks
-#   SC2044  ci-gitops.yml:191, for-over-find on a config-supplied path
-#   SC2016  ops-drift-issue.yml:134, single quotes around a markdown fence
 #   SC2002  ci-js.yml:350, useless cat in a pipeline
 #   SC2015  deploy-cloudflare-workers.yml:86, A && B || C read as if-then-else
-# All but SC2086 deserve a fix of their own; touching reusables the whole
-# fleet consumes does not belong in a task-runner change.
 #
-# The last two only appear once shellcheck is actually present — they were
+# SC2044 and SC2162 are fixed in ci-gitops.yml, including the word-splitting
+# they pointed at: fleet validation iterates over `find -print0`, and both helm
+# loops read fleet-paths into an array and glob quoted, so a directory name
+# containing a space is no longer dropped. SC2016 is silenced locally in
+# ops-drift-issue.yml via `# shellcheck disable`, so all three classes catch
+# new occurrences again.
+#
+# SC2002 and SC2015 only appear once shellcheck is actually present — they were
 # invisible while every local run silently skipped the shell checks, which is
-# the gap the container fallback below closes.
+# the gap the container fallback below closes. Both deserve a fix of their own;
+# touching reusables the whole fleet consumes does not belong here.
 #
 # Note that `-ignore` takes a regex matched against the message text, so every
 # entry is repo-wide and forward-looking, not pinned to the file:line cited
 # above. SC2015 (`A && B || C` is not if-then-else) is a real logic-bug class
 # and is muted here only until the follow-up fix lands. Per-path scoping via
 # `.github/actionlint.yaml` `paths:` is the tool's answer if these outlive it.
-actionlint_ignores := "-ignore 'SC2086' -ignore 'SC2044' -ignore 'SC2016' -ignore 'SC2002' -ignore 'SC2015'"
+actionlint_ignores := "-ignore 'SC2086' -ignore 'SC2002' -ignore 'SC2015'"
 
 # actionlint container image, used when the local binary and shellcheck are not
 # both present. Renovate keeps the tag current via a custom manager in this

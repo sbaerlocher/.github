@@ -60,11 +60,19 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   pre-existing and were simply invisible before — actionlint skips its embedded
   shell checks _silently_ when shellcheck is missing, which every local run
   without the container did. The container image carries shellcheck, so they
-  surface now. Muted by code rather than by switching the pass off, matching
-  the existing three; fixing them means touching reusables the whole fleet
-  consumes and belongs in its own change. Note that `-ignore` is a regex over
-  the message text, so both mutes are repo-wide and forward-looking rather than
-  pinned to the cited lines.
+  surface now. Muted by code rather than by switching the pass off; fixing them
+  means touching reusables the whole fleet consumes and belongs in its own
+  change. Note that `-ignore` is a regex over the message text, so both mutes
+  are repo-wide and forward-looking rather than pinned to the cited lines.
+
+- **`just lint` no longer mutes `SC2044`, `SC2162` and `SC2016`.** The three
+  codes were suppressed repo-wide; the findings behind them are fixed instead —
+  `SC2044` and `SC2162` in `ci-gitops.yml` (see the space-handling entry under
+  Fixed), `SC2016` via a scoped `# shellcheck disable` on the one line in
+  `ops-drift-issue.yml` where the single quotes are intentional (a `printf`
+  format string). Only `SC2086`, `SC2002` and `SC2015` stay on the global
+  ignore list, so all three unmuted classes catch new occurrences again.
+  Local-only change — no reusable workflow behaviour depends on it.
 
 - **`ci-gitops.yml` — `fleet-paths` is passed through `env:` in every step.**
   The two fleet-validation steps and the Helm-lint step interpolated
@@ -78,6 +86,19 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### Fixed
 
+- **`ci-gitops.yml` — bundles and charts in directories containing spaces were
+  silently skipped.** Three loops re-split their paths through unquoted command
+  substitution: fleet validation iterated over `$(find ...)`, and both helm
+  loops pushed a glob result back through `$( … | tr ' ' '\n' | … )`. A
+  `fleet.yaml` or a chart directory whose name contains a space was split into
+  non-existent fragments and dropped without a message. All three now iterate
+  safely — `find -print0` for the fleet loop, `read -a` over `fleet-paths` plus
+  a quoted glob for the helm loops. The `fleet-paths` input itself stays
+  space-separated, so this concerns directories _below_ those paths. Not
+  breaking for space-free names, which is everything the loops previously
+  handled at all — but a consumer who does have such a directory will see those
+  bundles and charts validated for the first time, so a missing `version` field
+  or a `helm lint` error can newly surface where CI was quietly green.
 - **`ops-drift-issue.yml` — GNU-only sed idiom in the inline `render()`.** The
   workflow carries an inline copy of `scripts/drift-issue-body.sh`, and the
   copy still trimmed trailing blank lines via

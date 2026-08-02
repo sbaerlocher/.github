@@ -188,7 +188,10 @@ jobs:
           echo "Validating fleet.yaml files..."
           ERRORS=0
 
-          for file in $(find ${FLEET_PATHS} -name "fleet.yaml" 2>/dev/null); do
+          # `while read` over `find -print0` instead of `for file in $(find ...)`:
+          # word-splitting breaks on paths containing spaces. Process substitution
+          # rather than a pipe so the ERRORS increments stay in this shell.
+          while IFS= read -r -d '' file; do
             echo "Checking $file..."
 
             if ! grep -q "defaultNamespace:" "$file"; then
@@ -210,7 +213,7 @@ jobs:
                 echo "INFO: $file uses helm lifecycle options for plain manifests"
               fi
             fi
-          done
+          done < <(find ${FLEET_PATHS} -name "fleet.yaml" -print0 2>/dev/null)
 
           if [ $ERRORS -gt 0 ]; then
             echo "Found $ERRORS errors in fleet.yaml files"
@@ -299,14 +302,22 @@ jobs:
           echo "Linting Helm charts in: ${FLEET_PATHS}"
           ERRORS=0
 
-          for dir in $(echo "${FLEET_PATHS}" | tr ' ' '\n' | while read -r p; do echo "$p"/*; done); do
-            if [ -f "$dir/Chart.yaml" ]; then
-              echo "Linting $dir..."
-              if ! helm lint "$dir"; then
-                echo "ERROR: Helm lint failed for $dir"
-                ERRORS=$((ERRORS + 1))
+          # `read -a` + quoted nested glob instead of `$(… | tr | while read)`:
+          # the old form pushed the glob result back through unquoted command
+          # substitution, so a chart directory whose name contains a space was
+          # split into bogus entries and silently skipped. fleet-paths itself
+          # stays space-separated, hence `read -a` rather than a quoted expansion.
+          read -r -a FLEET_DIRS <<<"${FLEET_PATHS}"
+          for base in "${FLEET_DIRS[@]}"; do
+            for dir in "$base"/*; do
+              if [ -f "$dir/Chart.yaml" ]; then
+                echo "Linting $dir..."
+                if ! helm lint "$dir"; then
+                  echo "ERROR: Helm lint failed for $dir"
+                  ERRORS=$((ERRORS + 1))
+                fi
               fi
-            fi
+            done
           done
 
           if [ $ERRORS -gt 0 ]; then
@@ -350,44 +361,49 @@ jobs:
           ERRORS=0
           RENDERED=0
 
-          for dir in $(echo "${FLEET_PATHS}" | tr ' ' '\n' | while read -r p; do echo "$p"/*; done); do
-            [ -f "$dir/Chart.yaml" ] || continue
-            RENDERED=$((RENDERED + 1))
-            echo "Rendering $dir..."
+          # Same shape as the helm lint loop above: `read -a` + nested glob so a
+          # chart directory containing a space is not split into bogus entries.
+          read -r -a FLEET_DIRS <<<"${FLEET_PATHS}"
+          for base in "${FLEET_DIRS[@]}"; do
+            for dir in "$base"/*; do
+              [ -f "$dir/Chart.yaml" ] || continue
+              RENDERED=$((RENDERED + 1))
+              echo "Rendering $dir..."
 
-            # Vendor declared chart dependencies first; `helm template`
-            # hard-fails on missing dependencies, unlike `helm lint` which
-            # only warns. Best-effort: charts without dependencies are a no-op.
-            if grep -q "^dependencies:" "$dir/Chart.yaml" 2>/dev/null; then
-              helm dependency build "$dir" || {
-                echo "::warning::helm dependency build failed for $dir — render may be incomplete"
-              }
-            fi
+              # Vendor declared chart dependencies first; `helm template`
+              # hard-fails on missing dependencies, unlike `helm lint` which
+              # only warns. Best-effort: charts without dependencies are a no-op.
+              if grep -q "^dependencies:" "$dir/Chart.yaml" 2>/dev/null; then
+                helm dependency build "$dir" || {
+                  echo "::warning::helm dependency build failed for $dir — render may be incomplete"
+                }
+              fi
 
-            # Charts that `required`-guard secret values (e.g.
-            # `database.existingSecret`) cannot render from values.yaml
-            # defaults alone — the guard aborts the template. Honour a
-            # conventional CI values file in the chart dir if present, so the
-            # chart renders with placeholder secret names without weakening
-            # the production guard. First match wins; absence is a no-op so
-            # charts that render from defaults are unaffected.
-            VALUES_ARGS=()
-            for vf in values-test.yaml ci-values.yaml values-ci.yaml; do
-              if [ -f "$dir/$vf" ]; then
-                echo "Using values override $dir/$vf"
-                VALUES_ARGS=(-f "$dir/$vf")
-                break
+              # Charts that `required`-guard secret values (e.g.
+              # `database.existingSecret`) cannot render from values.yaml
+              # defaults alone — the guard aborts the template. Honour a
+              # conventional CI values file in the chart dir if present, so the
+              # chart renders with placeholder secret names without weakening
+              # the production guard. First match wins; absence is a no-op so
+              # charts that render from defaults are unaffected.
+              VALUES_ARGS=()
+              for vf in values-test.yaml ci-values.yaml values-ci.yaml; do
+                if [ -f "$dir/$vf" ]; then
+                  echo "Using values override $dir/$vf"
+                  VALUES_ARGS=(-f "$dir/$vf")
+                  break
+                fi
+              done
+
+              # `helm template` resolves values + templates; kubeconform then
+              # validates the *rendered* objects against the K8s schemas.
+              # -ignore-missing-schemas tolerates CRDs without published schemas.
+              if ! helm template "$dir" "${VALUES_ARGS[@]}" \
+                  | kubeconform -summary -strict -ignore-missing-schemas -output text; then
+                echo "ERROR: rendered manifests from $dir failed kubeconform"
+                ERRORS=$((ERRORS + 1))
               fi
             done
-
-            # `helm template` resolves values + templates; kubeconform then
-            # validates the *rendered* objects against the K8s schemas.
-            # -ignore-missing-schemas tolerates CRDs without published schemas.
-            if ! helm template "$dir" "${VALUES_ARGS[@]}" \
-                | kubeconform -summary -strict -ignore-missing-schemas -output text; then
-              echo "ERROR: rendered manifests from $dir failed kubeconform"
-              ERRORS=$((ERRORS + 1))
-            fi
           done
 
           echo "Rendered $RENDERED chart(s)."
