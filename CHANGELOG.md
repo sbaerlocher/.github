@@ -79,6 +79,13 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   name the two checks that actually run. Consumers scanning before a bump:
   no action needed.
 
+### Dependencies
+
+- **GitHub Actions**: `docker/login-action` → v4.6.0, plus digest bumps in
+  `ci-gitops.yml`, `e2e-dde.yml`, `release-npm.yml` and `security-sbom.yml`.
+  The inner `sbaerlocher/.github` refs in the `project` composite action and
+  the reusables moved to `2026-07-29`.
+
 ---
 
 ## 2026-07-29
@@ -97,7 +104,7 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ## 2026-07-28
 
-### Changed
+### ⚠ BREAKING
 
 - **Renovate presets — automerge scope widened.** The stability rules for
   `node`, `typescript`, `pnpm` (`renovate-js.json`), Terraform Core and the
@@ -164,7 +171,7 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### Dependencies
 
-- **GitHub Actions**: batched updates across reusables (`#245`, `#246`, `#247`).
+- **GitHub Actions**: batched updates across reusables (`#246`, `#247`).
 - **`actions/setup-go`**: → v7.
 - **`anthropics/claude-code-action`**: → v1.0.181.
 
