@@ -38,6 +38,24 @@ on:
         type: boolean
         required: false
         default: true
+      gitrepo-file:
+        description: |
+          Path to the Fleet GitRepo manifest whose `paths:` are validated.
+          Used in the step conditions and the grep, so the location is stated
+          once instead of being repeated per call site.
+        type: string
+        required: false
+        default: 'gitrepos/production.yaml'
+      require-gitrepo-file:
+        description: |
+          Fail the job when `gitrepo-file` is absent. Default `false` treats a
+          missing manifest as "nothing to validate", which is correct for repos
+          whose GitRepo resources are provisioned elsewhere. Set to `true` in
+          repos whose Fleet deployment hangs off the manifest, so renaming or
+          deleting it turns the job red instead of passing with a notice.
+        type: boolean
+        required: false
+        default: false
       enable-helm-lint:
         description: 'Lint Helm charts'
         type: boolean
@@ -241,18 +259,32 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Report missing GitRepo configuration
-        if: hashFiles('gitrepos/production.yaml') == ''
+      - name: Require GitRepo configuration
+        if: inputs.require-gitrepo-file && hashFiles(inputs.gitrepo-file) == ''
+        env:
+          GITREPO_FILE: ${{ inputs.gitrepo-file }}
         run: |
-          echo "::notice::gitrepos/production.yaml not found - skipping GitRepo validation"
+          echo "ERROR: ${GITREPO_FILE} not found, but require-gitrepo-file is true"
+          exit 1
+
+      - name: Report missing GitRepo configuration
+        if: >-
+          !inputs.require-gitrepo-file
+          && hashFiles(inputs.gitrepo-file) == ''
+        env:
+          GITREPO_FILE: ${{ inputs.gitrepo-file }}
+        run: |
+          echo "::notice::${GITREPO_FILE} not found - skipping GitRepo validation"
 
       - name: Validate GitRepo paths
-        if: hashFiles('gitrepos/production.yaml') != ''
+        if: hashFiles(inputs.gitrepo-file) != ''
+        env:
+          GITREPO_FILE: ${{ inputs.gitrepo-file }}
         run: |
           echo "Validating GitRepo paths..."
           ERRORS=0
 
-          PATHS=$(grep -A 100 "paths:" gitrepos/production.yaml | grep "^    - " | sed 's/^    - //')
+          PATHS=$(grep -A 100 "paths:" "${GITREPO_FILE}" | grep "^    - " | sed 's/^    - //')
 
           for path in $PATHS; do
             if [ ! -d "$path" ]; then

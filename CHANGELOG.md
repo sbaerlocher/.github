@@ -22,6 +22,24 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ## 2026-08-02
 
+### Added
+
+- **`ci-gitops.yml` takes `gitrepo-file` and `require-gitrepo-file`.** The
+  GitRepo manifest path was hard-coded at four call sites (both step
+  conditions, the `::notice::` text and the `grep`), so a repo keeping the
+  manifest anywhere but `gitrepos/production.yaml` could not use the job at
+  all. `gitrepo-file` (default `gitrepos/production.yaml`) states the location
+  once. `require-gitrepo-file` (default `false`) restores the ability to make a
+  missing manifest fail: the preceding change turned absence into a
+  `::notice::` for every consumer, which is right for repos whose GitRepo
+  resources live elsewhere but hides an accidental rename or deletion in repos
+  whose Fleet deployment hangs off the file. Those repos set
+  `require-gitrepo-file: true` and get a red job again. The path reaches the
+  `run:` blocks via `env:` rather than direct `${{ }}` interpolation, matching
+  the hardening the yamllint step carries in the same release. Not breaking —
+  both inputs are optional and their defaults reproduce the current behaviour
+  exactly.
+
 ### Fixed
 
 - **`ci-gitops.yml` no longer fails when `gitrepos/production.yaml` is
