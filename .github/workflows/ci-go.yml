@@ -342,7 +342,8 @@ jobs:
           TEST_ENV_VARS: ${{ inputs.test-env-vars }}
         run: |
           set -euo pipefail
-          echo "DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB}?sslmode=disable" >> "$GITHUB_ENV"
+          printf 'DATABASE_URL=postgres://%s:%s@localhost:5432/%s?sslmode=disable\n' \
+            "$POSTGRES_USER" "$POSTGRES_PASSWORD" "$POSTGRES_DB" >> "$GITHUB_ENV"
 
           if [ -n "${TEST_ENV_VARS:-}" ]; then
             printf '%s' "$TEST_ENV_VARS" \
