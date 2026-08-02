@@ -43,6 +43,12 @@ on:
           Path to the Fleet GitRepo manifest whose `paths:` are validated.
           Used in the step conditions and the grep, so the location is stated
           once instead of being repeated per call site.
+
+          A single literal path — globs are not supported. `hashFiles()` reads
+          the value as a pattern while `grep` reads it as a filename, so a
+          wildcard would pass the existence gate and then fail in the shell.
+          The value is also echoed into a `::notice::`, so pass static caller
+          configuration only, never event-controlled data.
         type: string
         required: false
         default: 'gitrepos/production.yaml'
@@ -53,6 +59,10 @@ on:
           whose GitRepo resources are provisioned elsewhere. Set to `true` in
           repos whose Fleet deployment hangs off the manifest, so renaming or
           deleting it turns the job red instead of passing with a notice.
+
+          Enforced by a step inside `validate-gitrepo`, so it requires
+          `enable-gitrepo-validation: true` — with the job disabled this input
+          is inert and a missing manifest still reports green.
         type: boolean
         required: false
         default: false
@@ -264,7 +274,8 @@ jobs:
         env:
           GITREPO_FILE: ${{ inputs.gitrepo-file }}
         run: |
-          echo "ERROR: ${GITREPO_FILE} not found, but require-gitrepo-file is true"
+          # First line only, same reasoning as the notice step below.
+          echo "ERROR: ${GITREPO_FILE%%$'\n'*} not found, but require-gitrepo-file is true"
           exit 1
 
       - name: Report missing GitRepo configuration
@@ -274,7 +285,10 @@ jobs:
         env:
           GITREPO_FILE: ${{ inputs.gitrepo-file }}
         run: |
-          echo "::notice::${GITREPO_FILE} not found - skipping GitRepo validation"
+          # First line only: the runner parses any stdout line starting with
+          # `::` as a workflow command, so a newline in the value could smuggle
+          # a second one into this notice.
+          echo "::notice::${GITREPO_FILE%%$'\n'*} not found - skipping GitRepo validation"
 
       - name: Validate GitRepo paths
         if: hashFiles(inputs.gitrepo-file) != ''
@@ -283,6 +297,15 @@ jobs:
         run: |
           echo "Validating GitRepo paths..."
           ERRORS=0
+
+          # hashFiles() above matched a pattern; grep below needs a real file.
+          # A glob or an unreadable path would otherwise die mid-pipeline with
+          # a bare "No such file or directory".
+          if [ ! -f "${GITREPO_FILE}" ]; then
+            echo "ERROR: ${GITREPO_FILE} is not a readable file"
+            echo "gitrepo-file takes a single literal path, not a glob"
+            exit 1
+          fi
 
           PATHS=$(grep -A 100 "paths:" "${GITREPO_FILE}" | grep "^    - " | sed 's/^    - //')
 
