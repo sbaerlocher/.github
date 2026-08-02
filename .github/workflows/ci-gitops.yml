@@ -137,18 +137,23 @@ jobs:
         run: pip install yamllint
 
       - name: Validate YAML files
+        env:
+          STRICT: ${{ inputs.yaml-lint-strict }}
+          # Unquoted at the call sites below so `-c <file>` splits into two
+          # argv words; keep it that way. Value is a build-time constant.
+          YAMLLINT_CONFIG_ARG: ${{ hashFiles('.yamllint.yml') != '' && '-c .yamllint.yml' || '' }}
         run: |
           set -euo pipefail
           if [ ! -f .yamllint.yml ]; then
             echo "::warning::.yamllint.yml not found - using default config"
           fi
           # -print0 / xargs -0 to survive paths with spaces
-          if [ "${{ inputs.yaml-lint-strict }}" = "true" ]; then
+          if [ "$STRICT" = "true" ]; then
             find . \( -name '*.yaml' -o -name '*.yml' \) -print0 \
-              | xargs -0 yamllint ${{ hashFiles('.yamllint.yml') != '' && '-c .yamllint.yml' || '' }} -f parsable
+              | xargs -0 yamllint ${YAMLLINT_CONFIG_ARG} -f parsable
           else
             find . \( -name '*.yaml' -o -name '*.yml' \) -print0 \
-              | xargs -0 yamllint ${{ hashFiles('.yamllint.yml') != '' && '-c .yamllint.yml' || '' }} -f parsable || true
+              | xargs -0 yamllint ${YAMLLINT_CONFIG_ARG} -f parsable || true
           fi
 
   validate-fleet-configs:
