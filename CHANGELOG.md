@@ -38,6 +38,15 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### Changed
 
+- **`ci-gitops.yml` — `yaml-lint-strict` and the yamllint config argument now
+  reach the shell via `env:`.** The *Validate YAML files* step interpolated
+  `${{ inputs.yaml-lint-strict }}` and the `hashFiles('.yamllint.yml')`
+  expression directly into its `run:` block, which produces recurring CodeQL
+  "potential code injection" findings and diverged from the `env:` pattern the
+  fleet and k8s validation steps in the same file already use. Both values now
+  travel as `STRICT` and `YAMLLINT_CONFIG_ARG`. No consumer impact: the input
+  contract is untouched and both the strict and non-strict branches invoke
+  yamllint exactly as before.
 - **Pull requests now run `just lint` and `just test` in CI.** A new
   `local-checks` job in `pull-request.yml` calls the same recipes
   `CONTRIBUTING.md` tells contributors to run, so there is one lint definition

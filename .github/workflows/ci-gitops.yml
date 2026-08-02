@@ -139,6 +139,8 @@ jobs:
       - name: Validate YAML files
         env:
           STRICT: ${{ inputs.yaml-lint-strict }}
+          # Unquoted at the call sites below so `-c <file>` splits into two
+          # argv words; keep it that way. Value is a build-time constant.
           YAMLLINT_CONFIG_ARG: ${{ hashFiles('.yamllint.yml') != '' && '-c .yamllint.yml' || '' }}
         run: |
           set -euo pipefail
