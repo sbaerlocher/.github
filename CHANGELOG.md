@@ -22,6 +22,20 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ## 2026-08-02
 
+### Changed
+
+- **`ci-ansible.yml` passes its inputs through `env:` instead of interpolating
+  them into `run:` blocks.** Every `${{ inputs.* }}` reference in a shell body
+  became a step-level `env:` entry read as a shell variable, matching the
+  pattern `ci-gitops.yml` already uses. This removes the recurring CodeQL
+  "potential code injection" findings on this file, since a crafted input value
+  no longer reaches the runner shell as code. Each touched block also gained
+  `set -euo pipefail`. Not breaking: `playbook-file` stays deliberately
+  unquoted at its call sites so a glob like `playbooks/*.yml` still expands to
+  one argument per playbook, and the resolved command lines are otherwise
+  unchanged. Four sibling workflows carry the same pattern and follow
+  separately.
+
 ### Fixed
 
 - **`ci-gitops.yml` no longer fails when `gitrepos/production.yaml` is

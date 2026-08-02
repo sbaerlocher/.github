@@ -125,12 +125,15 @@ jobs:
       - name: Ansible Syntax Check
         working-directory: ${{ inputs.working-directory }}
         env:
+          # Unquoted at the call site below so a glob like `playbooks/*.yml`
+          # still expands into one argv word per playbook; keep it that way.
           PLAYBOOK_FILE: ${{ inputs.playbook-file }}
         run: |
           set -euo pipefail
           echo "::group::Ansible Syntax Check"
           echo "Checking syntax of $PLAYBOOK_FILE..."
-          ansible-playbook --syntax-check "$PLAYBOOK_FILE"
+          # shellcheck disable=SC2086 # intentional: see env comment above
+          ansible-playbook --syntax-check $PLAYBOOK_FILE
           echo "::notice::Ansible syntax check passed ✅"
           echo "::endgroup::"
 
@@ -168,16 +171,19 @@ jobs:
       - name: Run ansible-lint
         working-directory: ${{ inputs.working-directory }}
         env:
+          # Unquoted at the call sites below so a glob like `playbooks/*.yml`
+          # still expands into one argv word per playbook; keep it that way.
           PLAYBOOK_FILE: ${{ inputs.playbook-file }}
           STRICT: ${{ inputs.ansible-lint-strict }}
         run: |
           set -euo pipefail
           echo "::group::Run ansible-lint"
           echo "Linting $PLAYBOOK_FILE..."
+          # shellcheck disable=SC2086 # intentional: see env comment above
           if [ "$STRICT" = "true" ]; then
-            ansible-lint "$PLAYBOOK_FILE"
+            ansible-lint $PLAYBOOK_FILE
           else
-            ansible-lint "$PLAYBOOK_FILE" || true
+            ansible-lint $PLAYBOOK_FILE || true
           fi
           echo "::endgroup::"
 
@@ -210,12 +216,12 @@ jobs:
       - name: Run yamllint
         working-directory: ${{ inputs.working-directory }}
         env:
-          WORKING_DIRECTORY: ${{ inputs.working-directory }}
           STRICT: ${{ inputs.yamllint-strict }}
         run: |
           set -euo pipefail
           echo "::group::Run yamllint"
-          echo "Linting YAML files in $WORKING_DIRECTORY..."
+          # $PWD is the step's working-directory, set above
+          echo "Linting YAML files in $PWD..."
           if [ "$STRICT" = "true" ]; then
             yamllint -f parsable .
           else
