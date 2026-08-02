@@ -47,9 +47,7 @@ for path in paths:
     # All three trigger spellings count: the block mapping (`on:\n  workflow_call:`),
     # the flow sequence (`on: [workflow_call]`) and the bare scalar
     # (`on: workflow_call`). Accepting only the mapping would undercount.
-    if isinstance(triggers, dict):
-        reusable = "workflow_call" in triggers
-    elif isinstance(triggers, list):
+    if isinstance(triggers, (dict, list)):
         reusable = "workflow_call" in triggers
     else:
         reusable = triggers == "workflow_call"
@@ -120,9 +118,12 @@ grep -qE "^### Internal Workflows \($INTERNAL\)$" "$AGENTS" ||
 
 # Stop at the next heading of any level, not just `### ` — the Composite
 # Actions section that follows starts with `## ` and carries its own table.
+# `#+` rather than an ERE interval: interval support in awk is not universal
+# (the BWK awk on older macOS reads the braces literally and would never match,
+# silently widening the slice again).
 SECTION="$(
   awk '/^### Internal Workflows \(/ { inside = 1; next }
-       inside && /^#{1,6} / { exit }
+       inside && /^#+ / { exit }
        inside && /^\| / { print }' "$AGENTS"
 )"
 [ -n "$SECTION" ] || fail "AGENTS.md: Internal Workflows section has no table rows"
