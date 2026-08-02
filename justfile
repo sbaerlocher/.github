@@ -22,10 +22,11 @@ default:
 #   SC2015  deploy-cloudflare-workers.yml:86, A && B || C read as if-then-else
 #
 # SC2044 and SC2162 are fixed in ci-gitops.yml, including the word-splitting
-# they pointed at: fleet validation iterates over `find -print0`, and the helm
-# loop reads with `read -r`, so a directory name containing a space is no
-# longer dropped. SC2016 is silenced locally in ops-drift-issue.yml via
-# `# shellcheck disable`, so all three classes catch new occurrences again.
+# they pointed at: fleet validation iterates over `find -print0`, and both helm
+# loops read fleet-paths into an array and glob quoted, so a directory name
+# containing a space is no longer dropped. SC2016 is silenced locally in
+# ops-drift-issue.yml via `# shellcheck disable`, so all three classes catch
+# new occurrences again.
 #
 # SC2002 and SC2015 only appear once shellcheck is actually present — they were
 # invisible while every local run silently skipped the shell checks, which is

@@ -131,7 +131,7 @@ jobs:
               printf '%s\n' "$clean"
               return
             fi
-            # shellcheck disable=SC2016 # printf format string, %s are placeholders
+            # shellcheck disable=SC2016  # backticks are a literal markdown fence, not command substitution
             printf '%s\n\n%s\n\n### Drifting resources\n\n```\n%s\n```\n\n%s\n' \
               "$clean" "$START" "$2" "$END"
           }
