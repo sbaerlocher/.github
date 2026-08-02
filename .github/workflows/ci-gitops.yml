@@ -452,6 +452,10 @@ jobs:
           # the moment it runs outside ubuntu-latest. The explicit `manifests=()`
           # also keeps `${#manifests[@]}` defined under `set -u` when the find
           # produces no output.
+          # Newline-delimited rather than the `-print0` form used for fleet.yaml
+          # above: the path segment filter is a `grep -E`, which would need
+          # `grep -zE` to stay NUL-clean. Manifest paths come from the repo tree,
+          # so only a newline in a filename would break this — spaces are safe.
           manifests=()
           while IFS= read -r manifest; do
             manifests+=("$manifest")
