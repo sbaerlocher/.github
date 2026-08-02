@@ -86,7 +86,7 @@ on:
           This input executes as shell code and must only be set by trusted
           caller workflows, never from PR-controlled data.
           Script has access to all env vars from bw-secrets and env-mapping.
-          Export vars as: echo "VAR_NAME=value" >> $GITHUB_ENV
+          Export vars as: echo "VAR_NAME=value" >> "$GITHUB_ENV"
       cancel-in-progress:
         type: boolean
         required: false

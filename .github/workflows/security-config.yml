@@ -234,11 +234,11 @@ jobs:
 
           if [ -z "$MANIFESTS" ]; then
             echo "No Kubernetes manifests found in templates/"
-            echo "found=false" >> $GITHUB_OUTPUT
+            echo "found=false" >> "$GITHUB_OUTPUT"
           else
             echo "Found manifests:"
             echo "$MANIFESTS"
-            echo "found=true" >> $GITHUB_OUTPUT
+            echo "found=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run Kubesec

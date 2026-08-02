@@ -177,9 +177,11 @@ jobs:
           fi
           # -print0 / xargs -0 to survive paths with spaces
           if [ "$STRICT" = "true" ]; then
+            # shellcheck disable=SC2086  # must split into `-c <file>`; see env: above
             find . \( -name '*.yaml' -o -name '*.yml' \) -print0 \
               | xargs -0 yamllint ${YAMLLINT_CONFIG_ARG} -f parsable
           else
+            # shellcheck disable=SC2086  # must split into `-c <file>`; see env: above
             find . \( -name '*.yaml' -o -name '*.yml' \) -print0 \
               | xargs -0 yamllint ${YAMLLINT_CONFIG_ARG} -f parsable || true
           fi
@@ -206,6 +208,8 @@ jobs:
           FLEET_PATHS: ${{ inputs.fleet-paths }}
         run: |
           echo "Checking for fleet.yaml files in: ${FLEET_PATHS}"
+          # shellcheck disable=SC2086  # fleet-paths is a space-separated list and
+          # must split into several find arguments.
           FLEET_FILES=$(find ${FLEET_PATHS} -name "fleet.yaml" 2>/dev/null | wc -l)
           echo "Found $FLEET_FILES fleet.yaml files"
 
@@ -246,7 +250,11 @@ jobs:
                 echo "INFO: $file uses helm lifecycle options for plain manifests"
               fi
             fi
-          done < <(find ${FLEET_PATHS} -name "fleet.yaml" -print0 2>/dev/null)
+          done < <(
+            # shellcheck disable=SC2086  # fleet-paths is a space-separated list
+            # and must split into several find arguments.
+            find ${FLEET_PATHS} -name "fleet.yaml" -print0 2>/dev/null
+          )
 
           if [ $ERRORS -gt 0 ]; then
             echo "Found $ERRORS errors in fleet.yaml files"
@@ -545,6 +553,8 @@ jobs:
           while IFS= read -r manifest; do
             manifests+=("$manifest")
           done < <(
+            # shellcheck disable=SC2086  # fleet-paths is a space-separated list
+            # and must split into several find arguments.
             find ${FLEET_PATHS} \( -name '*.yaml' -o -name '*.yml' \) \
               ! -name 'fleet.yaml' \
               | grep -E '/(templates|manifests)/' \

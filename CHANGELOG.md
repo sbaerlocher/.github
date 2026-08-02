@@ -65,6 +65,23 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   failed the step before and still does. Only values that previously broke
   shell quoting — apostrophes, leading `-`, backslashes — behave differently:
   they now work instead of erroring. No input signature changes.
+- **SC2086 is no longer muted repo-wide; `just lint` catches unquoted
+  expansions again.** The `-ignore 'SC2086'` entry hid 39 findings. Measured
+  against the mute, 34 of them were ordinary defects rather than deliberate
+  word-splitting: plain `>> $GITHUB_OUTPUT` / `>> $GITHUB_ENV` redirects in
+  `ci-js.yml`, `ci-go.yml`, `release-npm.yml`, `security-deps.yml`,
+  `security-config.yml` and `deploy-cloudflare-workers.yml`, an unquoted
+  `${BINARY_NAME}` throughout the two `ci-go.yml` binary-test blocks, and an
+  unquoted git revision range in `release-npm.yml`. The same repositories
+  already quoted that redirect at 40 other sites, so the unquoted ones were
+  inconsistency, not intent. All are now quoted. The 5 genuinely deliberate
+  sites are all in `ci-gitops.yml` — `fleet-paths` and the yamllint
+  `-c <file>` argument must split into several arguments — and each carries a
+  local `# shellcheck disable=SC2086` naming the reason, the same form
+  `ci-ansible.yml` and `ops-drift-issue.yml` already use. `SC2002` and
+  `SC2015` stay muted; they are separate defects with their own fix. Not
+  breaking: resolved command lines are unchanged.
+
 - **`ci-ansible.yml` passes its inputs through `env:` instead of interpolating
   them into `run:` blocks.** Every `${{ inputs.* }}` reference in a shell body
   became a step-level `env:` entry read as a shell variable, matching the

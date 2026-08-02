@@ -247,28 +247,31 @@ jobs:
 
       - name: Build and test binary
         if: inputs.binary-path != ''
+        env:
+          BINARY_PATH: ${{ inputs.binary-path }}
+          VERSION: ${{ needs.setup.outputs.version }}
         run: |
           mkdir -p bin
-          BINARY_NAME=$(basename ${{ inputs.binary-path }})
-          go build -ldflags="-s -w -X main.version=${{ needs.setup.outputs.version }}" -o bin/${BINARY_NAME} ${{ inputs.binary-path }}
+          BINARY_NAME=$(basename "$BINARY_PATH")
+          go build -ldflags="-s -w -X main.version=$VERSION" -o "bin/${BINARY_NAME}" "$BINARY_PATH"
 
-          if [ ! -f bin/${BINARY_NAME} ]; then
+          if [ ! -f "bin/${BINARY_NAME}" ]; then
             echo "::error::Binary was not created"
             exit 1
           fi
 
-          if [ ! -x bin/${BINARY_NAME} ]; then
+          if [ ! -x "bin/${BINARY_NAME}" ]; then
             echo "::error::Binary is not executable"
             exit 1
           fi
 
           echo "Testing --version flag..."
-          if ! ./bin/${BINARY_NAME} --version; then
+          if ! "./bin/${BINARY_NAME}" --version; then
             echo "::warning::Binary --version command failed (not critical)"
           fi
 
           echo "Testing --help flag..."
-          if ! ./bin/${BINARY_NAME} --help; then
+          if ! "./bin/${BINARY_NAME}" --help; then
             echo "::warning::Binary --help command failed (not critical)"
           fi
 
@@ -387,28 +390,31 @@ jobs:
 
       - name: Build and test binary
         if: inputs.binary-path != ''
+        env:
+          BINARY_PATH: ${{ inputs.binary-path }}
+          VERSION: ${{ needs.setup.outputs.version }}
         run: |
           mkdir -p bin
-          BINARY_NAME=$(basename ${{ inputs.binary-path }})
-          go build -ldflags="-s -w -X main.version=${{ needs.setup.outputs.version }}" -o bin/${BINARY_NAME} ${{ inputs.binary-path }}
+          BINARY_NAME=$(basename "$BINARY_PATH")
+          go build -ldflags="-s -w -X main.version=$VERSION" -o "bin/${BINARY_NAME}" "$BINARY_PATH"
 
-          if [ ! -f bin/${BINARY_NAME} ]; then
+          if [ ! -f "bin/${BINARY_NAME}" ]; then
             echo "::error::Binary was not created"
             exit 1
           fi
 
-          if [ ! -x bin/${BINARY_NAME} ]; then
+          if [ ! -x "bin/${BINARY_NAME}" ]; then
             echo "::error::Binary is not executable"
             exit 1
           fi
 
           echo "Testing --version flag..."
-          if ! ./bin/${BINARY_NAME} --version; then
+          if ! "./bin/${BINARY_NAME}" --version; then
             echo "::warning::Binary --version command failed (not critical)"
           fi
 
           echo "Testing --help flag..."
-          if ! ./bin/${BINARY_NAME} --help; then
+          if ! "./bin/${BINARY_NAME}" --help; then
             echo "::warning::Binary --help command failed (not critical)"
           fi
 

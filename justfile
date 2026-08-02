@@ -17,9 +17,17 @@ default:
 # actionlint's shellcheck findings are suppressed by message code rather than
 # by turning the whole pass off, so the quoting classes that matter for scripts
 # shipped to consumers stay visible. Currently muted:
-#   SC2086  37x, deliberately unquoted GitHub expressions in `run:` blocks
 #   SC2002  ci-js.yml:350, useless cat in a pipeline
 #   SC2015  deploy-cloudflare-workers.yml:86, A && B || C read as if-then-else
+#
+# SC2086 is no longer muted here. The repo-wide flag hid 39 findings, of which
+# 34 were plain unquoted `$GITHUB_OUTPUT` / `$GITHUB_ENV` redirects and an
+# unquoted `${BINARY_NAME}` — ordinary defects, not deliberate splitting, and
+# inconsistent with the 40 sites that already quoted the same redirect. Those
+# are fixed. The 5 genuinely deliberate sites are all in ci-gitops.yml, where
+# fleet-paths and the yamllint `-c <file>` argument must word-split, and each
+# now carries a local `# shellcheck disable=SC2086` naming the reason. The
+# class therefore catches new occurrences again.
 #
 # SC2044 and SC2162 are fixed in ci-gitops.yml, including the word-splitting
 # they pointed at: fleet validation iterates over `find -print0`, and both helm
@@ -37,8 +45,11 @@ default:
 # entry is repo-wide and forward-looking, not pinned to the file:line cited
 # above. SC2015 (`A && B || C` is not if-then-else) is a real logic-bug class
 # and is muted here only until the follow-up fix lands. Per-path scoping via
-# `.github/actionlint.yaml` `paths:` is the tool's answer if these outlive it.
-actionlint_ignores := "-ignore 'SC2086' -ignore 'SC2002' -ignore 'SC2015'"
+# `.github/actionlint.yaml` `paths:` is the tool's answer if these outlive it;
+# a local `# shellcheck disable` at the call site, as done for SC2086 and
+# SC2016, is finer still and is the preferred form when the exceptions are few
+# enough to name individually.
+actionlint_ignores := "-ignore 'SC2002' -ignore 'SC2015'"
 
 # actionlint container image, used when the local binary and shellcheck are not
 # both present. Renovate keeps the tag current via a custom manager in this
