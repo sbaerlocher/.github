@@ -92,7 +92,10 @@ jobs:
       # Inline-jq in `deploy-terraform.yml`: die render/addresses-Logik ist ein
       # Duplikat von scripts/drift-issue-body.sh, das per
       # scripts/tests/test-drift-issue-body.sh getestete Referenz bleibt.
-      # Ändert sich die eine, muss die andere folgen (Gleichheit von Hand).
+      # Ändert sich die eine, muss die andere folgen — die Gleichheit prüft
+      # scripts/tests/test-drift-issue-parity.sh, das den Funktions-Block hier
+      # aus dem YAML zieht und gegen das Skript laufen lässt. Nicht mehr von
+      # Hand: genau diese Kopie war zweimal auseinandergelaufen.
       - name: Upsert drift issue
         env:
           GH_TOKEN: ${{ github.token }}

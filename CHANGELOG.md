@@ -22,8 +22,28 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ## 2026-08-02
 
+### Added
+
+- **Parity self-check for the inline body logic in `ops-drift-issue.yml`.**
+  The workflow keeps its own copy of `strip_block`/`render`/`addresses` from
+  `scripts/drift-issue-body.sh` — deliberately, since a reusable workflow has
+  no context exposing its own call ref and a checkout would have to fall back
+  to a mutable `@main`. The contract was "Gleichheit von Hand" and it drifted
+  twice unnoticed: the script moved to portable `awk` while the inline copy
+  kept the GNU-only `sed` idiom. `scripts/tests/test-drift-issue-parity.sh`
+  now extracts the function block from the workflow YAML (parsed, so there is
+  no hardcoded line range to go stale), sources it, and compares its output
+  against the script over the same inputs. Behaviour-based rather than
+  textual, so indentation and comment churn do not produce false failures.
+
 ### Changed
 
+- **`pull-request.yml` now runs `just lint` and `just test`.** Both hung on no
+  trigger at all — the workflow started only `ai-claude-review.yml` and
+  `security-code.yml`, so the script self-checks never ran in CI and even an
+  existing test could not have failed the build. actionlint comes from the
+  justfile's container fallback, which also brings shellcheck; a bare local
+  binary would skip the embedded shell checks silently.
 - **`release-helm.yml` — GNU-only `sed -i` when patching Chart.yaml and
   values.yaml.** Four in-place edits used the suffixless `sed -i "…"` form,
   which is GNU-only: BSD sed (macOS) reads the script as the backup suffix and
