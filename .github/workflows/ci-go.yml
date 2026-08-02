@@ -212,6 +212,13 @@ jobs:
           TEST_ENV_VARS: ${{ inputs.test-env-vars }}
         run: |
           set -euo pipefail
+          # $GITHUB_ENV is line-based: a newline inside a key or value would inject
+          # additional environment entries for every following step.
+          if ! printf '%s' "$TEST_ENV_VARS" \
+            | jq -e 'to_entries | any(.[]; ((.key, (.value | tostring)) | contains("\n"))) | not' >/dev/null; then
+            echo "Error: multi-line test-env-vars keys or values are not supported" >&2
+            exit 1
+          fi
           printf '%s' "$TEST_ENV_VARS" \
             | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
 
@@ -354,6 +361,13 @@ jobs:
             "$POSTGRES_USER" "$POSTGRES_PASSWORD" "$POSTGRES_DB" >> "$GITHUB_ENV"
 
           if [ -n "${TEST_ENV_VARS:-}" ]; then
+            # $GITHUB_ENV is line-based: a newline inside a key or value would inject
+            # additional environment entries for every following step.
+            if ! printf '%s' "$TEST_ENV_VARS" \
+              | jq -e 'to_entries | any(.[]; ((.key, (.value | tostring)) | contains("\n"))) | not' >/dev/null; then
+              echo "Error: multi-line test-env-vars keys or values are not supported" >&2
+              exit 1
+            fi
             printf '%s' "$TEST_ENV_VARS" \
               | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
           fi

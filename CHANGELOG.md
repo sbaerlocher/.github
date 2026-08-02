@@ -122,6 +122,23 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### Fixed
 
+- **`ci-go.yml` rejects `test-env-vars` entries containing a newline instead of
+  writing them to `$GITHUB_ENV`.** The step renders each entry as
+  `jq -r 'to_entries[] | "\(.key)=\(.value)"'`, and `jq -r` prints a JSON `\n`
+  as a real line break — `$GITHUB_ENV` is line-based, so one entry with a
+  newline in its key or value became several. Whoever controls `test-env-vars`
+  could thereby set arbitrary environment variables for every following step of
+  the job, `PATH`, `GOFLAGS` or `LD_PRELOAD` included, which also apply to
+  `go test`. A guard now fails the step with
+  `Error: multi-line test-env-vars keys or values are not supported` before
+  anything is written. Both jobs (`test-and-lint`, `test-and-lint-postgres`) carry the
+  guard, and `scripts/tests/test-ci-go-test-env-guard.sh` reads the expression
+  out of the workflow so the check cannot drift from it. Distinct from the
+  quoting fix above: that one closed the shell path, this one the file-format
+  path, and the defect predates it. Not breaking for known consumers — they
+  pass single-line entries, which are unaffected; only a multi-line one, which
+  never reached the environment intact anyway, now fails loudly instead of
+  silently injecting.
 - **`ci-gitops.yml` no longer fails when `gitrepos/production.yaml` is
   absent.** The GitRepo existence step exited 1 on a missing file, and
   `enable-gitrepo-validation` defaults to `true` — so every GitOps consumer
