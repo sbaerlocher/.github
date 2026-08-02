@@ -106,12 +106,12 @@ All files live in [.github/workflows/](./.github/workflows/).
 
 ### Release (4)
 
-| File                                                              | Output                               |
-| ----------------------------------------------------------------- | ------------------------------------ |
-| [`release-docker.yml`](./.github/workflows/release-docker.yml)    | Multi-arch Docker images to GHCR     |
-| [`release-go.yml`](./.github/workflows/release-go.yml)            | GoReleaser binaries + GitHub Release |
-| [`release-helm.yml`](./.github/workflows/release-helm.yml)        | Helm OCI chart publish               |
-| [`release-npm.yml`](./.github/workflows/release-npm.yml)          | NPM publish with provenance + SBOM   |
+| File                                                           | Output                               |
+| -------------------------------------------------------------- | ------------------------------------ |
+| [`release-docker.yml`](./.github/workflows/release-docker.yml) | Multi-arch Docker images to GHCR     |
+| [`release-go.yml`](./.github/workflows/release-go.yml)         | GoReleaser binaries + GitHub Release |
+| [`release-helm.yml`](./.github/workflows/release-helm.yml)     | Helm OCI chart publish               |
+| [`release-npm.yml`](./.github/workflows/release-npm.yml)       | NPM publish with provenance + SBOM   |
 
 ### Operations (3)
 
@@ -134,10 +134,10 @@ All files live in [.github/workflows/](./.github/workflows/).
 
 ### E2E (2)
 
-| File                                                   | Purpose                                              |
-| ------------------------------------------------------ | ---------------------------------------------------- |
-| [`e2e-docker.yml`](./.github/workflows/e2e-docker.yml) | End-to-end tests via Docker Compose + Playwright     |
-| [`e2e-dde.yml`](./.github/workflows/e2e-dde.yml)       | End-to-end tests via whatwedo dde + Playwright       |
+| File                                                   | Purpose                                          |
+| ------------------------------------------------------ | ------------------------------------------------ |
+| [`e2e-docker.yml`](./.github/workflows/e2e-docker.yml) | End-to-end tests via Docker Compose + Playwright |
+| [`e2e-dde.yml`](./.github/workflows/e2e-dde.yml)       | End-to-end tests via whatwedo dde + Playwright   |
 
 ---
 
@@ -146,12 +146,12 @@ All files live in [.github/workflows/](./.github/workflows/).
 In addition to reusable workflows, this repo ships composite actions under
 [.github/actions/](./.github/actions/) for use from any consumer workflow.
 
-| Action                                                                                  | Purpose                                                                |
-| --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| [`setup-dde`](./.github/actions/setup-dde/)                                             | Install the [whatwedo dde](https://github.com/whatwedo/dde) CLI        |
-| [`project`](./.github/actions/project/)                                                 | Install dde + run any `dde project:<command>` (default `up`) for E2E   |
-| [`sbom-npm`](./.github/actions/sbom-npm/)                                               | CycloneDX SBOM for npm/pnpm/yarn/bun projects (internal)               |
-| [`validate-observability-configs`](./.github/actions/validate-observability-configs/)   | Validate Grafana Alloy and JSON configs in observability Terraform repos |
+| Action                                                                                | Purpose                                                                  |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| [`setup-dde`](./.github/actions/setup-dde/)                                           | Install the [whatwedo dde](https://github.com/whatwedo/dde) CLI          |
+| [`project`](./.github/actions/project/)                                               | Install dde + run any `dde project:<command>` (default `up`) for E2E     |
+| [`sbom-npm`](./.github/actions/sbom-npm/)                                             | CycloneDX SBOM for npm/pnpm/yarn/bun projects (internal)                 |
+| [`validate-observability-configs`](./.github/actions/validate-observability-configs/) | Validate Grafana Alloy and JSON configs in observability Terraform repos |
 
 For a complete Playwright + dde E2E job, use the
 [`e2e-dde.yml`](./.github/workflows/e2e-dde.yml) reusable workflow — it
@@ -221,12 +221,12 @@ Rules:
 
 ## Required Secrets in Consumer Repos
 
-| Secret                    | Purpose                            | Required for                      |
-| ------------------------- | ---------------------------------- | --------------------------------- |
-| `BW_ACCESS_TOKEN`         | Bitwarden Secrets Manager          | `deploy-terraform`, CF Workers    |
-| `CODECOV_TOKEN`           | Code coverage upload               | `ci-js`, `ci-go` (optional)       |
-| `NPM_TOKEN`               | NPM publish                        | `release-npm`                     |
-| `CLAUDE_CODE_OAUTH_TOKEN` | Claude AI workflows                | private repos only                |
+| Secret                    | Purpose                   | Required for                   |
+| ------------------------- | ------------------------- | ------------------------------ |
+| `BW_ACCESS_TOKEN`         | Bitwarden Secrets Manager | `deploy-terraform`, CF Workers |
+| `CODECOV_TOKEN`           | Code coverage upload      | `ci-js`, `ci-go` (optional)    |
+| `NPM_TOKEN`               | NPM publish               | `release-npm`                  |
+| `CLAUDE_CODE_OAUTH_TOKEN` | Claude AI workflows       | private repos only             |
 
 ---
 
@@ -259,7 +259,7 @@ with:
 ### SARIF upload fails on private repo
 
 `security-code.yml` and friends only upload SARIF when
-`enable-sarif-upload: true` *and* the repo is public (or has GitHub
+`enable-sarif-upload: true` _and_ the repo is public (or has GitHub
 Advanced Security). Private repos without GHAS should leave the input at
 its default `false` and rely on artifact uploads instead.
 
@@ -270,13 +270,13 @@ its default `false` and rely on artifact uploads instead.
 Local tasks run through [`just`](https://just.systems), the org-wide command
 runner. Run it without arguments to list the recipes:
 
-| Recipe            | What it does                                               |
-| ----------------- | ---------------------------------------------------------- |
-| `just`            | List all recipes                                           |
-| `just lint`       | yamllint, Renovate JSON validity, actionlint               |
+| Recipe            | What it does                                              |
+| ----------------- | --------------------------------------------------------- |
+| `just`            | List all recipes                                          |
+| `just lint`       | yamllint, Renovate JSON validity, actionlint              |
 | `just actionlint` | actionlint alone — local binary or container, by coverage |
-| `just test`       | Script self-checks under `scripts/tests/`                  |
-| `just fmt`        | prettier over Markdown and JSON                            |
+| `just test`       | Script self-checks under `scripts/tests/`                 |
+| `just fmt`        | prettier over Markdown and JSON                           |
 
 There is no `build` or `dev` recipe — this repository ships no build artifact
 and has no dev loop. `templates/justfile` is the reference template consumer
