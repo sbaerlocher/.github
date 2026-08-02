@@ -106,6 +106,19 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   `actions/setup-node` step, without which `just lint` has no Node in the
   runner. Consumers are unaffected — this is local tooling and this repo's own
   CI, no reusable workflow changes behaviour.
+- **`ci-go.yml` passes the `Get version` step's context values through `env:`
+  instead of interpolating them into the `run:` block.** The step read
+  `${{ github.ref }}`, `${{ github.ref_name }}` and `${{ github.sha }}`
+  directly, and the first of those drives a `[[ =~ ]]` branch — git permits
+  `` ` ``, `$`, `(` and `)` in ref names, so anyone with push access could get
+  a branch or tag name to reach the shell as code rather than as data. The
+  three values become step-level `env:` entries read as quoted shell
+  variables, and the block gains `set -euo pipefail`. Same pattern as the
+  `ci-ansible.yml` entry above. This was the last `${{ }}` interpolation in a
+  `run:` block of this file other than `pre-build-commands` (lines 184 and
+  320), which is caller-supplied shell executed by design and therefore cannot
+  move to `env:`. The resolved version string is unchanged, and no input
+  signature or default changes.
 
 ### Fixed
 
