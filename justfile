@@ -20,14 +20,59 @@ default:
 #   SC2086  37x, deliberately unquoted GitHub expressions in `run:` blocks
 #   SC2044  ci-gitops.yml:191, for-over-find on a config-supplied path
 #   SC2016  ops-drift-issue.yml:134, single quotes around a markdown fence
-# The latter two deserve a fix of their own; touching reusables the whole
+#   SC2002  ci-js.yml:350, useless cat in a pipeline
+#   SC2015  deploy-cloudflare-workers.yml:86, A && B || C read as if-then-else
+# All but SC2086 deserve a fix of their own; touching reusables the whole
 # fleet consumes does not belong in a task-runner change.
+#
+# The last two only appear once shellcheck is actually present — they were
+# invisible while every local run silently skipped the shell checks, which is
+# the gap the container fallback below closes.
+#
+# Note that `-ignore` takes a regex matched against the message text, so every
+# entry is repo-wide and forward-looking, not pinned to the file:line cited
+# above. SC2015 (`A && B || C` is not if-then-else) is a real logic-bug class
+# and is muted here only until the follow-up fix lands. Per-path scoping via
+# `.github/actionlint.yaml` `paths:` is the tool's answer if these outlive it.
+actionlint_ignores := "-ignore 'SC2086' -ignore 'SC2044' -ignore 'SC2016' -ignore 'SC2002' -ignore 'SC2015'"
+
+# actionlint container image, used when the local binary and shellcheck are not
+# both present. Renovate keeps the tag current via a custom manager in this
+# repo's own .github/renovate.json — the shared renovate-base.json preset that
+# consumers extend is deliberately left alone, so this adds no update behaviour
+# anywhere else. Keep the assignment on one line; the manager regex expects it.
+actionlint_image := "rhysd/actionlint:1.7.7"
 
 # lint → static checks over YAML, Renovate presets and workflow definitions
 lint:
     yamllint .
     jq empty renovate.json .github/renovate.json renovate-*.json
-    actionlint -ignore 'SC2086' -ignore 'SC2044' -ignore 'SC2016'
+    just actionlint
+
+# Coverage decides the order, not locality: actionlint needs shellcheck for its
+# embedded shell checks and skips them *silently* without it, so a local binary
+# on a shellcheck-less machine is the weakest of the three paths. The container
+# image ships shellcheck, so it outranks a bare local binary and is only skipped
+# when the local pair is complete.
+
+# actionlint → workflow linting, local binary + shellcheck first, else container
+actionlint:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if command -v actionlint >/dev/null 2>&1 && command -v shellcheck >/dev/null 2>&1; then
+        actionlint {{ actionlint_ignores }}
+    elif command -v docker >/dev/null 2>&1; then
+        command -v actionlint >/dev/null 2>&1 \
+            && echo 'note: shellcheck not on PATH; using the container for full coverage' >&2
+        docker run --rm -v "$PWD:/repo" --workdir /repo {{ actionlint_image }} \
+            {{ actionlint_ignores }}
+    elif command -v actionlint >/dev/null 2>&1; then
+        echo 'warning: shellcheck and docker both missing; actionlint skips its shell checks' >&2
+        actionlint {{ actionlint_ignores }}
+    else
+        echo 'actionlint: needs either actionlint on PATH or docker. See CONTRIBUTING.md.' >&2
+        exit 1
+    fi
 
 # test → run the script self-checks
 test:

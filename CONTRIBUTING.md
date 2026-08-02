@@ -45,19 +45,32 @@ entrypoint is [`just`](https://just.systems), the org-wide command runner —
 run it without arguments to list the recipes:
 
 ```bash
-just lint   # yamllint, Renovate JSON validity, actionlint
-just test   # script self-checks under scripts/tests/
-just fmt    # prettier over Markdown and JSON
+just lint         # yamllint, Renovate JSON validity, actionlint
+just actionlint   # actionlint alone (local binary or container)
+just test         # script self-checks under scripts/tests/
+just fmt          # prettier over Markdown and JSON
 ```
 
 Run `just lint` and `just test` before opening a PR. `fmt` reflows Markdown
 tables repo-wide, so keep its output out of otherwise unrelated changes.
 
-Recipes call `yamllint`, `jq`, `actionlint`, `shellcheck`, and `prettier`
-directly — install those separately, `just` does not vendor them. Without
-`shellcheck` on `PATH`, actionlint skips its embedded shell checks silently
-rather than failing, so `just lint` would pass with less coverage than it
-reports.
+Recipes call `yamllint`, `jq`, and `prettier` directly — install those
+separately, `just` does not vendor them.
+
+`actionlint` is the exception — it needs no manual install. `just actionlint`
+picks a path by coverage rather than by preference:
+
+1. local `actionlint` **and** `shellcheck` on `PATH` — runs locally, fastest
+2. otherwise Docker — runs `rhysd/actionlint`, which ships shellcheck
+3. local `actionlint` without either shellcheck or Docker — runs locally and
+   warns that the shell checks are being skipped
+4. neither `actionlint` nor Docker — fails, naming both options
+
+The container outranks a bare local binary because actionlint needs shellcheck
+for its embedded shell checks and skips them _silently_ without it, so that
+combination would pass with less coverage than it reports. Nothing to opt into:
+install `shellcheck` next to `actionlint` for the fast path, or have Docker
+available and let the recipe pick it.
 
 If `lefthook` is installed, enable local hooks with:
 
