@@ -38,12 +38,17 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### Changed
 
-- **`pull-request.yml` now runs `just lint` and `just test`.** Both hung on no
-  trigger at all — the workflow started only `ai-claude-review.yml` and
-  `security-code.yml`, so the script self-checks never ran in CI and even an
-  existing test could not have failed the build. actionlint comes from the
-  justfile's container fallback, which also brings shellcheck; a bare local
-  binary would skip the embedded shell checks silently.
+- **Pull requests now run `just lint` and `just test` in CI.** A new
+  `local-checks` job in `pull-request.yml` calls the same recipes
+  `CONTRIBUTING.md` tells contributors to run, so there is one lint definition
+  instead of a CI copy that drifts from it. Previously nothing in
+  `.github/workflows/` invoked `just`, and a skipped local check reached `main`
+  unnoticed. Both recipes are hard gates — no `continue-on-error`. `just` and
+  yamllint are installed in the job; `ubuntu-latest` already ships jq,
+  shellcheck and Docker, so `just actionlint` reaches the container path with
+  its embedded shell checks active. No consumer impact — `pull-request.yml` has
+  no `workflow_call` trigger, so no repository consumes it and no date tag
+  carries the change.
 - **`release-helm.yml` — GNU-only `sed -i` when patching Chart.yaml and
   values.yaml.** Four in-place edits used the suffixless `sed -i "…"` form,
   which is GNU-only: BSD sed (macOS) reads the script as the backup suffix and

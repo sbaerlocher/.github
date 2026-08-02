@@ -14,26 +14,34 @@ permissions:
   actions: read
 
 jobs:
-  # `just lint` and `just test` hung on no trigger at all, so the script
-  # self-checks never ran in CI. actionlint comes from the container fallback
-  # in the justfile (the runner has Docker), which also brings shellcheck —
-  # a bare binary would skip the embedded shell checks silently.
-  checks:
-    name: Lint and Test
+  # Runs the same `just` recipes contributors run locally (CONTRIBUTING.md),
+  # so there is one lint definition rather than a CI copy that drifts from it.
+  #
+  # ubuntu-latest ships jq, shellcheck and Docker, but not yamllint or just —
+  # both are installed below. With shellcheck present, `just actionlint` takes
+  # its local-binary path only when actionlint is too; it is not, so the recipe
+  # falls through to the rhysd/actionlint container, which bundles both. Either
+  # way the embedded shell checks run rather than being silently skipped.
+  local-checks:
+    name: Local Checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Read-only job: unlike merge.yml, nothing here pushes or tags.
+          persist-credentials: false
 
-      - name: Install just and yamllint
-        run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y just
-          pip install yamllint
+      - name: Setup just
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
 
-      - name: Lint
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Run lint
         run: just lint
 
-      - name: Test
+      - name: Run tests
         run: just test
 
   claude-review:
