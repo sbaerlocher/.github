@@ -317,11 +317,11 @@ jobs:
               ;;
           esac
 
-      # TEST_COMMAND is deliberately unquoted at the call sites below: the input
-      # carries a script name plus optional arguments (e.g. `test -- --shard=1/2`),
-      # so it must word-split. Passing it through `env:` still keeps it out of the
-      # `run:` block at expression-expansion time, which is what closes the
-      # injection: the value reaches the shell as data, not as source text.
+      # TEST_COMMAND is deliberately unquoted below: the input carries a script
+      # name plus optional arguments (e.g. `test -- --shard=1/2`), so it must
+      # word-split. Going through `env:` makes the value data rather than source
+      # text, so it is IFS-split and globbed but never parsed as shell — quotes
+      # and escapes inside it are no longer honoured (see CHANGELOG 2026-08-03).
       - name: Run tests without coverage
         if: inputs.enable-tests && !inputs.enable-coverage
         working-directory: ${{ inputs.working-directory }}

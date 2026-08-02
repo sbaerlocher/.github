@@ -467,11 +467,6 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      # The heredoc delimiter is quoted ('EOF'), so nothing in the body is
-      # expanded by the shell. Every value the template needs is therefore
-      # computed into a variable first and substituted with envsubst-free
-      # `printf`-style assembly below, which keeps caller-controlled inputs
-      # out of both the expression layer and the shell's expansion pass.
       - name: Generate changelog
         if: inputs.generate-changelog
         id: changelog
@@ -495,10 +490,16 @@ jobs:
 
           # Resolved before the heredoc: the quoted delimiter below switches off
           # expansion inside the body, so a command substitution there would be
-          # emitted literally rather than evaluated.
-          PACKAGE_NAME=$(node -p "require(process.argv[1] + '/package.json').name" "$WORKING_DIRECTORY")
+          # emitted literally rather than evaluated. path.resolve() keeps a
+          # relative working-directory like `packages/foo` a path — bare
+          # require() would treat it as a node_modules specifier.
+          PACKAGE_NAME=$(node -p \
+            "require(require('path').resolve(process.argv[1], 'package.json')).name" \
+            "$WORKING_DIRECTORY")
 
-          # Save to file
+          # Delimiters below are quoted ('EOF'), so the shell expands nothing in
+          # the bodies — the static Markdown stays literal and the two dynamic
+          # lines are emitted by printf instead.
           {
             cat << 'EOF'
           ## What's Changed

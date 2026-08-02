@@ -98,12 +98,17 @@ jobs:
 
       # Docker Compose Setup
       - name: Start E2E stack
+        env:
+          COMPOSE_FILE_PATH: ${{ inputs.compose-file }}
+          COMPOSE_PROFILE: ${{ inputs.compose-profile }}
         run: |
-          docker compose -f ${{ inputs.compose-file }} --profile ${{ inputs.compose-profile }} up -d --wait
+          docker compose -f "$COMPOSE_FILE_PATH" --profile "$COMPOSE_PROFILE" up -d --wait
           echo "✅ E2E stack started successfully"
 
       - name: Show running containers
-        run: docker compose -f ${{ inputs.compose-file }} ps
+        env:
+          COMPOSE_FILE_PATH: ${{ inputs.compose-file }}
+        run: docker compose -f "$COMPOSE_FILE_PATH" ps
 
       # Setup Node.js for Playwright
       - name: Setup Node.js
@@ -148,8 +153,9 @@ jobs:
             *) npx playwright install --with-deps $PLAYWRIGHT_BROWSERS ;;
           esac
 
-      # TEST_COMMAND stays unquoted: it may carry arguments after the script
-      # name and must word-split. See the same note in ci-js.yml.
+      # TEST_COMMAND stays unquoted: it may carry arguments after the script name
+      # and must word-split. As in ci-js.yml, that means it is no longer
+      # shell-parsed — quoted arguments inside the value are not honoured.
       # Run E2E Tests
       - name: Run Playwright tests
         working-directory: ${{ inputs.playwright-directory }}
@@ -168,8 +174,10 @@ jobs:
       # Save container logs on failure
       - name: Save container logs
         if: failure() && inputs.upload-artifacts
+        env:
+          COMPOSE_FILE_PATH: ${{ inputs.compose-file }}
         run: |
-          docker compose -f ${{ inputs.compose-file }} logs > container-logs.txt
+          docker compose -f "$COMPOSE_FILE_PATH" logs > container-logs.txt
           echo "📋 Container logs saved"
 
       # Upload Artifacts
@@ -203,21 +211,26 @@ jobs:
       # Stop Docker Compose
       - name: Stop E2E stack
         if: always()
+        env:
+          COMPOSE_FILE_PATH: ${{ inputs.compose-file }}
+          COMPOSE_PROFILE: ${{ inputs.compose-profile }}
         run: |
-          docker compose -f ${{ inputs.compose-file }} --profile ${{ inputs.compose-profile }} down
+          docker compose -f "$COMPOSE_FILE_PATH" --profile "$COMPOSE_PROFILE" down
           echo "🛑 E2E stack stopped"
 
       # PR Comment
       - name: Comment PR with test results
         if: github.event_name == 'pull_request' && always()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          COMPOSE_PROFILE: ${{ inputs.compose-profile }}
         with:
           script: |
             const fs = require('fs');
             const path = require('path');
 
             let comment = '## 🎭 E2E Test Results (Docker Compose)\n\n';
-            comment += `**Profile**: \`${{ inputs.compose-profile }}\`\n\n`;
+            comment += `**Profile**: \`${process.env.COMPOSE_PROFILE}\`\n\n`;
 
             // Use job status instead of counting files
             const jobStatus = '${{ job.status }}';
