@@ -228,8 +228,6 @@ jobs:
           # `while read` over `find -print0` instead of `for file in $(find ...)`:
           # word-splitting breaks on paths containing spaces. Process substitution
           # rather than a pipe so the ERRORS increments stay in this shell.
-          # shellcheck disable=SC2086  # fleet-paths is a space-separated list and
-          # must split into several find arguments.
           while IFS= read -r -d '' file; do
             echo "Checking $file..."
 
@@ -252,7 +250,11 @@ jobs:
                 echo "INFO: $file uses helm lifecycle options for plain manifests"
               fi
             fi
-          done < <(find ${FLEET_PATHS} -name "fleet.yaml" -print0 2>/dev/null)
+          done < <(
+            # shellcheck disable=SC2086  # fleet-paths is a space-separated list
+            # and must split into several find arguments.
+            find ${FLEET_PATHS} -name "fleet.yaml" -print0 2>/dev/null
+          )
 
           if [ $ERRORS -gt 0 ]; then
             echo "Found $ERRORS errors in fleet.yaml files"
