@@ -77,7 +77,7 @@ $WORKFLOW_OUT
 script:
 $SCRIPT_OUT"
 
-# 2 — WERT-FREIHEIT: the level-A comment above the step claims the inline query
+# 2 — VALUE FREEDOM: the level-A comment above the step claims the inline query
 # never touches .change.before/.after. The fixture carries LEAKME markers in
 # both, so a query that widened its field selection shows up right here. Drift
 # on this one would be a secret leak into a GitHub issue body.
