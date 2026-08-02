@@ -97,14 +97,21 @@ jobs:
           VERSION="${INPUT_VERSION#v}"  # Remove 'v' prefix if present
 
           # Guard vor den `sed`-Aufrufen unten: `$VERSION` landet im
-          # s-Ausdruck selbst. Ein `/` beendet ihn vorzeitig, `&` und `\`
-          # sind in der Replacement-Hälfte Metazeichen. Git-Tag-Namen dürfen
-          # Slashes tragen und das `v*`-Filter der Caller schliesst sie nicht
-          # aus. Erster Step im Job, deshalb deckt der Guard auch das zweite,
-          # unabhängige `VERSION="${INPUT_VERSION#v}"` im Package-Step ab.
+          # s-Ausdruck selbst. `/` beendet ihn vorzeitig, `&` und `\` sind in
+          # der Replacement-Hälfte Metazeichen, ein Newline bricht das Script
+          # mit "unterminated s command" ab. Allowlist statt Denylist, damit
+          # die Klasse geschlossen ist. Git-Tag-Namen dürfen Slashes tragen
+          # und das `v*`-Filter der Caller schliesst sie nicht aus.
+          # Dieser Step läuft ohne `if:` und vor dem Package-Step, ein
+          # `exit 1` bricht also den Job ab, bevor das zweite, unabhängige
+          # `VERSION="${INPUT_VERSION#v}"` dort ausgewertet wird.
+          # Der abgelehnte Wert geht per `printf %q` ins Log, nicht in die
+          # `::error::`-Annotation: ein Newline darin würde sonst als neues
+          # Workflow-Kommando geparst.
           case "$VERSION" in
-            *[/\\\&\|]*)
-              echo "::error::version must not contain / \\ & or | (got: $VERSION)"
+            *[!A-Za-z0-9._+-]*)
+              echo "::error::version must match [A-Za-z0-9._+-]+ — rejected, see log"
+              printf 'rejected version: %q\n' "$VERSION"
               exit 1
               ;;
           esac
@@ -130,10 +137,12 @@ jobs:
         run: |
           # Gleicher Guard wie beim Version-Step, hier für den `|`-Delimiter:
           # `docker/build-push-action` liefert immer `sha256:<hex>`, ein
-          # fremder Caller kann den Input aber frei setzen.
+          # fremder Caller kann den Input aber frei setzen. Der leere Fall
+          # ist durch `if: inputs.image-digest != ''` schon ausgeschlossen.
           case "$IMAGE_DIGEST" in
-            *[/\\\&\|]*)
-              echo "::error::image-digest must not contain / \\ & or | (got: $IMAGE_DIGEST)"
+            *[!A-Za-z0-9:]*)
+              echo "::error::image-digest must match [A-Za-z0-9:]+ — rejected, see log"
+              printf 'rejected image-digest: %q\n' "$IMAGE_DIGEST"
               exit 1
               ;;
           esac

@@ -49,6 +49,21 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   its embedded shell checks active. No consumer impact — `pull-request.yml` has
   no `workflow_call` trigger, so no repository consumes it and no date tag
   carries the change.
+- **`release-helm.yml` — `version` and `image-digest` are validated before
+  they reach `sed`.** Both values are interpolated into the substitute
+  expression itself, so a `/` (the Chart.yaml call sites), a `|` (the digest
+  call site), a `&` or `\` in the replacement half, or a newline ends the
+  expression early and `sed` aborts with `bad flag in substitute command` or
+  `unterminated s command`. Each of the two steps now rejects its input against
+  an allowlist — `[A-Za-z0-9._+-]` for `version`, `[A-Za-z0-9:]` for
+  `image-digest` — which closes the character class instead of enumerating
+  metacharacters. The rejected value goes to the log via `printf %q` rather
+  than into the `::error::` annotation, so a newline in it cannot be parsed as
+  a further workflow command. No behaviour change for valid inputs: semver tags
+  (including `-rc.1` and `+build.5`) and `sha256:<hex>` digests pass unchanged.
+  Reachable because Git tag names may contain slashes and the callers' `v*` tag
+  filter does not exclude them; as a `workflow_call` reusable, a caller can
+  feed either input from any source.
 - **`release-helm.yml` — GNU-only `sed -i` when patching Chart.yaml and
   values.yaml.** Four in-place edits used the suffixless `sed -i "…"` form,
   which is GNU-only: BSD sed (macOS) reads the script as the backup suffix and
