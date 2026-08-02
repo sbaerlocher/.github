@@ -35,6 +35,18 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   breaking for CI — runners are Linux and the sed form worked there; the fix
   matters for anyone reproducing the block locally on macOS.
 
+### Changed
+
+- **`ci-gitops.yml` — `fleet-paths` is passed through `env:` in every step.**
+  The two fleet-validation steps and the Helm-lint step interpolated
+  `${{ inputs.fleet-paths }}` directly into their `run:` blocks, which CodeQL
+  flags as potential code injection; the two kubeconform steps already used
+  `env: FLEET_PATHS`. All five uses now go through `env:`, so the file is
+  consistent and the recurring Code Scanning alerts at those sites disappear.
+  Not breaking: the value is still expanded unquoted, so the space-separated
+  paths keep the same word-splitting behaviour. The chart loop also moved to
+  `read -r`, matching the equivalent loop in the kubeconform step.
+
 ## 2026-08-01
 
 ### Fixed
