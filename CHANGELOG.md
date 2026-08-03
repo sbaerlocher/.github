@@ -20,6 +20,31 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-08-05
+
+### ⚠ BREAKING
+
+- **`ci-go.yml` and `release-go.yml` no longer accept `pre-build-commands`.**
+  The input was interpolated straight into a `run:` body, so whoever set it ran
+  arbitrary shell on the runner — a wider hole than the `$GITHUB_ENV` writes
+  fixed in the entries below, since it did not even go through the environment
+  file. No repository in the organisation passed the input, so it is removed
+  rather than wrapped in a trust model nobody relies on.
+  **Migration:** run those commands as your own step in the calling workflow,
+  before the `uses:` call. The command then lives in the calling repository
+  instead of travelling as a string through a workflow input.
+
+### Details
+
+- **Both Go workflows joined the injection guard's `MIGRATED` list.**
+  `scripts/tests/test-workflow-input-injection.sh` asserts structurally that no
+  caller-controlled `${{ }}` reaches a `run:` body; `ci-go.yml` and
+  `release-go.yml` were absent from that list precisely because
+  `pre-build-commands` disqualified them. With the input gone they are covered,
+  which is what keeps the pattern from returning. This also resolves the caveat
+  in the 2026-08-02 entry below, which named `pre-build-commands` as the one
+  remaining `run:` interpolation in `ci-go.yml` that could not move to `env:`.
+
 ## 2026-08-04
 
 ### ⚠ BREAKING
