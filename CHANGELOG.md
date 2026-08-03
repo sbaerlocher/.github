@@ -122,7 +122,7 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 - **`ci-go.yml` rejects `postgres-user`, `postgres-password` and `postgres-db`
   values containing a newline instead of writing them to `$GITHUB_ENV`.** The
-  `Set test environment variables` step of `test-and-lint-postgres` builds the
+  `Set test environment variables` step of `test-and-lint` builds the
   `DATABASE_URL` line from the three inputs with `printf` and appends it to
   `$GITHUB_ENV`. That file is line-based, so a newline inside one of the values
   splits the line and injects further environment entries for every following

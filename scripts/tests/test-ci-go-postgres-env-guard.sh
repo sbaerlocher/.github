@@ -63,10 +63,10 @@ WRITE_LINE="$(grep -n "^ *printf 'DATABASE_URL=postgres" "$WORKFLOW" | cut -d: -
 [ "$GUARD_LINE" -lt "$WRITE_LINE" ] ||
   fail "postgres guard is at line $GUARD_LINE, below the write at $WRITE_LINE"
 
-# Above the write is not enough — both must be in the *same* step. ci-go.yml has
-# a second `Set test environment variables` step in the `test-and-lint` job, so
-# a guard moved there would still be "above" this write while leaving it
-# unprotected: the one-job-hardened-one-behind mode the sibling test covers.
+# Above the write is not enough — both must be in the *same* step. A guard moved
+# into any earlier step would still be "above" this write while leaving it
+# unprotected, because each `run:` block is its own shell: the check would pass
+# while the value reaching `printf` had never been tested.
 if sed -n "${GUARD_LINE},${WRITE_LINE}p" "$WORKFLOW" | grep -q '^ *- name:'; then
   fail "postgres guard and the DATABASE_URL write are in different steps"
 fi
