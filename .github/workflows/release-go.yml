@@ -99,6 +99,35 @@ jobs:
         env:
           EXTRA_ENV: ${{ inputs.extra-env }}
         run: |
+          set -euo pipefail
+          # $GITHUB_ENV is line-based, and `extra-env` is a multi-line
+          # KEY=VALUE list, so its own newlines are legitimate separators
+          # rather than injection. What has to be rejected is a line that is
+          # not a KEY=VALUE assignment: a value carrying a CR splits the
+          # entry on the runner's .NET-side line reader, and a line without a
+          # `=` or with a name that is not a shell identifier is not an
+          # assignment the caller could have meant. Either way the entry
+          # reaching every following step is not the one that was declared.
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            if [ "$line" != "${line//$'\r'/}" ]; then
+              echo "Error: extra-env lines must not contain a CR byte" >&2
+              exit 1
+            fi
+            case "$line" in
+            [A-Za-z_]*=*)
+              name=${line%%=*}
+              if [ "$name" != "${name//[^A-Za-z0-9_]/}" ]; then
+                echo "Error: extra-env name is not a valid identifier: $name" >&2
+                exit 1
+              fi
+              ;;
+            *)
+              echo "Error: extra-env lines must be KEY=VALUE assignments" >&2
+              exit 1
+              ;;
+            esac
+          done <<< "$EXTRA_ENV"
           echo "$EXTRA_ENV" >> "$GITHUB_ENV"
 
       - name: Create release with GoReleaser

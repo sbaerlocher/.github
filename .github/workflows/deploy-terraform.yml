@@ -205,10 +205,18 @@ jobs:
         run: |
           # R2 backend credentials (always required). The token passes through
           # the environment rather than being interpolated, so a `$(...)` in it
-          # is written as text instead of being evaluated here. This does not
-          # make $GITHUB_ENV safe against a newline in the value — the file is
-          # line-based and a multi-line secret would still add entries; that is
-          # a property of the sink, not of the interpolation, and is unchanged.
+          # is written as text instead of being evaluated here. That alone does
+          # not make $GITHUB_ENV safe: the file is line-based, so a line break
+          # inside a value would inject additional environment entries for
+          # every following step. CR is rejected alongside LF, the same way as
+          # in ci-go.yml — the runner reads the file on the .NET side, whose
+          # line readers treat a lone CR as a terminator too.
+          for value in "$R2_ACCESS_KEY" "$R2_SECRET_KEY" "$BW_TOKEN"; do
+            if [ "$value" != "${value//[$'\n\r']/}" ]; then
+              echo "Error: multi-line R2 or Bitwarden credentials are not supported" >&2
+              exit 1
+            fi
+          done
           {
             echo "AWS_ACCESS_KEY_ID=$R2_ACCESS_KEY"
             echo "AWS_SECRET_ACCESS_KEY=$R2_SECRET_KEY"
@@ -222,6 +230,20 @@ jobs:
               src=$(echo "$line" | awk -F'>' '{print $1}' | xargs)
               dst=$(echo "$line" | awk -F'>' '{print $2}' | xargs)
               value="${!src}"
+              # Same line-based sink as above: the mapped value comes from a
+              # Bitwarden secret, so a newline in it would inject entries for
+              # every following step. The target name is checked too — `xargs`
+              # strips whitespace but would happily pass through a `dst` that
+              # is not an identifier, which is not an assignment the mapping
+              # could have meant.
+              if [ "$value" != "${value//[$'\n\r']/}" ]; then
+                echo "Error: multi-line value for $dst is not supported" >&2
+                exit 1
+              fi
+              if [ -z "$dst" ] || [ "$dst" != "${dst//[^A-Za-z0-9_]/}" ]; then
+                echo "Error: env-mapping target is not a valid identifier: $dst" >&2
+                exit 1
+              fi
               [ -n "$value" ] && echo "$dst=$value" >> "$GITHUB_ENV"
             done <<< "$ENV_MAPPING"
             echo "Environment variable mapping complete"

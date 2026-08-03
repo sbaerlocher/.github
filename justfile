@@ -108,6 +108,7 @@ test:
     scripts/tests/test-ci-go-test-env-guard.sh
     scripts/tests/test-workflow-input-injection.sh
     scripts/tests/test-ci-go-postgres-env-guard.sh
+    scripts/tests/test-github-env-guards.sh
 
 # fmt → format Markdown and JSON in place
 fmt:
