@@ -125,16 +125,26 @@ jobs:
             fi
             [ -z "$line" ] && continue
             case "$line" in
-            [A-Za-z_]*'<<'*)
-              name=${line%%<<*}
-              delim=${line#*<<}
-              if [ "$name" != "${name//[^A-Za-z0-9_]/}" ] || [ -z "$delim" ]; then
-                echo "Error: extra-env name is not a valid identifier: $name" >&2
-                exit 1
-              fi
-              ;;
-            [A-Za-z_]*=*)
-              name=${line%%=*}
+            [A-Za-z_]*'<<'* | [A-Za-z_]*=*)
+              # Both `=` and `<<` may appear in one line; whichever comes first
+              # decides the form, the way the runner's own reader resolves it.
+              # Letting arm order decide instead would send an assignment whose
+              # value contains `<<` (`CGO_CFLAGS=-DSHIFT=1<<3`) down the
+              # delimiter path. `${line%%<<*}` is the text before the delimiter,
+              # so an `=` in it means the assignment came first.
+              case "${line%%<<*}" in
+              "$line" | *=*)
+                name=${line%%=*}
+                ;;
+              *)
+                name=${line%%<<*}
+                delim=${line#*<<}
+                if [ -z "$delim" ]; then
+                  echo "Error: extra-env delimiter block has an empty delimiter" >&2
+                  exit 1
+                fi
+                ;;
+              esac
               if [ "$name" != "${name//[^A-Za-z0-9_]/}" ]; then
                 echo "Error: extra-env name is not a valid identifier: $name" >&2
                 exit 1

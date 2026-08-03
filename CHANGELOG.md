@@ -22,6 +22,25 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ## 2026-08-04
 
+### ⚠ BREAKING
+
+- **`release-go.yml` rejects an `extra-env` line that is not a `KEY=VALUE`
+  assignment or a `NAME<<DELIM` block.** Such a line was previously appended to
+  `$GITHUB_ENV` unchecked; it now fails the step. Callers whose `extra-env`
+  carries a comment, an indented line, or a stray fragment are affected.
+  **Migration:** remove those lines, or express them as real assignments — the
+  `KEY=VALUE` and delimiter forms both stay supported, including values that
+  contain `=`, spaces, shell metacharacters or `<<`.
+
+- **`deploy-terraform.yml` rejects an `env-mapping` line whose source or target
+  is not a valid identifier.** A line without a `>` used to yield an empty
+  target and an empty value and was silently skipped; it now fails the step.
+  **Migration:** remove stray, comment, or trailing-separator lines from
+  `env-mapping`. Blank lines are still skipped and well-formed
+  `SOURCE > TARGET` lines are unaffected.
+
+### Details
+
 - **`release-go.yml` validates the shape of each `extra-env` line before
   writing it to `$GITHUB_ENV`.** The `Parse extra environment variables` step
   appended the whole input unchecked. `extra-env` is a multi-line list, so its
@@ -39,9 +58,12 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   [delimiter form documented for `$GITHUB_ENV`](https://docs.github.com/en/actions/reference/workflows-and-actions/variables#multiline-strings)
   is accepted, since it is how a caller passes a multi-line ldflags block or a
   JSON blob; inside such a block the body is opaque by definition and is not
-  validated, only the terminator is required. **No behaviour change for valid
-  input:** a well-formed list is written exactly as before, including values
-  that contain `=`, spaces or shell metacharacters.
+  validated, only the terminator is required. A line may contain both `=` and
+  `<<`; whichever comes first decides the form, the way the runner's own reader
+  resolves it, so a shift expression in a compile flag
+  (`CGO_CFLAGS=-DSHIFT=1<<3`) stays an assignment. A well-formed list is written
+  exactly as before, including values that contain `=`, spaces, shell
+  metacharacters or `<<`; see the breaking note above for what now fails.
 
 - **`deploy-terraform.yml` rejects R2 credentials, the Bitwarden token and
   mapped secret values containing a newline instead of writing them to
@@ -54,8 +76,8 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   `Error: multi-line R2 or Bitwarden credentials are not supported` and a mapped
   value with `Error: multi-line value for <target> is not supported`, both
   before the write. CR is rejected alongside LF for the reason given in the
-  `ci-go.yml` entries. **Not breaking:** secrets and mappings that were already
-  well-formed are written unchanged.
+  `ci-go.yml` entries. Secrets and mappings that were already well-formed are
+  written unchanged.
 
 - **`deploy-terraform.yml` validates both `env-mapping` names before the
   indirect expansion that reads them.** The mapping loop split each line into a
@@ -72,6 +94,9 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   `Error: env-mapping name is not a valid identifier`. The message deliberately
   omits the name: it is interpolated nowhere until it is known to be an
   identifier.
+
+  The same check is what makes a malformed mapping line fail rather than be
+  skipped; see the breaking note above.
 
   `scripts/tests/test-github-env-guards.sh` covers both workflows. It reads the
   guards out of the workflow files so the checks cannot drift from them, and

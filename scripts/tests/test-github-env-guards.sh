@@ -7,10 +7,15 @@
 # sits in the same step as the write it protects.
 #
 # The guards are read out of the workflows rather than repeated here, so the two
-# cannot drift: a guard edited in the workflow is the guard under test. Same
-# arrangement as test-ci-go-postgres-env-guard.sh and
-# test-ci-go-test-env-guard.sh, which cover the two ci-go.yml guards this
-# pattern comes from.
+# cannot drift. Two kinds of extraction do that, and they guarantee different
+# things. Where the condition is matched by shape (the `$value` and `$line`
+# tests), the edited guard is the guard under test. Where the pattern is matched
+# by its literal text (the case-arm globs, the identifier test), an edit makes
+# this file fail loudly instead — no change to a guard can land without the test
+# being updated alongside it. Both are fail-closed; neither lets a weakened
+# guard pass silently, which is the property that matters. Same arrangement as
+# test-ci-go-postgres-env-guard.sh and test-ci-go-test-env-guard.sh, which cover
+# the two ci-go.yml guards this pattern comes from.
 #
 # The two sinks take different shapes on purpose. `extra-env` in release-go.yml
 # is a documented multi-line KEY=VALUE list, so its own newlines are separators
@@ -86,28 +91,54 @@ guard_above_write "$RELEASE_GO" \
 # The assignment test is read from the workflow, so the behaviour exercised
 # below is the shipped one. `eval` on lines just read from a tracked file in
 # this repo, not on input.
-CASE_PATTERN="$(sed -n 's/^ *\(\[A-Za-z_\]\*=\*\))$/\1/p' "$RELEASE_GO")"
+# Both forms share one case arm, so each glob is taken from that line: the
+# delimiter one before the `|`, the assignment one after it. Matching arm order
+# is what the workflow must *not* do (see the comment there), so the test does
+# not encode an order either.
+ARM_LINE="$(sed -n "s/^ *\(\[A-Za-z_\]\*'<<'\* | \[A-Za-z_\]\*=\*\))$/\1/p" "$RELEASE_GO")"
+[ -n "$ARM_LINE" ] || fail "no extra-env case arm found"
+[ "$(grep -c . <<<"$ARM_LINE")" -eq 1 ] || fail "expected exactly one extra-env case arm"
+
+CASE_PATTERN="${ARM_LINE##* | }"
 [ -n "$CASE_PATTERN" ] || fail "no extra-env assignment pattern found"
-[ "$(grep -c . <<<"$CASE_PATTERN")" -eq 1 ] ||
-  fail "expected exactly one extra-env assignment pattern"
 
 # shellcheck disable=SC2016 # the $line text is matched literally in the YAML
 CR_LINE="$(sed -n 's/^ *if \(\[ "\$line" != .*\]\); then$/\1/p' "$RELEASE_GO")"
 [ -n "$CR_LINE" ] || fail "no extra-env CR test found"
 
-# Both case arms test the name the same way, so the first match is the shared
-# condition; `head -1` keeps the eval below a single expression.
+# One shared identifier test covers both forms. The count is asserted rather
+# than assumed: a second, differently-spelled copy would mean `head -1` silently
+# replayed one form's check for both.
 # shellcheck disable=SC2016 # the $name text is matched literally in the YAML
 NAME_LINE="$(sed -n 's/^ *if \(\[ "\$name" != "\${name\/\/\[^A-Za-z0-9_\]\/}" \]\).*; then$/\1/p' \
-  "$RELEASE_GO" | head -1)"
+  "$RELEASE_GO")"
 [ -n "$NAME_LINE" ] || fail "no extra-env identifier test found"
+[ "$(grep -c . <<<"$NAME_LINE")" -eq 1 ] ||
+  fail "expected exactly one extra-env identifier test"
 
-# The delimiter arm, so the documented `NAME<<EOF` form stays covered here too.
+# The empty-delimiter case gets its own message: reporting it as an invalid
+# identifier would name the one part of `A<<` that is actually valid.
+grep -q '^ *echo "Error: extra-env delimiter block has an empty delimiter" >&2$' "$RELEASE_GO" ||
+  fail "no extra-env empty-delimiter message found"
+
+# The inner dispatch must decide by position, not by arm order — an arm-order
+# dispatch sends `CGO_CFLAGS=-DSHIFT=1<<3` down the delimiter path. Both the
+# subject it switches on and its assignment arm are read from the workflow, so
+# replacing that dispatch surfaces here instead of silently replaying the old
+# shape. The accept cases below then exercise the extracted logic.
+# shellcheck disable=SC2016 # the ${line%%<<*} text is matched literally
+DISPATCH_SUBJECT="$(sed -n 's/^ *case "\(\${line%%<<\*}\)" in$/\1/p' "$RELEASE_GO")"
+[ -n "$DISPATCH_SUBJECT" ] ||
+  fail "extra-env dispatch does not switch on the text before the delimiter"
+# shellcheck disable=SC2016 # the $line text is matched literally in the YAML
+DISPATCH_ARM="$(sed -n 's/^ *\("\$line" | \*=\*\))$/\1/p' "$RELEASE_GO")"
+[ -n "$DISPATCH_ARM" ] || fail "extra-env dispatch has no assignment-first arm"
+
+# The delimiter glob, so the documented `NAME<<EOF` form stays covered here too.
 # The workflow quotes `<<` inside the glob; the quotes only make it literal,
 # which it already is in a pattern, so they are dropped for the replay below —
 # left in, `case` would match them as characters and every block would fail.
-DELIM_PATTERN="$(sed -n "s/^ *\(\[A-Za-z_\]\*'<<'\*\))$/\1/p" "$RELEASE_GO" |
-  tr -d "'")"
+DELIM_PATTERN="$(tr -d "'" <<<"${ARM_LINE%% | *}")"
 [ -n "$DELIM_PATTERN" ] || fail "no extra-env delimiter pattern found"
 
 # An unterminated block must be rejected after the loop. The replay below models
@@ -132,6 +163,7 @@ sed -n "$((UNTERM_LINE + 1))p" "$RELEASE_GO" | grep -q '^ *exit 1$' ||
 # Replays the workflow's per-line loop using the conditions read above.
 # Returns 0 when every line is accepted, 1 when one is rejected.
 run_extra_env_guard() {
+  # shellcheck disable=SC2034 # $name is read by the guard inside the eval below
   local line name delim=''
   while IFS= read -r line; do
     if eval "$CR_LINE"; then
@@ -144,17 +176,23 @@ run_extra_env_guard() {
     [ -z "$line" ] && continue
     # shellcheck disable=SC2254 # the patterns are the workflow's globs, by design
     case "$line" in
-    $DELIM_PATTERN)
-      # shellcheck disable=SC2034 # $name is read by the guard inside the eval
-      name=${line%%<<*}
-      delim=${line#*<<}
-      if eval "$NAME_LINE" || [ -z "$delim" ]; then
-        return 1
-      fi
-      ;;
-    $CASE_PATTERN)
-      # shellcheck disable=SC2034 # $name is read by the guard inside the eval
-      name=${line%%=*}
+    $DELIM_PATTERN | $CASE_PATTERN)
+      # Position decides the form, not arm order. Subject and assignment arm
+      # come from the workflow via `eval`, so swapping the workflow's dispatch
+      # for an arm-order one changes what runs here too.
+      local is_block=0
+      eval "case \"$DISPATCH_SUBJECT\" in
+      $DISPATCH_ARM)
+        name=\${line%%=*}
+        ;;
+      *)
+        name=\${line%%<<*}
+        delim=\${line#*<<}
+        is_block=1
+        ;;
+      esac"
+      # An empty delimiter (`A<<`) is rejected, matching the workflow's own arm.
+      [ "$is_block" -eq 1 ] && [ -z "$delim" ] && return 1
       if eval "$NAME_LINE"; then
         return 1
       fi
@@ -178,6 +216,14 @@ reject_env() {
   fi
 }
 
+# Positive controls on the two extracted globs before they are relied on: a
+# capture that grabbed the wrong text would match nothing, and every reject case
+# below would then pass vacuously.
+# shellcheck disable=SC2254,SC2194 # workflow glob; the constant is the control
+case 'A=1' in $CASE_PATTERN) ;; *) fail "extra-env assignment pattern extracted wrong" ;; esac
+# shellcheck disable=SC2254,SC2194 # workflow glob; the constant is the control
+case 'A<<EOF' in $DELIM_PATTERN) ;; *) fail "extra-env delimiter pattern extracted wrong" ;; esac
+
 accept_env "single assignment" 'CGO_ENABLED=0'
 accept_env "multiple assignments" "$(printf 'CGO_ENABLED=0\nGOOS=linux')"
 accept_env "blank line between assignments" "$(printf 'A=1\n\nB=2')"
@@ -188,6 +234,12 @@ accept_env "value containing an equals sign" 'FLAGS=-X=main.version=1.2.3'
 accept_env "value with spaces and shell metacharacters" 'ARGS=a b $`|;&'
 accept_env "value containing a literal backslash-n" 'LITERAL=a\nb'
 accept_env "value containing a tab" "$(printf 'TABBED=a\tb')"
+# `=` before `<<` means the line is an assignment whose value happens to contain
+# `<<` — a shift expression in a compile flag is not exotic for a Go release.
+accept_env "value containing a shift expression" 'CGO_CFLAGS=-DSHIFT=1<<3'
+accept_env "value containing a bare <<" 'LDFLAGS=-X main.note=a<<b'
+accept_env "shift expression after a delimiter block" \
+  "$(printf 'A<<EOF\nx\nEOF\nCGO_CFLAGS=-DSHIFT=1<<3')"
 # The delimiter form documented for $GITHUB_ENV — the reason a blanket
 # "every line is an assignment" rule would have been a breaking change.
 accept_env "delimiter block" "$(printf 'JSON_CONFIG<<EOF\n{"a": 1}\nEOF')"
