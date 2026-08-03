@@ -175,6 +175,8 @@ jobs:
           SBOM_FORMAT: ${{ inputs.sbom-format }}
           SBOM_RESULT: ${{ needs.generate-sbom.result }}
         run: |
+          # No -e: the artifact download is continue-on-error, so a missing SBOM
+          # must still produce a summary ("N/A") rather than fail the step.
           set -uo pipefail
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
 

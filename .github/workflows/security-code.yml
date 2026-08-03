@@ -135,8 +135,20 @@ jobs:
           PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
           set -euo pipefail
+          # The value leaves this step through $GITHUB_OUTPUT and is
+          # interpolated into a `run:` body by the build step below, so an
+          # unconstrained string would execute there. Only a known manager
+          # may pass; anything else fails the step instead of reaching a shell.
           if [ -n "$PACKAGE_MANAGER" ]; then
-            printf 'manager=%s\n' "$PACKAGE_MANAGER" >> "$GITHUB_OUTPUT"
+            case "$PACKAGE_MANAGER" in
+              npm | pnpm | yarn)
+                printf 'manager=%s\n' "$PACKAGE_MANAGER" >> "$GITHUB_OUTPUT"
+                ;;
+              *)
+                echo "::error::unsupported package-manager: $PACKAGE_MANAGER"
+                exit 1
+                ;;
+            esac
           elif [ -f "pnpm-lock.yaml" ]; then
             echo "manager=pnpm" >> "$GITHUB_OUTPUT"
           elif [ -f "yarn.lock" ]; then
@@ -189,9 +201,16 @@ jobs:
             pip install -r requirements.txt
           fi
 
+      # build-command is an escape hatch: the caller supplies a command and it
+      # runs, so this is not the injection class the rest of this workflow
+      # closed. It still travels via env: and is executed explicitly, matching
+      # deploy-terraform.yml's pre-script — the value never becomes part of this
+      # file's own shell source, so it cannot alter the surrounding script.
       - name: Custom build command
         if: inputs.build-command != ''
-        run: ${{ inputs.build-command }}
+        env:
+          BUILD_COMMAND: ${{ inputs.build-command }}
+        run: bash -Eeo pipefail -c "$BUILD_COMMAND"
 
       - name: Autobuild
         if: inputs.build-command == '' && matrix.language != 'javascript-typescript' && matrix.language != 'python'

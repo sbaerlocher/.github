@@ -20,7 +20,7 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
-## Unreleased
+## 2026-08-03
 
 ### Changed
 
@@ -51,9 +51,35 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   values.** Only values that previously broke shell quoting behave differently:
   they are now rendered verbatim instead of executing or truncating the summary.
   `scripts/tests/test-workflow-input-injection.sh` locks this in structurally —
-  it fails if any of the nine regains an `${{ inputs.* }}` reference in a `run:`
-  body or an unquoted heredoc delimiter, and asserts the `env:`+`printf` pattern
-  writes a `$(...)` value without executing it.
+  it fails if any of the nine regains an interpolated `inputs.*`, `secrets.*` or
+  `github.event.*` reference in a `run:` body (block-scalar, folded or
+  single-line) or an unquoted heredoc delimiter, and asserts the `env:`+`printf`
+  pattern writes a `$(...)` value without executing it.
+
+- **`security-code.yml` constrains `package-manager` to `npm`, `pnpm` or
+  `yarn`.** The _Detect package manager_ step passed the input to
+  `$GITHUB_OUTPUT` unchecked and the _Build project_ step interpolated that
+  output into its `run:` body, so a value like `npm; <command> #` executed on the
+  runner — moving the input to `env:` alone did not close it, because the value
+  left the step again as workflow-level text. Anything outside the documented set
+  now fails the step with an explicit error instead of reaching a shell; the
+  empty default still falls through to lock-file detection. A caller that passed
+  an unsupported manager (e.g. `bun`, which no lock-file branch handled either)
+  previously got silent misbehaviour and now gets a clear failure.
+
+- **`security-code.yml` runs `build-command` via `env:` under
+  `bash -Eeo pipefail`.** The input is a deliberate escape hatch, so a
+  caller-supplied command still runs; it no longer becomes part of the
+  workflow's own shell source, matching `deploy-terraform.yml`'s `pre-script`.
+  Note the stricter shell: a multi-command value whose earlier command fails now
+  fails the step instead of continuing.
+
+- **`deploy-terraform.yml` passes `BW_ACCESS_TOKEN` through `env:`.** The
+  _Environment Configuration_ step interpolated the secret directly into the
+  line it appended to `$GITHUB_ENV`, while the two `AWS_*` assignments beside it
+  already used shell variables. `$GITHUB_ENV` is line-based, so a newline in the
+  value would have added further entries — including overriding those `AWS_*`
+  assignments.
 
 ---
 
