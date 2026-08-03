@@ -20,6 +20,71 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-08-03
+
+### Changed
+
+- **Nine more workflows pass caller inputs through `env:` instead of
+  interpolating them into `run:` blocks.** `${{ inputs.* }}` inside a shell body
+  is substituted as source text before the shell parses the line, so a value
+  containing a quote or `$(...)` is parsed as shell code rather than data. The
+  affected workflows are `ci-terraform.yml`, `deploy-terraform.yml`,
+  `release-docker.yml`, `security-code.yml`, `security-config.yml`,
+  `security-containers.yml`, `security-deps.yml`, `security-sbom.yml` and
+  `security-secrets.yml`; every such reference became a step-level `env:` entry
+  read as a quoted shell variable, matching the pattern already used in
+  `ci-go.yml`, `ci-gitops.yml` and `ci-ansible.yml`.
+  **The step summaries were the exploitable half.** Eight of these workflows
+  wrote their summary through an _unquoted_ heredoc (`cat >> "$GITHUB_STEP_SUMMARY" << EOF`),
+  whose body the shell expands: a substituted `$(...)` ran on the runner at
+  expansion time. Those bodies are now emitted with `printf` from `env:` values
+  inside a single grouped redirect, so the values are written literally. Static
+  prose blocks that interpolate nothing keep using a heredoc, now with a quoted
+  `<< 'EOF'` delimiter.
+  Two spots keep deliberate word-splitting with a locally scoped
+  `# shellcheck disable=SC2086` and a reason: `deploy-terraform.yml`'s
+  `init-flag`, which may carry several flags. `parallelism`,
+  `apply-timeout-minutes` and `apply-retries` are quoted instead — they are
+  single values, and the plan step's one-element `PLAN_ARGS` became a quoted
+  `-var-file=` argument.
+  **No input signatures change and no summary output changes for ordinary
+  values.** Only values that previously broke shell quoting behave differently:
+  they are now rendered verbatim instead of executing or truncating the summary.
+  `scripts/tests/test-workflow-input-injection.sh` locks this in structurally —
+  it fails if any of the nine regains an interpolated `inputs.*`, `secrets.*` or
+  `github.event.*` reference in a `run:` body (block-scalar, folded or
+  single-line) or an unquoted heredoc delimiter, and asserts the `env:`+`printf`
+  pattern writes a `$(...)` value without executing it.
+
+- **`security-code.yml` constrains `package-manager` to `npm`, `pnpm` or
+  `yarn`.** The _Detect package manager_ step passed the input to
+  `$GITHUB_OUTPUT` unchecked and the _Build project_ step interpolated that
+  output into its `run:` body, so a value like `npm; <command> #` executed on the
+  runner — moving the input to `env:` alone did not close it, because the value
+  left the step again as workflow-level text. Anything outside the documented set
+  now fails the step with an explicit error instead of reaching a shell; the
+  empty default still falls through to lock-file detection. A caller that passed
+  an unsupported manager (e.g. `bun`, which no lock-file branch handled either)
+  previously got silent misbehaviour and now gets a clear failure.
+
+- **`security-code.yml` runs `build-command` via `env:` under
+  `bash -Eeo pipefail`.** The input is a deliberate escape hatch, so a
+  caller-supplied command still runs; it no longer becomes part of the
+  workflow's own shell source, matching `deploy-terraform.yml`'s `pre-script`.
+  Note the stricter shell: a multi-command value whose earlier command fails now
+  fails the step instead of continuing.
+
+- **`deploy-terraform.yml` passes `BW_ACCESS_TOKEN` through `env:`.** The
+  _Environment Configuration_ step interpolated the secret directly into the
+  line it appended to `$GITHUB_ENV`, while the two `AWS_*` assignments beside it
+  already used shell variables; it now matches them. This removes the
+  interpolation, so a `$(...)` in the value is no longer evaluated as the step's
+  own shell source. It does **not** harden `$GITHUB_ENV` itself: that file is
+  line-based, so a multi-line value can still add entries. That property belongs
+  to the sink and is unchanged here.
+
+---
+
 ## 2026-08-02
 
 ### ⚠ BREAKING

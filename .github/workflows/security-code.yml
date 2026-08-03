@@ -96,11 +96,14 @@ jobs:
 
       - name: Prepare CodeQL config
         id: codeql-config
+        env:
+          PATHS_IGNORE: ${{ inputs.paths-ignore }}
         run: |
+          set -euo pipefail
           {
             echo "yaml<<CODEQL_CONFIG_EOF"
             echo "paths-ignore:"
-            IFS=',' read -ra PATHS <<< "${{ inputs.paths-ignore }}"
+            IFS=',' read -ra PATHS <<< "$PATHS_IGNORE"
             for path in "${PATHS[@]}"; do
               echo "  - '$path'"
             done
@@ -128,9 +131,24 @@ jobs:
       - name: Detect package manager
         if: matrix.language == 'javascript-typescript'
         id: detect-pm
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          if [ -n "${{ inputs.package-manager }}" ]; then
-            echo "manager=${{ inputs.package-manager }}" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          # The value leaves this step through $GITHUB_OUTPUT and is
+          # interpolated into a `run:` body by the build step below, so an
+          # unconstrained string would execute there. Only a known manager
+          # may pass; anything else fails the step instead of reaching a shell.
+          if [ -n "$PACKAGE_MANAGER" ]; then
+            case "$PACKAGE_MANAGER" in
+              npm | pnpm | yarn)
+                printf 'manager=%s\n' "$PACKAGE_MANAGER" >> "$GITHUB_OUTPUT"
+                ;;
+              *)
+                echo "::error::unsupported package-manager: $PACKAGE_MANAGER"
+                exit 1
+                ;;
+            esac
           elif [ -f "pnpm-lock.yaml" ]; then
             echo "manager=pnpm" >> "$GITHUB_OUTPUT"
           elif [ -f "yarn.lock" ]; then
@@ -183,9 +201,16 @@ jobs:
             pip install -r requirements.txt
           fi
 
+      # build-command is an escape hatch: the caller supplies a command and it
+      # runs, so this is not the injection class the rest of this workflow
+      # closed. It still travels via env: and is executed explicitly, matching
+      # deploy-terraform.yml's pre-script — the value never becomes part of this
+      # file's own shell source, so it cannot alter the surrounding script.
       - name: Custom build command
         if: inputs.build-command != ''
-        run: ${{ inputs.build-command }}
+        env:
+          BUILD_COMMAND: ${{ inputs.build-command }}
+        run: bash -Eeo pipefail -c "$BUILD_COMMAND"
 
       - name: Autobuild
         if: inputs.build-command == '' && matrix.language != 'javascript-typescript' && matrix.language != 'python'
@@ -208,24 +233,33 @@ jobs:
 
       - name: Generate Summary
         if: always()
+        env:
+          ENABLE_SARIF_UPLOAD: ${{ inputs.enable-sarif-upload }}
+          LANGUAGE: ${{ matrix.language }}
+          JOB_STATUS: ${{ job.status }}
+          QUERIES: ${{ inputs.queries }}
+          DETECTED_PM: ${{ steps.detect-pm.outputs.manager || 'N/A' }}
+          PATHS_IGNORE: ${{ inputs.paths-ignore }}
         run: |
+          set -euo pipefail
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
 
-          if [ "${{ inputs.enable-sarif-upload }}" = "true" ]; then
+          if [ "$ENABLE_SARIF_UPLOAD" = "true" ]; then
             RESULTS_INFO="Results available in the GitHub Security tab"
           else
             RESULTS_INFO="Results uploaded as workflow artifact (SARIF)"
           fi
 
-          cat >> "$GITHUB_STEP_SUMMARY" << EOF
-          # Security — Code Analysis (SAST)
-
-          **Language:** ${{ matrix.language }}
-          **Status:** ${{ job.status }}
-          **Timestamp:** $TIMESTAMP
-
-          **Query Suite:** ${{ inputs.queries }}
-          **Package Manager:** ${{ steps.detect-pm.outputs.manager || 'N/A' }}
-          **Paths Ignored:** ${{ inputs.paths-ignore }}
-          **Results:** ${RESULTS_INFO}
-          EOF
+          # Values arrive via env: and are substituted by printf, not by the
+          # shell parsing the body — a value containing $(...) is written
+          # literally instead of being executed by the runner.
+          {
+            printf '# Security — Code Analysis (SAST)\n\n'
+            printf '**Language:** %s\n' "$LANGUAGE"
+            printf '**Status:** %s\n' "$JOB_STATUS"
+            printf '**Timestamp:** %s\n\n' "$TIMESTAMP"
+            printf '**Query Suite:** %s\n' "$QUERIES"
+            printf '**Package Manager:** %s\n' "$DETECTED_PM"
+            printf '**Paths Ignored:** %s\n' "$PATHS_IGNORE"
+            printf '**Results:** %s\n' "$RESULTS_INFO"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -169,31 +169,41 @@ jobs:
         continue-on-error: true
 
       - name: Generate SBOM Report
+        env:
+          ARTIFACT_TYPE: ${{ inputs.artifact-type }}
+          ARTIFACT_REF: ${{ inputs.artifact-ref }}
+          SBOM_FORMAT: ${{ inputs.sbom-format }}
+          SBOM_RESULT: ${{ needs.generate-sbom.result }}
         run: |
+          set -euo pipefail
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
 
           # Count SBOM components
-          if [ -f "./sbom/sbom-${{ inputs.artifact-type }}.json" ]; then
-            COMPONENT_COUNT=$(jq '[.components[] // .packages[]] | length' "./sbom/sbom-${{ inputs.artifact-type }}.json" 2>/dev/null || echo "unknown")
+          SBOM_FILE="./sbom/sbom-${ARTIFACT_TYPE}.json"
+          if [ -f "$SBOM_FILE" ]; then
+            COMPONENT_COUNT=$(jq '[.components[] // .packages[]] | length' "$SBOM_FILE" 2>/dev/null || echo "unknown")
           else
             COMPONENT_COUNT="N/A"
           fi
 
-          cat >> "$GITHUB_STEP_SUMMARY" << EOF
-          # 📋 SBOM Generation Report
+          # Values arrive via env: and are substituted by printf, not by the
+          # shell parsing the body — a value containing $(...) is written
+          # literally instead of being executed by the runner. The backticks in
+          # the format strings are literal Markdown, hence single quotes.
+          {
+            printf '# 📋 SBOM Generation Report\n\n'
+            printf '**Timestamp:** %s\n' "$TIMESTAMP"
+            printf '**Artifact Type:** %s\n' "$ARTIFACT_TYPE"
+            # shellcheck disable=SC2016  # backticks are literal Markdown here
+            printf '**Artifact Reference:** `%s`\n\n' "$ARTIFACT_REF"
+            printf '## SBOM Details\n\n'
+            printf '| Property | Value |\n|----------|-------|\n'
+            printf '| Format | %s |\n' "$SBOM_FORMAT"
+            printf '| Components/Packages | %s |\n' "$COMPONENT_COUNT"
+            printf '| Status | %s |\n\n' "$SBOM_RESULT"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-          **Timestamp:** $TIMESTAMP
-          **Artifact Type:** ${{ inputs.artifact-type }}
-          **Artifact Reference:** \`${{ inputs.artifact-ref }}\`
-
-          ## SBOM Details
-
-          | Property | Value |
-          |----------|-------|
-          | Format | ${{ inputs.sbom-format }} |
-          | Components/Packages | $COMPONENT_COUNT |
-          | Status | ${{ needs.generate-sbom.result }} |
-
+          cat >> "$GITHUB_STEP_SUMMARY" << 'EOF'
           ## What is an SBOM?
 
           A Software Bill of Materials (SBOM) is a complete inventory of all components,
