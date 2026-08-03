@@ -173,8 +173,10 @@ jobs:
 
       - name: Install dependencies
         working-directory: ${{ inputs.working-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               pnpm install --frozen-lockfile
               ;;
@@ -192,8 +194,10 @@ jobs:
       - name: Run tests
         if: inputs.run-tests
         working-directory: ${{ inputs.working-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               pnpm test
               ;;
@@ -211,8 +215,10 @@ jobs:
       - name: Run build
         if: inputs.run-build
         working-directory: ${{ inputs.working-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               pnpm build
               ;;
@@ -261,8 +267,10 @@ jobs:
 
       - name: Install dependencies
         working-directory: ${{ inputs.working-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               pnpm install --frozen-lockfile
               ;;
@@ -280,8 +288,10 @@ jobs:
       - name: Build package
         if: inputs.run-build
         working-directory: ${{ inputs.working-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               pnpm build
               ;;
@@ -302,12 +312,13 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           CUSTOM_PUBLISH_CMD: ${{ inputs.publish-command }}
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
           echo "🧪 Dry-run mode - not actually publishing"
 
           if [ -z "$CUSTOM_PUBLISH_CMD" ]; then
             # Use default publish command based on package manager
-            case "${{ inputs.package-manager }}" in
+            case "$PACKAGE_MANAGER" in
               pnpm)
                 pnpm publish --dry-run --no-git-checks
                 ;;
@@ -333,17 +344,20 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           CUSTOM_PUBLISH_CMD: ${{ inputs.publish-command }}
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
+          REGISTRY_URL: ${{ inputs.registry-url }}
+          ENABLE_PROVENANCE: ${{ inputs.enable-provenance }}
         run: |
-          echo "Publishing to NPM registry: ${{ inputs.registry-url }}"
+          echo "Publishing to NPM registry: $REGISTRY_URL"
 
           PUBLISH_ARGS=""
-          if [ "${{ inputs.enable-provenance }}" == "true" ]; then
+          if [ "$ENABLE_PROVENANCE" == "true" ]; then
             PUBLISH_ARGS="--provenance"
           fi
 
           if [ -z "$CUSTOM_PUBLISH_CMD" ]; then
             # Use default publish command based on package manager
-            case "${{ inputs.package-manager }}" in
+            case "$PACKAGE_MANAGER" in
               pnpm)
                 pnpm publish --no-git-checks --access public $PUBLISH_ARGS
                 ;;
@@ -456,8 +470,12 @@ jobs:
       - name: Generate changelog
         if: inputs.generate-changelog
         id: changelog
+        env:
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
+          RELEASE_VERSION: ${{ needs.pre-release-checks.outputs.version }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          VERSION="v${{ needs.pre-release-checks.outputs.version }}"
+          VERSION="v$RELEASE_VERSION"
 
           # Get previous tag
           PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
@@ -470,20 +488,38 @@ jobs:
             CHANGELOG=$(git log --pretty=format:"- %s (%h)" HEAD)
           fi
 
-          # Save to file
-          cat > /tmp/changelog.md << EOF
+          # Resolved before the heredoc: the quoted delimiter below switches off
+          # expansion inside the body, so a command substitution there would be
+          # emitted literally rather than evaluated. path.resolve() keeps a
+          # relative working-directory like `packages/foo` a path — bare
+          # require() would treat it as a node_modules specifier.
+          PACKAGE_NAME=$(node -p \
+            "require(require('path').resolve(process.argv[1], 'package.json')).name" \
+            "$WORKING_DIRECTORY")
+
+          # Delimiters below are quoted ('EOF'), so the shell expands nothing in
+          # the bodies — the static Markdown stays literal and the two dynamic
+          # lines are emitted by printf instead.
+          {
+            cat << 'EOF'
           ## What's Changed
 
-          $CHANGELOG
+          EOF
+            printf '%s\n' "$CHANGELOG"
+            cat << 'EOF'
 
           ## Installation
 
-          \`\`\`bash
-          npm install $(node -p "require('${{ inputs.working-directory }}/package.json').name")@${{ needs.pre-release-checks.outputs.version }}
-          \`\`\`
-
-          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${VERSION}
+          ```bash
           EOF
+            printf 'npm install %s@%s\n' "$PACKAGE_NAME" "$RELEASE_VERSION"
+            cat << 'EOF'
+          ```
+
+          EOF
+            printf '**Full Changelog**: https://github.com/%s/compare/%s...%s\n' \
+              "$REPOSITORY" "$PREVIOUS_TAG" "$VERSION"
+          } > /tmp/changelog.md
 
           echo "changelog_file=/tmp/changelog.md" >> "$GITHUB_OUTPUT"
 
@@ -517,25 +553,39 @@ jobs:
     if: always() && !cancelled()
     steps:
       - name: Generate Release Summary
+        env:
+          VERSION: ${{ needs.pre-release-checks.outputs.version }}
+          REGISTRY_URL: ${{ inputs.registry-url }}
+          PROVENANCE: ${{ inputs.enable-provenance && 'Enabled' || 'Disabled' }}
+          DRY_RUN: ${{ inputs.dry-run }}
+          CHECKS_RESULT: ${{ needs.pre-release-checks.result }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
+          RELEASE_RESULT: ${{ needs.github-release.result }}
+          SKIPPED_NOTE: ${{ needs.pre-release-checks.outputs.should-publish == 'false' && '> Version already published — publish step skipped.' || '' }}
+          DRY_RUN_NOTE: ${{ inputs.dry-run && '> Dry-run mode — package was NOT published.' || '' }}
+        # Every value arrives via `env:` and both heredoc delimiters are quoted,
+        # so nothing in the template bodies is expanded by the shell. The
+        # dynamic lines are emitted with `printf` between the heredocs.
         run: |
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          VERSION="${{ needs.pre-release-checks.outputs.version }}"
-
-          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          {
+            cat << 'EOF'
           # Release — NPM Package
 
-          **Timestamp:** $TIMESTAMP
-          **Version:** \`v$VERSION\`
-          **Registry:** ${{ inputs.registry-url }}
-          **Provenance:** ${{ inputs.enable-provenance && 'Enabled' || 'Disabled' }}
-          **Dry Run:** ${{ inputs.dry-run }}
-
+          EOF
+            printf '**Timestamp:** %s\n' "$TIMESTAMP"
+            # shellcheck disable=SC2016  # backticks are literal Markdown here
+            printf '**Version:** `v%s`\n' "$VERSION"
+            printf '**Registry:** %s\n' "$REGISTRY_URL"
+            printf '**Provenance:** %s\n' "$PROVENANCE"
+            printf '**Dry Run:** %s\n\n' "$DRY_RUN"
+            cat << 'EOF'
           | Component | Status |
           | --- | --- |
-          | Pre-Release Checks | ${{ needs.pre-release-checks.result }} |
-          | NPM Publish | ${{ needs.publish.result }} |
-          | GitHub Release | ${{ needs.github-release.result }} |
-
-          ${{ needs.pre-release-checks.outputs.should-publish == 'false' && '> Version already published — publish step skipped.' || '' }}
-          ${{ inputs.dry-run && '> Dry-run mode — package was NOT published.' || '' }}
           EOF
+            printf '| Pre-Release Checks | %s |\n' "$CHECKS_RESULT"
+            printf '| NPM Publish | %s |\n' "$PUBLISH_RESULT"
+            printf '| GitHub Release | %s |\n\n' "$RELEASE_RESULT"
+            printf '%s\n' "$SKIPPED_NOTE"
+            printf '%s\n' "$DRY_RUN_NOTE"
+          } >> "$GITHUB_STEP_SUMMARY"

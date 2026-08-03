@@ -103,8 +103,10 @@ jobs:
 
       - name: Get cache directory
         id: cache-dir
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               echo "dir=$(pnpm store path)" >> "$GITHUB_OUTPUT"
               ;;
@@ -126,8 +128,10 @@ jobs:
 
       - name: Install dependencies
         working-directory: ${{ inputs.working-directory-prefix }}/${{ matrix.worker }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               pnpm install --frozen-lockfile
               ;;
@@ -142,21 +146,24 @@ jobs:
       - name: Run build scripts
         if: inputs.run-scripts
         working-directory: ${{ inputs.working-directory-prefix }}/${{ matrix.worker }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
+          WORKER: ${{ matrix.worker }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               if ! pnpm build; then
-                echo "::warning::Build script failed or not found for ${{ matrix.worker }}"
+                echo "::warning::Build script failed or not found for $WORKER"
               fi
               ;;
             bun)
               if ! bun run build; then
-                echo "::warning::Build script failed or not found for ${{ matrix.worker }}"
+                echo "::warning::Build script failed or not found for $WORKER"
               fi
               ;;
             npm)
               if ! npm run build; then
-                echo "::warning::Build script failed or not found for ${{ matrix.worker }}"
+                echo "::warning::Build script failed or not found for $WORKER"
               fi
               ;;
           esac
@@ -181,11 +188,19 @@ jobs:
 
       - name: Deployment Summary
         if: always()
+        env:
+          WORKER: ${{ matrix.worker }}
+          JOB_STATUS: ${{ job.status }}
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
+          WRANGLER_VERSION: ${{ inputs.wrangler-version }}
+        # Every value arrives via `env:` and is written with `printf`. A quoted
+        # heredoc delimiter alone would not be enough: `${{ }}` is substituted
+        # into the script text before the shell sees it, so a value carrying a
+        # newline followed by the delimiter would end the heredoc early.
         run: |
-          cat >> "$GITHUB_STEP_SUMMARY" << 'EOF'
-          ## Deploy — Cloudflare Worker: ${{ matrix.worker }}
-
-          **Status:** ${{ job.status }}
-          **Package Manager:** ${{ inputs.package-manager }}
-          **Wrangler Version:** ${{ inputs.wrangler-version }}
-          EOF
+          {
+            printf '## Deploy — Cloudflare Worker: %s\n\n' "$WORKER"
+            printf '**Status:** %s\n' "$JOB_STATUS"
+            printf '**Package Manager:** %s\n' "$PACKAGE_MANAGER"
+            printf '**Wrangler Version:** %s\n' "$WRANGLER_VERSION"
+          } >> "$GITHUB_STEP_SUMMARY"

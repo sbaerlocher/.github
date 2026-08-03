@@ -177,8 +177,10 @@ jobs:
 
       - name: Get cache directory
         id: cache-dir
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               echo "dir=$(pnpm store path)" >> "$GITHUB_OUTPUT"
               ;;
@@ -213,8 +215,10 @@ jobs:
 
       - name: Install dependencies
         working-directory: ${{ inputs.working-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               pnpm install --frozen-lockfile
               ;;
@@ -232,8 +236,10 @@ jobs:
       - name: Type check
         if: inputs.enable-typecheck
         working-directory: ${{ inputs.working-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               pnpm typecheck
               ;;
@@ -251,8 +257,10 @@ jobs:
       - name: Format check
         if: inputs.enable-format-check
         working-directory: ${{ inputs.working-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               pnpm format:check
               ;;
@@ -270,8 +278,10 @@ jobs:
       - name: Lint
         if: inputs.enable-lint
         working-directory: ${{ inputs.working-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               pnpm lint
               ;;
@@ -289,8 +299,10 @@ jobs:
       - name: Build
         if: inputs.enable-build
         working-directory: ${{ inputs.working-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               pnpm build
               ;;
@@ -305,30 +317,41 @@ jobs:
               ;;
           esac
 
+      # TEST_COMMAND is deliberately unquoted below: the input carries a script
+      # name plus optional arguments (e.g. `test -- --shard=1/2`), so it must
+      # word-split. Going through `env:` makes the value data rather than source
+      # text, so it is IFS-split and globbed but never parsed as shell — quotes
+      # and escapes inside it are no longer honoured (see CHANGELOG 2026-08-03).
       - name: Run tests without coverage
         if: inputs.enable-tests && !inputs.enable-coverage
         working-directory: ${{ inputs.working-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
+          TEST_COMMAND: ${{ inputs.test-command }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          # shellcheck disable=SC2086 # test-command may carry arguments
+          case "$PACKAGE_MANAGER" in
             pnpm)
-              pnpm ${{ inputs.test-command }}
+              pnpm $TEST_COMMAND
               ;;
             bun)
-              bun run ${{ inputs.test-command }}
+              bun run $TEST_COMMAND
               ;;
             yarn)
-              yarn ${{ inputs.test-command }}
+              yarn $TEST_COMMAND
               ;;
             npm)
-              npm run ${{ inputs.test-command }}
+              npm run $TEST_COMMAND
               ;;
           esac
 
       - name: Run tests with coverage
         if: inputs.enable-tests && inputs.enable-coverage
         working-directory: ${{ inputs.working-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               pnpm test:coverage
               ;;
@@ -377,8 +400,9 @@ jobs:
       - name: Check bundle sizes
         if: inputs.enable-bundle-size-check
         working-directory: ${{ inputs.working-directory }}
+        env:
+          MAX_SIZE_KB: ${{ inputs.max-bundle-size-kb }}
         run: |
-          MAX_SIZE_KB=${{ inputs.max-bundle-size-kb }}
           FAILED=0
 
           for dir in src/*/; do
@@ -437,8 +461,10 @@ jobs:
       - name: Get cache directory
         if: matrix.scanner == 'dependency-audit'
         id: cache-dir
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               echo "dir=$(pnpm store path)" >> "$GITHUB_OUTPUT"
               ;;
@@ -462,8 +488,10 @@ jobs:
       - name: Install dependencies for audit
         if: matrix.scanner == 'dependency-audit'
         working-directory: ${{ inputs.working-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
               pnpm install --frozen-lockfile
               ;;
@@ -478,17 +506,20 @@ jobs:
       - name: Run dependency audit
         if: matrix.scanner == 'dependency-audit'
         working-directory: ${{ inputs.working-directory }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
+          AUDIT_LEVEL: ${{ inputs.audit-level }}
         run: |
           echo "Running dependency audit..."
-          case "${{ inputs.package-manager }}" in
+          case "$PACKAGE_MANAGER" in
             pnpm)
-              pnpm audit --audit-level=${{ inputs.audit-level }} || echo "::warning::Vulnerabilities found"
+              pnpm audit --audit-level="$AUDIT_LEVEL" || echo "::warning::Vulnerabilities found"
               ;;
             yarn)
-              yarn audit --level ${{ inputs.audit-level }} || echo "::warning::Vulnerabilities found"
+              yarn audit --level "$AUDIT_LEVEL" || echo "::warning::Vulnerabilities found"
               ;;
             npm)
-              npm audit --audit-level=${{ inputs.audit-level }} || echo "::warning::Vulnerabilities found"
+              npm audit --audit-level="$AUDIT_LEVEL" || echo "::warning::Vulnerabilities found"
               ;;
           esac
 
@@ -549,21 +580,35 @@ jobs:
     if: always() && !cancelled()
     steps:
       - name: Generate Summary
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
+          REPOSITORY: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
+          QUALITY_RESULT: ${{ needs.quality-and-test.result }}
+          SECURITY_RESULT: ${{ needs.security-scan.result }}
+          DEPENDENCY_RESULT: ${{ needs.dependency-review.result }}
+          COVERAGE: ${{ needs.quality-and-test.outputs.coverage }}
+        # Every value arrives via `env:` and both heredoc delimiters are quoted,
+        # so nothing in the template bodies is expanded by the shell. The
+        # dynamic lines are emitted with `printf` between the heredocs.
         run: |
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          {
+            cat << 'EOF'
           # CI — JavaScript/TypeScript
 
-          **Timestamp:** $TIMESTAMP
-          **Repository:** ${{ github.repository }} @ ${{ github.ref_name }}
-
+          EOF
+            printf '**Timestamp:** %s\n**Repository:** %s @ %s\n\n' \
+              "$TIMESTAMP" "$REPOSITORY" "$REF_NAME"
+            cat << 'EOF'
           | Job | Status |
           | --- | --- |
-          | Quality & Tests | ${{ needs.quality-and-test.result }} |
-          | Security Scan | ${{ needs.security-scan.result }} |
-          | Dependency Review | ${{ needs.dependency-review.result }} |
-
-          **Coverage:** ${{ needs.quality-and-test.outputs.coverage }}
-          **Package Manager:** ${{ inputs.package-manager }}
-          **Working Directory:** ${{ inputs.working-directory }}
           EOF
+            printf '| Quality & Tests | %s |\n' "$QUALITY_RESULT"
+            printf '| Security Scan | %s |\n' "$SECURITY_RESULT"
+            printf '| Dependency Review | %s |\n\n' "$DEPENDENCY_RESULT"
+            printf '**Coverage:** %s\n' "$COVERAGE"
+            printf '**Package Manager:** %s\n' "$PACKAGE_MANAGER"
+            printf '**Working Directory:** %s\n' "$WORKING_DIRECTORY"
+          } >> "$GITHUB_STEP_SUMMARY"

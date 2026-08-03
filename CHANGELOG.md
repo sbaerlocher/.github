@@ -22,6 +22,30 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ## 2026-08-03
 
+### ⚠ BREAKING
+
+- **`test-command` is word-split instead of shell-parsed in `ci-js.yml` and
+  `e2e-docker.yml`.** The input used to be interpolated into the `run:` block as
+  source text, so the shell parsed it and honoured quoting: a value of
+  `test -- --grep="two words"` reached the runner as a single `--grep=two words`
+  argument. It now travels through `env:` and is expanded unquoted, which does
+  IFS word-splitting and globbing but leaves quote characters literal — the same
+  value becomes two arguments with the quotes retained. Unquoted values such as
+  `test -- --shard=1/2` are unaffected.
+  **Migration:** if your `test-command` contains quoted arguments, escaped
+  spaces, or a `*` that relied on quoting, move it into a `package.json` script
+  and pass that script's name instead.
+
+- **`release-npm.yml` fails the `github-release` job when the package name
+  cannot be read.** The `node -p` call that resolves the name for the changelog
+  used to run during heredoc expansion, so its exit status was discarded: a
+  missing or unparseable `package.json` produced a release whose body read
+  `npm install @<version>`. The call now runs as its own assignment under
+  `set -e` and aborts the step instead.
+  **Migration:** none for a well-formed package; a release that previously went
+  out with a malformed changelog line now fails loudly and needs the
+  `package.json` fixed.
+
 ### Fixed
 
 - **The two justfile `customManagers` moved from `.github/renovate.json` to the
@@ -141,6 +165,35 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   set by the same actor — but the same mechanism. Not breaking: the defaults and
   any single-line value are unaffected, and `DATABASE_URL`, the input
   signatures and the defaults are unchanged.
+
+- **`ci-js.yml`, `deploy-cloudflare-workers.yml`, `e2e-docker.yml` and
+  `release-npm.yml` pass caller inputs through `env:` instead of interpolating
+  them into `run:` blocks.** Twenty-three `package-manager` switch sites
+  expanded a caller-controlled value into shell source, so a value
+  carrying a command substitution executed in the runner; the same applied to
+  `audit-level`, `registry-url`, `enable-provenance`, `playwright-browsers`,
+  `compose-file` and `compose-profile`. Same class and same fix as the `ci-go.yml`
+  change in the 2026-08-02 entry.
+  **The step summaries were the exploitable half.** `release-npm.yml` opened both
+  its changelog and its release-summary heredoc with an unquoted delimiter and
+  `ci-js.yml` did the same in its CI summary, so the body was expanded and a
+  command substitution built from `working-directory` or `registry-url` ran
+  there. `deploy-cloudflare-workers.yml` quoted its delimiter but still
+  interpolated `matrix.worker` and two inputs into the body, which a quoted
+  delimiter does not cover: `${{ }}` is substituted into the script text before
+  the shell sees it, so a value carrying a newline followed by the delimiter ends
+  the heredoc early. Every delimiter is now quoted and the dynamic lines are
+  emitted with `printf`; the rendered summaries are byte-identical to before.
+  With this, all four workflows join `MIGRATED` in
+  `scripts/tests/test-workflow-input-injection.sh` (13 of them now), so the
+  pattern cannot regrow unnoticed in the files this change hardens.
+- **`e2e-docker.yml` reads `compose-profile` from `process.env` in its PR-comment
+  script.** The value was interpolated into a JavaScript template literal, where a
+  backtick or `${` escaped into the surrounding source.
+- **`release-npm.yml` resolves `working-directory` to an absolute path before
+  requiring `package.json`.** A relative directory without a leading `./` (e.g.
+  `packages/foo`) was treated as a bare specifier and looked up under
+  `node_modules`, so the lookup failed for monorepo callers.
 
 ---
 
