@@ -26,9 +26,9 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 - **The two justfile `customManagers` moved from `.github/renovate.json` to the
   root `renovate.json`, and `.github/renovate.json` is deleted.** Renovate reads
-  the first config file it finds and checks `renovate.json{,c,5}` before
-  `.github/renovate.json{,c,5}`, so with the root file present the `.github/`
-  one was never evaluated: the managers tracking `actionlint_image` and
+  the first config file it finds and checks `renovate.json` / `renovate.json5`
+  before their `.github/` counterparts, so with the root file present the
+  `.github/` one was never evaluated: the managers tracking `actionlint_image` and
   `prettier_version` in the `justfile` had never run, and both pins were stale
   while the surrounding comments claimed Renovate kept them current. The
   managers are now in the root file where they take effect, the comments name

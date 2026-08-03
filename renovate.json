@@ -39,7 +39,7 @@
   ],
   "packageRules": [
     {
-      "description": "The shared preset turns off digest pinning for custom.regex docker deps, since those managers usually capture a version only. The manager above captures currentDigest too, so pinning is re-enabled for it. Repo-level rules are merged after preset ones, so this wins.",
+      "description": "The shared preset turns off digest pinning for custom.regex docker deps, since those managers usually capture a version only. The workflow-expression manager scoped by matchFileNames below captures currentDigest too, so pinning is re-enabled for it. The justfile managers are deliberately not covered and stay on the preset's pinDigests: false. Repo-level rules are merged after preset ones, so this wins.",
       "matchManagers": ["custom.regex"],
       "matchDatasources": ["docker"],
       "matchFileNames": [".github/workflows/**"],
