@@ -241,6 +241,17 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$ENABLE_POSTGRES" = "true" ]; then
+            # $GITHUB_ENV is line-based: a line break inside a value would inject
+            # additional environment entries for every following step. CR is
+            # rejected alongside LF — the runner reads the file on the .NET side,
+            # whose line readers treat a lone CR as a terminator too, and a stray
+            # CR corrupts DATABASE_URL either way.
+            for value in "$POSTGRES_USER" "$POSTGRES_PASSWORD" "$POSTGRES_DB"; do
+              if [ "$value" != "${value//[$'\n\r']/}" ]; then
+                echo "Error: multi-line postgres-user, postgres-password or postgres-db values are not supported" >&2
+                exit 1
+              fi
+            done
             printf 'DATABASE_URL=postgres://%s:%s@localhost:5432/%s?sslmode=disable\n' \
               "$POSTGRES_USER" "$POSTGRES_PASSWORD" "$POSTGRES_DB" >> "$GITHUB_ENV"
           fi

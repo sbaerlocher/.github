@@ -120,6 +120,28 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   escaped two-character sequence stays permitted. **No behaviour change for
   valid input:** values without a CR or LF byte are written exactly as before.
 
+- **`ci-go.yml` rejects `postgres-user`, `postgres-password` and `postgres-db`
+  values containing a newline instead of writing them to `$GITHUB_ENV`.** The
+  `Set test environment variables` step of `test-and-lint` builds the
+  `DATABASE_URL` line from the three inputs with `printf` and appends it to
+  `$GITHUB_ENV`. That file is line-based, so a newline inside one of the values
+  splits the line and injects further environment entries for every following
+  step of the job — the same path the `test-env-vars` guard closed one release
+  earlier, two lines below in the same block, but left open for these three. A
+  loop over the three values now fails the step with
+  `Error: multi-line postgres-user, postgres-password or postgres-db values are not supported`
+  before the write happens. CR is rejected alongside LF: the runner reads the
+  file on the .NET side, whose line readers treat a lone CR as a terminator, and
+  a stray CR corrupts `DATABASE_URL` regardless.
+  `scripts/tests/test-ci-go-postgres-env-guard.sh` reads the loop out of the
+  workflow so the check cannot drift from it, and asserts that all three inputs
+  are covered, that the guard aborts rather than warns, and that it sits in the
+  same step as the write it protects. Lower severity than the
+  `test-env-vars` case — the three inputs have defaults and are typically not
+  set by the same actor — but the same mechanism. Not breaking: the defaults and
+  any single-line value are unaffected, and `DATABASE_URL`, the input
+  signatures and the defaults are unchanged.
+
 ---
 
 ## 2026-08-02
