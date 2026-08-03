@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # The `postgres-user`, `postgres-password` and `postgres-db` inputs are joined
 # into the DATABASE_URL line that ci-go.yml writes to $GITHUB_ENV. That file is
-# line-based, so a newline inside one of the three turns one entry into several
-# and whoever controls the input can set PATH, GOFLAGS or LD_PRELOAD for every
-# following step. ci-go.yml rejects such values before the write; this checks
-# the rejecting loop actually does that.
+# line-based, so a line break inside one of the three turns one entry into
+# several and whoever controls the input can set PATH, GOFLAGS or LD_PRELOAD for
+# every following step. ci-go.yml rejects such values before the write; this
+# checks the rejecting loop actually does that, that it aborts rather than warns,
+# and that it sits in the same step as the write it protects.
 #
 # The loop is read out of ci-go.yml rather than repeated here, so the two cannot
 # drift: a guard edited in the workflow is the guard under test. This is the
@@ -48,13 +49,32 @@ for var in POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB; do
 done
 
 # The guard must sit above the write it protects, otherwise the injected line is
-# already in $GITHUB_ENV by the time it runs.
+# already in $GITHUB_ENV by the time it runs. `|| true` on both greps: under
+# `set -euo pipefail` a non-matching grep would abort the script at the
+# assignment, so the drift this file exists to catch would surface as a bare
+# non-zero exit instead of the diagnostic below.
 # shellcheck disable=SC2016 # the $POSTGRES_USER text is matched literally
-GUARD_LINE="$(grep -n 'for value in "\$POSTGRES_USER"' "$WORKFLOW" | cut -d: -f1)"
-WRITE_LINE="$(grep -n "^ *printf 'DATABASE_URL=postgres" "$WORKFLOW" | cut -d: -f1)"
+GUARD_LINE="$(grep -n 'for value in "\$POSTGRES_USER"' "$WORKFLOW" | cut -d: -f1 || true)"
+[ -n "$GUARD_LINE" ] || fail "no postgres guard loop line found in ci-go.yml"
+WRITE_LINE="$(grep -n "^ *printf 'DATABASE_URL=postgres" "$WORKFLOW" | cut -d: -f1 || true)"
 [ -n "$WRITE_LINE" ] || fail "no DATABASE_URL write found in ci-go.yml"
+[ "$(grep -c . <<<"$WRITE_LINE")" -eq 1 ] ||
+  fail "expected exactly one DATABASE_URL write in ci-go.yml"
 [ "$GUARD_LINE" -lt "$WRITE_LINE" ] ||
   fail "postgres guard is at line $GUARD_LINE, below the write at $WRITE_LINE"
+
+# Above the write is not enough — both must be in the *same* step. ci-go.yml has
+# a second `Set test environment variables` step in the `test-and-lint` job, so
+# a guard moved there would still be "above" this write while leaving it
+# unprotected: the one-job-hardened-one-behind mode the sibling test covers.
+if sed -n "${GUARD_LINE},${WRITE_LINE}p" "$WORKFLOW" | grep -q '^ *- name:'; then
+  fail "postgres guard and the DATABASE_URL write are in different steps"
+fi
+
+# The guard must abort, not just detect. Without this, turning the `exit 1` into
+# a warning would leave every other assertion here green and the injection open.
+sed -n "${GUARD_LINE},$((WRITE_LINE - 1))p" "$WORKFLOW" | grep -q '^ *exit 1$' ||
+  fail "postgres guard does not exit on a rejected value"
 
 # The newline test itself, exercised against real values. The condition comes
 # from the workflow via $IF_LINE, so the behaviour under test is the shipped one.
@@ -101,6 +121,9 @@ reject "newline in postgres-db" postgres postgres "$NL"
 reject "newline carrying a complete assignment" \
   postgres "$(printf 'pw\nPATH=/tmp/evil')" testdb
 reject "newline in all three" "$NL" "$NL" "$NL"
+reject "carriage return in postgres-user" "$(printf 'a\rPATH=/tmp/evil')" postgres testdb
+reject "carriage return in postgres-password" postgres "$(printf 'a\rb')" testdb
+reject "CRLF in postgres-db" postgres postgres "$(printf 'a\r\nb')"
 # Not tested: a value that is only a trailing newline. Command substitution
 # strips those, so it cannot be constructed here — and the injection needs a
 # following assignment anyway, which "newline carrying a complete assignment"

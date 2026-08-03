@@ -130,9 +130,13 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   earlier, two lines below in the same block, but left open for these three. A
   loop over the three values now fails the step with
   `Error: multi-line postgres-user, postgres-password or postgres-db values are not supported`
-  before the write happens. `scripts/tests/test-ci-go-postgres-env-guard.sh`
-  reads the loop out of the workflow, so the check cannot drift from it, and
-  asserts the guard sits above the write it protects. Lower severity than the
+  before the write happens. CR is rejected alongside LF: the runner reads the
+  file on the .NET side, whose line readers treat a lone CR as a terminator, and
+  a stray CR corrupts `DATABASE_URL` regardless.
+  `scripts/tests/test-ci-go-postgres-env-guard.sh` reads the loop out of the
+  workflow so the check cannot drift from it, and asserts that all three inputs
+  are covered, that the guard aborts rather than warns, and that it sits in the
+  same step as the write it protects. Lower severity than the
   `test-env-vars` case — the three inputs have defaults and are typically not
   set by the same actor — but the same mechanism. Not breaking: the defaults and
   any single-line value are unaffected, and `DATABASE_URL`, the input
