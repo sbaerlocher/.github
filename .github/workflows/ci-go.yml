@@ -246,11 +246,14 @@ jobs:
           fi
 
           if [ -n "${TEST_ENV_VARS:-}" ]; then
-            # $GITHUB_ENV is line-based: a newline inside a key or value would inject
-            # additional environment entries for every following step.
+            # $GITHUB_ENV is line-based: a line break inside a key or value would
+            # inject additional environment entries for every following step. The
+            # runner splits on LF and CRLF only, so `\n` covers both terminators;
+            # `\r` is rejected as defence in depth, so the guard does not depend on
+            # that parsing detail staying as it is.
             if ! printf '%s' "$TEST_ENV_VARS" \
-              | jq -e 'to_entries | any(.[]; ((.key, (.value | tostring)) | contains("\n"))) | not' >/dev/null; then
-              echo "Error: multi-line test-env-vars keys or values are not supported" >&2
+              | jq -e 'to_entries | any(.[]; (.key, (.value | tostring)) | test("[\n\r]")) | not' >/dev/null; then
+              printf 'Error: test-env-vars keys or values must not contain a CR or LF byte\n' >&2
               exit 1
             fi
             printf '%s' "$TEST_ENV_VARS" \

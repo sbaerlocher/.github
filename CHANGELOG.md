@@ -83,6 +83,24 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   line-based, so a multi-line value can still add entries. That property belongs
   to the sink and is unchanged here.
 
+- **`ci-go.yml` rejects a CR byte in `test-env-vars`, not only an LF.** The
+  guard tested `contains("\n")`; it now tests `test("[\n\r]")`. **This is
+  defence in depth, not a closed hole.** The runner splits `$GITHUB_ENV` on LF
+  and CRLF only — `ReadLine` in `src/Runner.Worker/FileCommandManager.cs`
+  searches for `\n` — so rejecting `\n` already covered both terminators, and a
+  lone `\r` stayed a byte inside the value rather than starting a new entry. The
+  guard no longer depends on that parsing detail remaining as it is.
+  **What the guard protects is narrower than "a caller can set `GOFLAGS`":**
+  setting arbitrary variables is the input's documented purpose, so the
+  escalation is the case where the keys are the caller's but a value is
+  interpolated from untrusted data (a PR title, a branch name) and writes entries
+  of its own.
+  `scripts/tests/test-ci-go-test-env-guard.sh` gained the two genuinely new
+  cases (CR in a value, CR in a key), a CRLF regression case the old guard
+  already rejected, and an `accept` case for a literal backslash-r so the
+  escaped two-character sequence stays permitted. **No behaviour change for
+  valid input:** values without a CR or LF byte are written exactly as before.
+
 ---
 
 ## 2026-08-02
