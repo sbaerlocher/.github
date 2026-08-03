@@ -77,9 +77,11 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 - **`deploy-terraform.yml` passes `BW_ACCESS_TOKEN` through `env:`.** The
   _Environment Configuration_ step interpolated the secret directly into the
   line it appended to `$GITHUB_ENV`, while the two `AWS_*` assignments beside it
-  already used shell variables. `$GITHUB_ENV` is line-based, so a newline in the
-  value would have added further entries — including overriding those `AWS_*`
-  assignments.
+  already used shell variables; it now matches them. This removes the
+  interpolation, so a `$(...)` in the value is no longer evaluated as the step's
+  own shell source. It does **not** harden `$GITHUB_ENV` itself: that file is
+  line-based, so a multi-line value can still add entries. That property belongs
+  to the sink and is unchanged here.
 
 ---
 

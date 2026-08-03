@@ -51,10 +51,13 @@ MIGRATED=(
 run_block_lines() {
   awk '
     # Block scalar (| or >, with any modifier) or an empty value: opens a block.
+    # run_indent is the column of the `run` key itself, not of a leading list
+    # dash — a line level with the key is a sibling, not part of the body.
     /^[[:space:]]*-?[[:space:]]*run:[[:space:]]*[|>]/ ||
     /^[[:space:]]*-?[[:space:]]*run:[[:space:]]*$/ {
-      match($0, /[^ ]/)
-      run_indent = RSTART
+      line = $0
+      sub(/run:.*$/, "", line)
+      run_indent = length(line)
       in_run = 1
       next
     }
@@ -65,10 +68,12 @@ run_block_lines() {
       next
     }
     in_run {
-      # A non-blank line at or left of the run: key ends the block.
+      # A non-blank line at or left of the run: key ends the block. A comment
+      # counts: at that indentation it belongs to the step, not to the script,
+      # so treating it as body would swallow every following key.
       if ($0 ~ /[^[:space:]]/) {
         match($0, /[^ ]/)
-        if (RSTART <= run_indent && $0 !~ /^[[:space:]]*#/) {
+        if (RSTART <= run_indent) {
           in_run = 0
           next
         }
@@ -99,8 +104,10 @@ for wf in "${MIGRATED[@]}"; do
 
   # 2. No unquoted heredoc delimiter: its body would expand a substituted value.
   #    `<< 'EOF'` and `<< "EOF"` are fine; a bare word is not, whatever it is
-  #    called, and `<<-` strips tabs but still expands.
-  heredocs="$(grep -nE '<<-?[[:space:]]*[A-Za-z_][A-Za-z0-9_]*[[:space:]]*$' "$path" || true)"
+  #    called. `<<-` strips tabs but still expands, and the delimiter may be
+  #    followed by a redirect (`cat <<EOF >"$f"`), so match the word itself
+  #    rather than requiring it at end of line.
+  heredocs="$(grep -nE '<<-?[[:space:]]*[A-Za-z_][A-Za-z0-9_]*([[:space:]]|$)' "$path" || true)"
   if [ -n "$heredocs" ]; then
     echo "$heredocs" >&2
     fail "$wf has an unquoted heredoc delimiter; quote it, e.g. << 'EOF'"
