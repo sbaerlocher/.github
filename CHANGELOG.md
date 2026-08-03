@@ -20,6 +20,95 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-08-04
+
+### ⚠ BREAKING
+
+- **`release-go.yml` rejects an `extra-env` line that is not a `KEY=VALUE`
+  assignment or a `NAME<<DELIM` block.** Such a line was previously appended to
+  `$GITHUB_ENV` unchecked; it now fails the step. Callers whose `extra-env`
+  carries a comment, an indented line, or a stray fragment are affected.
+  **Migration:** remove those lines, or express them as real assignments — the
+  `KEY=VALUE` and delimiter forms both stay supported, including values that
+  contain `=`, spaces, shell metacharacters or `<<`.
+
+- **`deploy-terraform.yml` rejects an `env-mapping` line whose source or target
+  is not a valid identifier.** A line without a `>` used to yield an empty
+  target and an empty value and was silently skipped; it now fails the step.
+  **Migration:** remove stray, comment, or trailing-separator lines from
+  `env-mapping`. Blank lines are still skipped and well-formed
+  `SOURCE > TARGET` lines are unaffected.
+
+### Details
+
+- **`release-go.yml` validates the shape of each `extra-env` line before
+  writing it to `$GITHUB_ENV`.** The `Parse extra environment variables` step
+  appended the whole input unchecked. `extra-env` is a multi-line list, so its
+  own newlines are legitimate separators rather than injection — a blanket LF
+  reject like the `ci-go.yml` guards would break the input's contract. What was
+  unchecked is the shape of each line: a line that is neither a `KEY=VALUE`
+  assignment nor part of a `NAME<<DELIM` block is not an entry the caller could
+  have declared, and a CR splits the entry on the runner's .NET-side line
+  reader. Each line is now checked, failing the step with
+  `Error: extra-env lines must be KEY=VALUE assignments`,
+  `Error: extra-env name is not a valid identifier: <name>`,
+  `Error: extra-env lines must not contain a CR byte` or
+  `Error: extra-env has an unterminated <delim> block` before anything is
+  written. The
+  [delimiter form documented for `$GITHUB_ENV`](https://docs.github.com/en/actions/reference/workflows-and-actions/variables#multiline-strings)
+  is accepted, since it is how a caller passes a multi-line ldflags block or a
+  JSON blob; inside such a block the body is opaque by definition and is not
+  validated, only the terminator is required. A line may contain both `=` and
+  `<<`; whichever comes first decides the form, the way the runner's own reader
+  resolves it, so a shift expression in a compile flag
+  (`CGO_CFLAGS=-DSHIFT=1<<3`) stays an assignment. A well-formed list is written
+  exactly as before, including values that contain `=`, spaces, shell
+  metacharacters or `<<`; see the breaking note above for what now fails.
+
+- **`deploy-terraform.yml` rejects R2 credentials, the Bitwarden token and
+  mapped secret values containing a newline instead of writing them to
+  `$GITHUB_ENV`.** The `Environment Configuration` step wrote the three backend
+  credentials via a block redirect and each `env-mapping` value in a loop. Both
+  sinks are line-based, so a newline inside a Bitwarden secret splits the line
+  and injects further environment entries for every following step of the job —
+  the same mechanism the two `ci-go.yml` guards closed, with the same shape and
+  wording reused here. The credentials now fail the step with
+  `Error: multi-line R2 or Bitwarden credentials are not supported` and a mapped
+  value with `Error: multi-line value for <target> is not supported`, both
+  before the write. CR is rejected alongside LF for the reason given in the
+  `ci-go.yml` entries. Secrets and mappings that were already well-formed are
+  written unchanged.
+
+- **`deploy-terraform.yml` validates both `env-mapping` names before the
+  indirect expansion that reads them.** The mapping loop split each line into a
+  source and a target name with `awk` + `xargs` and then expanded the source via
+  `value="${!src}"`. `xargs` strips whitespace but does not expand, so a name
+  reaches the loop intact — and bash evaluates an array subscript inside
+  `${!name}` as an arithmetic expression, which performs command substitution.
+  A source name of the form `x[$(…)]` therefore executed in a step that has
+  already loaded the R2 keys and the Bitwarden token into the environment.
+  `env-mapping` is a caller-supplied `workflow_call` input rather than
+  PR-controlled data, so this was not remotely triggerable, but it sat directly
+  in the loop this release hardens. Both names are now checked against an
+  identifier pattern before the expansion, failing the step with
+  `Error: env-mapping name is not a valid identifier`. The message deliberately
+  omits the name: it is interpolated nowhere until it is known to be an
+  identifier.
+
+  The same check is what makes a malformed mapping line fail rather than be
+  skipped; see the breaking note above.
+
+  `scripts/tests/test-github-env-guards.sh` covers both workflows. It reads the
+  guards out of the workflow files so the checks cannot drift from them, and
+  asserts that all three credentials are covered, that the name check sits above
+  the indirect expansion, that each guard shares the step with the write it
+  protects, and that every rejection path aborts rather than warns — the abort
+  check counts `Error:` lines against `exit 1` lines, so downgrading one path
+  among several is caught. This completes the `$GITHUB_ENV` injection class: all
+  four write sites in the repo are now guarded.
+
+---
+
 ## 2026-08-03
 
 ### ⚠ BREAKING
