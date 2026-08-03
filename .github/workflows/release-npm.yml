@@ -553,25 +553,39 @@ jobs:
     if: always() && !cancelled()
     steps:
       - name: Generate Release Summary
+        env:
+          VERSION: ${{ needs.pre-release-checks.outputs.version }}
+          REGISTRY_URL: ${{ inputs.registry-url }}
+          PROVENANCE: ${{ inputs.enable-provenance && 'Enabled' || 'Disabled' }}
+          DRY_RUN: ${{ inputs.dry-run }}
+          CHECKS_RESULT: ${{ needs.pre-release-checks.result }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
+          RELEASE_RESULT: ${{ needs.github-release.result }}
+          SKIPPED_NOTE: ${{ needs.pre-release-checks.outputs.should-publish == 'false' && '> Version already published — publish step skipped.' || '' }}
+          DRY_RUN_NOTE: ${{ inputs.dry-run && '> Dry-run mode — package was NOT published.' || '' }}
+        # Every value arrives via `env:` and both heredoc delimiters are quoted,
+        # so nothing in the template bodies is expanded by the shell. The
+        # dynamic lines are emitted with `printf` between the heredocs.
         run: |
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          VERSION="${{ needs.pre-release-checks.outputs.version }}"
-
-          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          {
+            cat << 'EOF'
           # Release — NPM Package
 
-          **Timestamp:** $TIMESTAMP
-          **Version:** \`v$VERSION\`
-          **Registry:** ${{ inputs.registry-url }}
-          **Provenance:** ${{ inputs.enable-provenance && 'Enabled' || 'Disabled' }}
-          **Dry Run:** ${{ inputs.dry-run }}
-
+          EOF
+            printf '**Timestamp:** %s\n' "$TIMESTAMP"
+            # shellcheck disable=SC2016  # backticks are literal Markdown here
+            printf '**Version:** `v%s`\n' "$VERSION"
+            printf '**Registry:** %s\n' "$REGISTRY_URL"
+            printf '**Provenance:** %s\n' "$PROVENANCE"
+            printf '**Dry Run:** %s\n\n' "$DRY_RUN"
+            cat << 'EOF'
           | Component | Status |
           | --- | --- |
-          | Pre-Release Checks | ${{ needs.pre-release-checks.result }} |
-          | NPM Publish | ${{ needs.publish.result }} |
-          | GitHub Release | ${{ needs.github-release.result }} |
-
-          ${{ needs.pre-release-checks.outputs.should-publish == 'false' && '> Version already published — publish step skipped.' || '' }}
-          ${{ inputs.dry-run && '> Dry-run mode — package was NOT published.' || '' }}
           EOF
+            printf '| Pre-Release Checks | %s |\n' "$CHECKS_RESULT"
+            printf '| NPM Publish | %s |\n' "$PUBLISH_RESULT"
+            printf '| GitHub Release | %s |\n\n' "$RELEASE_RESULT"
+            printf '%s\n' "$SKIPPED_NOTE"
+            printf '%s\n' "$DRY_RUN_NOTE"
+          } >> "$GITHUB_STEP_SUMMARY"

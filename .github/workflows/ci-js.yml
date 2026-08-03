@@ -400,8 +400,9 @@ jobs:
       - name: Check bundle sizes
         if: inputs.enable-bundle-size-check
         working-directory: ${{ inputs.working-directory }}
+        env:
+          MAX_SIZE_KB: ${{ inputs.max-bundle-size-kb }}
         run: |
-          MAX_SIZE_KB=${{ inputs.max-bundle-size-kb }}
           FAILED=0
 
           for dir in src/*/; do
@@ -579,21 +580,35 @@ jobs:
     if: always() && !cancelled()
     steps:
       - name: Generate Summary
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
+          REPOSITORY: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
+          QUALITY_RESULT: ${{ needs.quality-and-test.result }}
+          SECURITY_RESULT: ${{ needs.security-scan.result }}
+          DEPENDENCY_RESULT: ${{ needs.dependency-review.result }}
+          COVERAGE: ${{ needs.quality-and-test.outputs.coverage }}
+        # Every value arrives via `env:` and both heredoc delimiters are quoted,
+        # so nothing in the template bodies is expanded by the shell. The
+        # dynamic lines are emitted with `printf` between the heredocs.
         run: |
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          cat >> "$GITHUB_STEP_SUMMARY" << EOF
+          {
+            cat << 'EOF'
           # CI — JavaScript/TypeScript
 
-          **Timestamp:** $TIMESTAMP
-          **Repository:** ${{ github.repository }} @ ${{ github.ref_name }}
-
+          EOF
+            printf '**Timestamp:** %s\n**Repository:** %s @ %s\n\n' \
+              "$TIMESTAMP" "$REPOSITORY" "$REF_NAME"
+            cat << 'EOF'
           | Job | Status |
           | --- | --- |
-          | Quality & Tests | ${{ needs.quality-and-test.result }} |
-          | Security Scan | ${{ needs.security-scan.result }} |
-          | Dependency Review | ${{ needs.dependency-review.result }} |
-
-          **Coverage:** ${{ needs.quality-and-test.outputs.coverage }}
-          **Package Manager:** ${{ inputs.package-manager }}
-          **Working Directory:** ${{ inputs.working-directory }}
           EOF
+            printf '| Quality & Tests | %s |\n' "$QUALITY_RESULT"
+            printf '| Security Scan | %s |\n' "$SECURITY_RESULT"
+            printf '| Dependency Review | %s |\n\n' "$DEPENDENCY_RESULT"
+            printf '**Coverage:** %s\n' "$COVERAGE"
+            printf '**Package Manager:** %s\n' "$PACKAGE_MANAGER"
+            printf '**Working Directory:** %s\n' "$WORKING_DIRECTORY"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -5,7 +5,7 @@
 # (`<< EOF`) the body is expanded too, so a value reaching a step summary that
 # way executes as well.
 #
-# The nine workflows below were migrated to pass such values through `env:` and
+# The workflows below were migrated to pass such values through `env:` and
 # reference them as shell variables. This asserts the migration holds: no
 # interpolated caller-controlled value left in a `run:` body — block-scalar,
 # folded or single-line — and no unquoted heredoc delimiter. It is a structural
@@ -15,10 +15,6 @@
 # leave a step again as a workflow-level output and be interpolated downstream,
 # which is why `security-code.yml` also constrains `package-manager` to a known
 # set before writing it to `$GITHUB_OUTPUT`.
-#
-# The four workflows still carrying the old pattern (ci-js, e2e-docker,
-# release-npm, deploy-cloudflare-workers) are deliberately out of scope — they
-# are migrated separately; see CHANGELOG.md.
 #
 # Run: scripts/tests/test-workflow-input-injection.sh
 set -euo pipefail
@@ -34,9 +30,13 @@ fail() {
 
 # The workflows this migration covers.
 MIGRATED=(
+  ci-js.yml
   ci-terraform.yml
+  deploy-cloudflare-workers.yml
   deploy-terraform.yml
+  e2e-docker.yml
   release-docker.yml
+  release-npm.yml
   security-code.yml
   security-config.yml
   security-containers.yml

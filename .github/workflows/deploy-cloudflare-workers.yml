@@ -188,11 +188,19 @@ jobs:
 
       - name: Deployment Summary
         if: always()
+        env:
+          WORKER: ${{ matrix.worker }}
+          JOB_STATUS: ${{ job.status }}
+          PACKAGE_MANAGER: ${{ inputs.package-manager }}
+          WRANGLER_VERSION: ${{ inputs.wrangler-version }}
+        # Every value arrives via `env:` and is written with `printf`. A quoted
+        # heredoc delimiter alone would not be enough: `${{ }}` is substituted
+        # into the script text before the shell sees it, so a value carrying a
+        # newline followed by the delimiter would end the heredoc early.
         run: |
-          cat >> "$GITHUB_STEP_SUMMARY" << 'EOF'
-          ## Deploy — Cloudflare Worker: ${{ matrix.worker }}
-
-          **Status:** ${{ job.status }}
-          **Package Manager:** ${{ inputs.package-manager }}
-          **Wrangler Version:** ${{ inputs.wrangler-version }}
-          EOF
+          {
+            printf '## Deploy — Cloudflare Worker: %s\n\n' "$WORKER"
+            printf '**Status:** %s\n' "$JOB_STATUS"
+            printf '**Package Manager:** %s\n' "$PACKAGE_MANAGER"
+            printf '**Wrangler Version:** %s\n' "$WRANGLER_VERSION"
+          } >> "$GITHUB_STEP_SUMMARY"

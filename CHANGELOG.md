@@ -173,10 +173,20 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   carrying a command substitution executed in the runner; the same applied to
   `audit-level`, `registry-url`, `enable-provenance`, `playwright-browsers`,
   `compose-file` and `compose-profile`. Same class and same fix as the `ci-go.yml`
-  change in the 2026-08-02 entry. `release-npm.yml` additionally opened its
-  changelog heredoc with an unquoted delimiter, so the body was expanded and a
-  command substitution built from `working-directory` ran there; the delimiter is
-  now quoted and the dynamic lines are emitted with `printf`.
+  change in the 2026-08-02 entry.
+  **The step summaries were the exploitable half.** `release-npm.yml` opened both
+  its changelog and its release-summary heredoc with an unquoted delimiter and
+  `ci-js.yml` did the same in its CI summary, so the body was expanded and a
+  command substitution built from `working-directory` or `registry-url` ran
+  there. `deploy-cloudflare-workers.yml` quoted its delimiter but still
+  interpolated `matrix.worker` and two inputs into the body, which a quoted
+  delimiter does not cover: `${{ }}` is substituted into the script text before
+  the shell sees it, so a value carrying a newline followed by the delimiter ends
+  the heredoc early. Every delimiter is now quoted and the dynamic lines are
+  emitted with `printf`; the rendered summaries are byte-identical to before.
+  With this, all four workflows join `MIGRATED` in
+  `scripts/tests/test-workflow-input-injection.sh` (13 of them now), so the
+  pattern cannot regrow unnoticed in the files this change hardens.
 - **`e2e-docker.yml` reads `compose-profile` from `process.env` in its PR-comment
   script.** The value was interpolated into a JavaScript template literal, where a
   backtick or `${` escaped into the surrounding source.
