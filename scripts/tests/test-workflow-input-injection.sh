@@ -57,7 +57,9 @@ run_block_lines() {
     /^[[:space:]]*-?[[:space:]]*run:[[:space:]]*$/ {
       line = $0
       sub(/run:.*$/, "", line)
-      run_indent = length(line)
+      # +1 so this is the 1-based column of the `run` key, comparable to the
+      # RSTART below: a sibling key sits at exactly this column.
+      run_indent = length(line) + 1
       in_run = 1
       next
     }
