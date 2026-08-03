@@ -24,6 +24,18 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### ⚠ BREAKING
 
+- **`ci-go.yml` and `release-go.yml` no longer accept `pre-build-commands`.**
+  The input was arbitrary shell by design — it was interpolated straight into a
+  `run:` body — which is why neither workflow could be covered by the injection
+  guard. A caller forwarding untrusted event data into it turned that into
+  injection. No repository in the organisation passed the input, so it is
+  removed rather than wrapped in a trust model nobody relies on.
+  **Migration:** there is no in-workflow replacement — a job with `uses:` cannot
+  carry `steps:`, and a preceding job's workspace does not survive into the
+  reusable workflow's own checkout. Commit the generated code, produce it from a
+  checked-in `//go:generate` directive whose result is committed, or stop using
+  the reusable workflow for that repository and inline the Go pipeline.
+
 - **`release-go.yml` rejects an `extra-env` line that is not a `KEY=VALUE`
   assignment or a `NAME<<DELIM` block.** Such a line was previously appended to
   `$GITHUB_ENV` unchecked; it now fails the step. Callers whose `extra-env`
@@ -41,6 +53,14 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### Details
 
+- **Both Go workflows joined the injection guard's `MIGRATED` list.**
+  `scripts/tests/test-workflow-input-injection.sh` asserts structurally that no
+  caller-controlled `${{ }}` reaches a `run:` body; `ci-go.yml` and
+  `release-go.yml` were absent from that list precisely because
+  `pre-build-commands` disqualified them. With the input gone they are covered,
+  which is what keeps the pattern from returning. This also resolves the caveat
+  in the 2026-08-02 entry below, which named `pre-build-commands` as the one
+  remaining `run:` interpolation in `ci-go.yml` that could not move to `env:`.
 - **`release-go.yml` validates the shape of each `extra-env` line before
   writing it to `$GITHUB_ENV`.** The `Parse extra environment variables` step
   appended the whole input unchecked. `extra-env` is a multi-line list, so its

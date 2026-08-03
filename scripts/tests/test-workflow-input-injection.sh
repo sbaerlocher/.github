@@ -30,12 +30,14 @@ fail() {
 
 # The workflows this migration covers.
 MIGRATED=(
+  ci-go.yml
   ci-js.yml
   ci-terraform.yml
   deploy-cloudflare-workers.yml
   deploy-terraform.yml
   e2e-docker.yml
   release-docker.yml
+  release-go.yml
   release-npm.yml
   security-code.yml
   security-config.yml

@@ -44,11 +44,6 @@ on:
         required: false
         default: './cmd'
         description: 'Path to main binary entrypoint (e.g. ./cmd/app)'
-      pre-build-commands:
-        type: string
-        required: false
-        default: ''
-        description: 'Commands to run before build (e.g. code generation)'
       enable-postgres:
         type: boolean
         required: false
@@ -203,10 +198,6 @@ jobs:
           check-latest: true
           cache: true
           cache-dependency-path: go.sum
-
-      - name: Run pre-build commands
-        if: inputs.pre-build-commands != ''
-        run: ${{ inputs.pre-build-commands }}
 
       - name: Download and verify dependencies
         run: |
