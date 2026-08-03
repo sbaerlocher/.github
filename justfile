@@ -53,23 +53,23 @@ actionlint_ignores := "-ignore 'SC2002' -ignore 'SC2015'"
 
 # actionlint container image, used when the local binary and shellcheck are not
 # both present. Renovate keeps the tag current via a custom manager in this
-# repo's own .github/renovate.json — the shared renovate-base.json preset that
+# repo's own renovate.json — the shared renovate-base.json preset that
 # consumers extend is deliberately left alone, so this adds no update behaviour
 # anywhere else. Keep the assignment on one line; the manager regex expects it.
-actionlint_image := "rhysd/actionlint:1.7.7"
+actionlint_image := "rhysd/actionlint:1.7.12"
 
 # prettier version used by both `fmt` and `fmt-check`. Pinned because the two
 # recipes have to agree: an unpinned `npx prettier` resolves to whatever is
 # current, so a formatting change in a new release would turn `lint` red on a
 # commit that nobody touched. There is no package.json here to pin it instead.
-# Renovate keeps this current via the custom manager in .github/renovate.json.
+# Renovate keeps this current via the custom manager in renovate.json.
 # Keep the assignment on one line; the manager regex expects it.
 prettier_version := "3.9.6"
 
 # lint → static checks over YAML, Renovate presets and workflow definitions
 lint:
     yamllint .
-    jq empty renovate.json .github/renovate.json renovate-*.json
+    jq empty renovate.json renovate-*.json
     just actionlint
     just fmt-check
 

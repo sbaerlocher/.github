@@ -576,8 +576,7 @@ Ensure lock files are committed:
 │   │   └── weekly-security.yml # Internal: scheduled self-scan
 │   ├── ISSUE_TEMPLATE/     # Org-default issue forms
 │   ├── CODEOWNERS          # Repository owners
-│   ├── pull_request_template.md
-│   └── renovate.json       # Renovate configuration
+│   └── pull_request_template.md
 ├── AGENTS.md               # AI agent documentation (this file)
 ├── CLAUDE.md               # Claude Code import
 ├── README.md               # Human-readable documentation
@@ -656,6 +655,13 @@ Ensure lock files are committed:
 
 **Gotchas when editing the Renovate presets**:
 
+- Repo-level Renovate config for this repo lives in the root `renovate.json`
+  and nowhere else. Renovate reads the **first** config file it finds, and
+  `renovate.json` / `renovate.json5` is checked before their `.github/`
+  counterparts (`.renovaterc*` comes last) — so a `customManagers` or
+  `packageRules` block added to `.github/renovate.json` while the root file
+  exists never runs. Add repo-level managers to the root file; do not recreate
+  `.github/renovate.json`.
 - This repo's own `renovate.json` MUST use the `#main` suffix when extending
   its own presets: `github>sbaerlocher/.github:renovate-base#main`. Without
   `#main`, Renovate may resolve to an older pinned commit of this repo.
