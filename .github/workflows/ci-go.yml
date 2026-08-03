@@ -241,6 +241,14 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$ENABLE_POSTGRES" = "true" ]; then
+            # $GITHUB_ENV is line-based: a newline inside a value would inject
+            # additional environment entries for every following step.
+            for value in "$POSTGRES_USER" "$POSTGRES_PASSWORD" "$POSTGRES_DB"; do
+              if [ "$value" != "${value//$'\n'/}" ]; then
+                echo "Error: multi-line postgres-user, postgres-password or postgres-db values are not supported" >&2
+                exit 1
+              fi
+            done
             printf 'DATABASE_URL=postgres://%s:%s@localhost:5432/%s?sslmode=disable\n' \
               "$POSTGRES_USER" "$POSTGRES_PASSWORD" "$POSTGRES_DB" >> "$GITHUB_ENV"
           fi

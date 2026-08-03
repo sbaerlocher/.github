@@ -107,6 +107,7 @@ test:
     scripts/tests/test-workflow-counts.sh
     scripts/tests/test-ci-go-test-env-guard.sh
     scripts/tests/test-workflow-input-injection.sh
+    scripts/tests/test-ci-go-postgres-env-guard.sh
 
 # fmt → format Markdown and JSON in place
 fmt:
