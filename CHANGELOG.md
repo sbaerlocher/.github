@@ -101,6 +101,33 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   deliberate. Scan behaviour is unchanged by this removal.
   **Migration:** remove the `file-patterns:` line from your call.
 
+- **`ci-go.yml` no longer has a `test-and-lint-postgres` job.** `test-and-lint`
+  and `test-and-lint-postgres` were byte-identical over their whole step
+  sequence except for the Postgres service container and the `DATABASE_URL`
+  line in `Set test environment variables`; every other change had to be made
+  twice, which is why earlier fixes repeatedly cited only one of the two
+  copies. The two were already mutually exclusive — each carried an `if:` on
+  `inputs.enable-postgres`, so exactly one ever ran per call — and they are now
+  a single `test-and-lint` job. Actions has no `if:` for `services:`, so the
+  container is gated on its image: an empty `image:` makes the runner skip the
+  service, which is the documented way to declare a conditional service. An
+  `enable-postgres: false` caller therefore gets no container, no listener on
+  `localhost:5432`, and no `DATABASE_URL` — the same as before the merge.
+  Gating the port mapping instead is not possible: an empty entry becomes a
+  bare `-p` on the `docker create` line and fails the job. Test behaviour is
+  unchanged for both values, and the `coverage` output keeps its value without
+  needing the `a || b` fallback.
+  Because Renovate's built-in github-actions manager skips any image value
+  containing `$`, the reference is picked up by a new custom manager in the
+  root `renovate.json` that captures tag and digest, so the SHA pin is still
+  updated automatically. (It goes in the root file, not `.github/renovate.json`
+  — Renovate uses the first config it finds and `renovate.json` comes first, so
+  a manager placed in the latter would never run.)
+  **Migration:** if you list `test-and-lint-postgres` as a required status
+  check, or reference it in a `needs:`/branch-protection ruleset, replace it
+  with `test-and-lint` — that context now covers both modes. Callers that only
+  pass `enable-postgres:` need no change.
+
 - **`ai-claude-review.yml` now fails the job when no review was posted.** The
   `anthropics/claude-code-action` workflow validation refuses to review a PR
   that changes a workflow file, but exits 0 — the `claude-review` check went
@@ -120,9 +147,11 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   escape: interpolation happens before the shell sees the line, so a value
   containing an apostrophe closed the string early and the remainder was parsed
   as shell code — writing to `$GITHUB_ENV`, and thus affecting every later step
-  of the job. The step exists in both `test-and-lint` and
-  `test-and-lint-postgres` and both are fixed; the postgres copy's
-  `DATABASE_URL` line, in the same block, moved to `env:` with it. The blocks
+  of the job. The step existed in both `test-and-lint` and
+  `test-and-lint-postgres` at the time and both were fixed; the postgres copy's
+  `DATABASE_URL` line, in the same block, moved to `env:` with it. (The two
+  jobs have since been merged — see the `⚠ BREAKING` entry above — so there is
+  now one copy of the step.) The blocks
   also gained `set -euo pipefail`, pipe `test-env-vars` through `printf '%s'`
   instead of `echo` (which mangles values with a leading `-` or backslashes),
   and quote `$GITHUB_ENV`. Same pattern as the `ci-ansible.yml` entry below.
@@ -196,9 +225,10 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   the job, `PATH`, `GOFLAGS` or `LD_PRELOAD` included, which also apply to
   `go test`. A guard now fails the step with
   `Error: multi-line test-env-vars keys or values are not supported` before
-  anything is written. Both jobs (`test-and-lint`, `test-and-lint-postgres`) carry the
-  guard, and `scripts/tests/test-ci-go-test-env-guard.sh` reads the expression
-  out of the workflow so the check cannot drift from it. Distinct from the
+  anything is written. Both jobs (`test-and-lint`, `test-and-lint-postgres`)
+  carried the guard when it landed; the two have since been merged, so it now
+  exists once. `scripts/tests/test-ci-go-test-env-guard.sh` reads the
+  expression out of the workflow so the check cannot drift from it. Distinct from the
   quoting fix above: that one closed the shell path, this one the file-format
   path, and the defect predates it. Not breaking for known consumers — they
   pass single-line entries, which are unaffected; only a multi-line one, which

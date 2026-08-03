@@ -6,5 +6,27 @@
       "/(^|/)workflows/[^/]+\\.ya?ml$/",
       "/(^|/)actions/[^/]+/action\\.ya?ml$/"
     ]
-  }
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Track Docker images nested in a workflow ${{ }} expression. The built-in github-actions manager does extract service images, but getDep skips any value containing '$' with skipReason 'contains-variable', so a conditional service image needs this manager to stay updated.",
+      "managerFilePatterns": ["/^\\.github/workflows/[^/]+\\.ya?ml$/"],
+      "matchStringsStrategy": "recursive",
+      "matchStrings": [
+        "# renovate-expression:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(?:\\s+versioning=(?<versioning>\\S+))?\\s*\\n[^\\n]*'[^:'\\n]+:[^'@\\n]+(?:@sha256:[a-f0-9]{64})?'",
+        "'[^:'\\n]+:(?<currentValue>[^'@\\n]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?'"
+      ],
+      "autoReplaceStringTemplate": "'{{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}'"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "The shared preset turns off digest pinning for custom.regex docker deps, since those managers usually capture a version only. The manager above captures currentDigest too, so pinning is re-enabled for it. Repo-level rules are merged after preset ones, so this wins.",
+      "matchManagers": ["custom.regex"],
+      "matchDatasources": ["docker"],
+      "matchFileNames": [".github/workflows/**"],
+      "pinDigests": true
+    }
+  ]
 }

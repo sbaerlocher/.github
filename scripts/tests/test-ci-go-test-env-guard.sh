@@ -6,8 +6,10 @@
 # expression actually does that.
 #
 # The expression is read out of ci-go.yml rather than repeated here, so the two
-# cannot drift: a guard edited in the workflow is the guard under test. Both
-# jobs (test-and-lint, test-and-lint-postgres) carry it and both are checked.
+# cannot drift: a guard edited in the workflow is the guard under test. The
+# workflow has a single `test-and-lint` job, so the guard must appear exactly
+# once — a second copy means the job was split again and the two can drift, the
+# failure mode this repo already had.
 #
 # Run: scripts/tests/test-ci-go-test-env-guard.sh
 set -euo pipefail
@@ -28,13 +30,8 @@ GUARDS="$(sed -n "s/.*| jq -e '\(.*\)' >\/dev\/null.*/\1/p" "$WORKFLOW")"
 [ -n "$GUARDS" ] || fail "no 'jq -e' guard found in ci-go.yml"
 
 COUNT="$(grep -c . <<<"$GUARDS")"
-[ "$COUNT" -eq 2 ] ||
-  fail "expected the guard in both jobs, found $COUNT occurrence(s) in ci-go.yml"
-
-# Both occurrences must be the same expression — one job hardened and the other
-# left behind is the failure mode this repo already had.
-[ "$(sort -u <<<"$GUARDS" | grep -c .)" -eq 1 ] ||
-  fail "the two guards in ci-go.yml differ; they must be identical"
+[ "$COUNT" -eq 1 ] ||
+  fail "expected exactly one guard in ci-go.yml, found $COUNT occurrence(s)"
 
 GUARD="$(head -n 1 <<<"$GUARDS")"
 
