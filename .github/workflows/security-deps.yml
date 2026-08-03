@@ -306,27 +306,40 @@ jobs:
       # needs.*.result (a disabled/skipped language step reports `skipped`).
       - name: Generate Security Report
         if: always()
+        env:
+          LANGUAGE: ${{ inputs.language }}
+          LICENSE_CHECK: ${{ inputs.enable-license-check && 'Enabled' || 'Disabled' }}
+          DEPENDENCY_REVIEW_OUTCOME: ${{ steps.dependency-review.outcome }}
+          GO_AUDIT_OUTCOME: ${{ steps.go-audit.outcome }}
+          JAVASCRIPT_AUDIT_OUTCOME: ${{ steps.javascript-audit.outcome }}
+          PYTHON_AUDIT_OUTCOME: ${{ steps.python-audit.outcome }}
+          ALLOWED_LICENSES: ${{ inputs.allowed-licenses }}
+          DENIED_LICENSES: ${{ inputs.denied-licenses }}
+          FAIL_ON_LICENSE_VIOLATION: ${{ inputs.fail-on-license-violation }}
         run: |
+          set -euo pipefail
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
 
-          cat >> "$GITHUB_STEP_SUMMARY" << EOF
-          # Security — Dependencies & Licenses
-
-          **Timestamp:** $TIMESTAMP
-          **Language:** ${{ inputs.language }}
-          **License Check:** ${{ inputs.enable-license-check && 'Enabled' || 'Disabled' }}
-
-          | Component | Status |
-          | --- | --- |
-          | Dependency Review | ${{ steps.dependency-review.outcome }} |
-          | Go Audit | ${{ steps.go-audit.outcome }} |
-          | JavaScript Audit | ${{ steps.javascript-audit.outcome }} |
-          | Python Audit | ${{ steps.python-audit.outcome }} |
-
-          **Allowed Licenses:** \`${{ inputs.allowed-licenses }}\`
-          **Denied Licenses:** \`${{ inputs.denied-licenses }}\`
-          **Fail on Violation:** ${{ inputs.fail-on-license-violation }}
-          EOF
+          # Values arrive via env: and are substituted by printf, not by the
+          # shell parsing the body — a value containing $(...) is written
+          # literally instead of being executed by the runner. The backticks in
+          # the format strings are literal Markdown, hence single quotes.
+          {
+            printf '# Security — Dependencies & Licenses\n\n'
+            printf '**Timestamp:** %s\n' "$TIMESTAMP"
+            printf '**Language:** %s\n' "$LANGUAGE"
+            printf '**License Check:** %s\n\n' "$LICENSE_CHECK"
+            printf '| Component | Status |\n| --- | --- |\n'
+            printf '| Dependency Review | %s |\n' "$DEPENDENCY_REVIEW_OUTCOME"
+            printf '| Go Audit | %s |\n' "$GO_AUDIT_OUTCOME"
+            printf '| JavaScript Audit | %s |\n' "$JAVASCRIPT_AUDIT_OUTCOME"
+            printf '| Python Audit | %s |\n\n' "$PYTHON_AUDIT_OUTCOME"
+            # shellcheck disable=SC2016  # backticks are literal Markdown here
+            printf '**Allowed Licenses:** `%s`\n' "$ALLOWED_LICENSES"
+            # shellcheck disable=SC2016  # backticks are literal Markdown here
+            printf '**Denied Licenses:** `%s`\n' "$DENIED_LICENSES"
+            printf '**Fail on Violation:** %s\n' "$FAIL_ON_LICENSE_VIOLATION"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # continue-on-error on dependency-review only lets the language audits run
       # afterwards; it must not swallow the fail-on-severity / denied-license

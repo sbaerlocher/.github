@@ -20,6 +20,43 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## Unreleased
+
+### Changed
+
+- **Nine more workflows pass caller inputs through `env:` instead of
+  interpolating them into `run:` blocks.** `${{ inputs.* }}` inside a shell body
+  is substituted as source text before the shell parses the line, so a value
+  containing a quote or `$(...)` is parsed as shell code rather than data. The
+  affected workflows are `ci-terraform.yml`, `deploy-terraform.yml`,
+  `release-docker.yml`, `security-code.yml`, `security-config.yml`,
+  `security-containers.yml`, `security-deps.yml`, `security-sbom.yml` and
+  `security-secrets.yml`; every such reference became a step-level `env:` entry
+  read as a quoted shell variable, matching the pattern already used in
+  `ci-go.yml`, `ci-gitops.yml` and `ci-ansible.yml`.
+  **The step summaries were the exploitable half.** Eight of these workflows
+  wrote their summary through an _unquoted_ heredoc (`cat >> "$GITHUB_STEP_SUMMARY" << EOF`),
+  whose body the shell expands: a substituted `$(...)` ran on the runner at
+  expansion time. Those bodies are now emitted with `printf` from `env:` values
+  inside a single grouped redirect, so the values are written literally. Static
+  prose blocks that interpolate nothing keep using a heredoc, now with a quoted
+  `<< 'EOF'` delimiter.
+  Two spots keep deliberate word-splitting with a locally scoped
+  `# shellcheck disable=SC2086` and a reason: `deploy-terraform.yml`'s
+  `init-flag`, which may carry several flags. `parallelism`,
+  `apply-timeout-minutes` and `apply-retries` are quoted instead — they are
+  single values, and the plan step's one-element `PLAN_ARGS` became a quoted
+  `-var-file=` argument.
+  **No input signatures change and no summary output changes for ordinary
+  values.** Only values that previously broke shell quoting behave differently:
+  they are now rendered verbatim instead of executing or truncating the summary.
+  `scripts/tests/test-workflow-input-injection.sh` locks this in structurally —
+  it fails if any of the nine regains an `${{ inputs.* }}` reference in a `run:`
+  body or an unquoted heredoc delimiter, and asserts the `env:`+`printf` pattern
+  writes a `$(...)` value without executing it.
+
+---
+
 ## 2026-08-02
 
 ### ⚠ BREAKING

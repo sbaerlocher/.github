@@ -177,18 +177,28 @@ jobs:
       # Report folded from the old security-report job.
       - name: Generate Security Report
         if: always()
+        env:
+          IMAGE_REF: ${{ inputs.image-ref }}
+          REPOSITORY: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
+          TRIVY_OUTCOME: ${{ steps.trivy-image.outcome }}
+          GRYPE_OUTCOME: ${{ steps.grype-image.outcome }}
+          ANALYSIS_OUTCOME: ${{ steps.image-analysis.outcome }}
         run: |
+          set -euo pipefail
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          cat >> "$GITHUB_STEP_SUMMARY" << EOF
-          # Security — Container Image
-
-          **Timestamp:** $TIMESTAMP
-          **Image:** \`${{ inputs.image-ref }}\`
-          **Repository:** ${{ github.repository }} @ ${{ github.ref_name }}
-
-          | Scanner | Status |
-          | --- | --- |
-          | Trivy | ${{ steps.trivy-image.outcome }} |
-          | Grype | ${{ steps.grype-image.outcome }} |
-          | Image Analysis | ${{ steps.image-analysis.outcome }} |
-          EOF
+          # Values arrive via env: and are substituted by printf, not by the
+          # shell parsing the body — a value containing $(...) is written
+          # literally instead of being executed by the runner. The backticks in
+          # the format strings are literal Markdown, hence single quotes.
+          {
+            printf '# Security — Container Image\n\n'
+            printf '**Timestamp:** %s\n' "$TIMESTAMP"
+            # shellcheck disable=SC2016  # backticks are literal Markdown here
+            printf '**Image:** `%s`\n' "$IMAGE_REF"
+            printf '**Repository:** %s @ %s\n\n' "$REPOSITORY" "$REF_NAME"
+            printf '| Scanner | Status |\n| --- | --- |\n'
+            printf '| Trivy | %s |\n' "$TRIVY_OUTCOME"
+            printf '| Grype | %s |\n' "$GRYPE_OUTCOME"
+            printf '| Image Analysis | %s |\n' "$ANALYSIS_OUTCOME"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -190,9 +190,11 @@ jobs:
 
       - name: Run container structure tests
         if: inputs.enable-container-tests && inputs.container-test-config != '' && hashFiles(inputs.container-test-config) != ''
+        env:
+          TEST_IMAGE: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+          CONFIG_PATH: ${{ inputs.container-test-config }}
         run: |
-          TEST_IMAGE="${{ fromJSON(steps.meta.outputs.json).tags[0] }}"
-          CONFIG_PATH="${{ inputs.container-test-config }}"
+          set -euo pipefail
           echo "Running structure tests on: $TEST_IMAGE"
           echo "Using config: $CONFIG_PATH"
           docker run --rm \
@@ -221,25 +223,35 @@ jobs:
 
       - name: Image build summary
         if: always()
+        env:
+          REGISTRY: ${{ inputs.registry }}
+          IMAGE_NAME: ${{ inputs.image-name }}
+          PLATFORMS: ${{ inputs.platforms }}
+          PUSH: ${{ inputs.push }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          META_TAGS: ${{ steps.meta.outputs.tags }}
+          BUILD_DIGEST: ${{ steps.build.outputs.digest }}
         run: |
+          set -euo pipefail
+          # Values arrive via env: and are substituted by printf, not by the
+          # shell parsing the body — a value containing $(...) is written
+          # literally instead of being executed by the runner. The backticks in
+          # the format strings are literal Markdown, hence single quotes.
           {
-            echo "## Docker Build — ${{ inputs.registry }}/${{ inputs.image-name }}"
-            echo ""
-            echo "**Platforms:** ${{ inputs.platforms }}"
-            echo "**Push:** ${{ inputs.push }}"
-            echo "**Status:** ${{ steps.build.outcome }}"
-            echo ""
-            if [[ "${{ steps.build.outcome }}" == "success" ]]; then
-              echo "**Tags:**"
-              echo '```'
-              echo "${{ steps.meta.outputs.tags }}"
-              echo '```'
-              if [[ "${{ inputs.push }}" == "true" ]]; then
-                echo ""
-                echo "**Digest:** \`${{ steps.build.outputs.digest }}\`"
+            printf '## Docker Build — %s/%s\n\n' "$REGISTRY" "$IMAGE_NAME"
+            printf '**Platforms:** %s\n' "$PLATFORMS"
+            printf '**Push:** %s\n' "$PUSH"
+            printf '**Status:** %s\n\n' "$BUILD_OUTCOME"
+            if [ "$BUILD_OUTCOME" = "success" ]; then
+              printf '**Tags:**\n'
+              # META_TAGS is a newline-separated list; keep it as a block.
+              # shellcheck disable=SC2016  # backticks are literal Markdown here
+              printf '```\n%s\n```\n' "$META_TAGS"
+              if [ "$PUSH" = "true" ]; then
+                # shellcheck disable=SC2016  # backticks are literal Markdown here
+                printf '\n**Digest:** `%s`\n' "$BUILD_DIGEST"
               else
-                echo ""
-                echo "> Image built locally — not pushed to registry."
+                printf '\n> Image built locally — not pushed to registry.\n'
               fi
             fi
           } >> "$GITHUB_STEP_SUMMARY"

@@ -74,9 +74,11 @@ jobs:
       - name: Terraform Validation
         id: validation
         working-directory: ${{ inputs.working-directory }}
+        env:
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
         run: |
           echo "::group::Terraform Validation"
-          echo "Validating Terraform configuration in: ${{ inputs.working-directory }}"
+          echo "Validating Terraform configuration in: $WORKING_DIRECTORY"
 
           # Initialize Terraform without backend for validation
           terraform init -backend=false
@@ -127,8 +129,10 @@ jobs:
 
       - name: TFLint Run
         working-directory: ${{ inputs.working-directory }}
+        env:
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
         run: |
-          echo "Running TFLint in: ${{ inputs.working-directory }}"
+          echo "Running TFLint in: $WORKING_DIRECTORY"
           tflint --format compact
           echo "TFLint passed"
 

@@ -362,25 +362,38 @@ jobs:
       # runs; the others report `skipped` when their scan-* input is off.
       - name: Generate Security Report
         if: always()
+        env:
+          SEVERITY_THRESHOLD: ${{ inputs.severity-threshold }}
+          REPOSITORY: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
+          TRIVY_CONFIG_OUTCOME: ${{ steps.trivy-config-scan.outcome }}
+          SCAN_TERRAFORM: ${{ inputs.scan-terraform && 'yes' || 'no' }}
+          TERRAFORM_OUTCOME: ${{ steps.terraform-security.outcome }}
+          SCAN_KUBERNETES: ${{ inputs.scan-kubernetes && 'yes' || 'no' }}
+          KUBERNETES_OUTCOME: ${{ steps.kubernetes-security.outcome }}
+          SCAN_ANSIBLE: ${{ inputs.scan-ansible && 'yes' || 'no' }}
+          ANSIBLE_OUTCOME: ${{ steps.ansible-security.outcome }}
         run: |
+          set -euo pipefail
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
 
-          cat >> "$GITHUB_STEP_SUMMARY" << EOF
-          # Security — IaC Configuration
-
-          **Timestamp:** $TIMESTAMP
-          **Severity Threshold:** ${{ inputs.severity-threshold }}+
-          **Repository:** ${{ github.repository }} @ ${{ github.ref_name }}
-
-          | Scan | Enabled | Status |
-          | --- | --- | --- |
-          | Trivy Config | yes | ${{ steps.trivy-config-scan.outcome }} |
-          | Terraform | ${{ inputs.scan-terraform && 'yes' || 'no' }} | ${{ steps.terraform-security.outcome }} |
-          | Kubernetes | ${{ inputs.scan-kubernetes && 'yes' || 'no' }} | ${{ steps.kubernetes-security.outcome }} |
-          | Ansible | ${{ inputs.scan-ansible && 'yes' || 'no' }} | ${{ steps.ansible-security.outcome }} |
-
-          > Secret detection is handled separately by \`security-secrets.yml\`
-          EOF
+          # Values arrive via env: and are substituted by printf, not by the
+          # shell parsing the body — a value containing $(...) is written
+          # literally instead of being executed by the runner. The backticks in
+          # the format strings are literal Markdown, hence single quotes.
+          {
+            printf '# Security — IaC Configuration\n\n'
+            printf '**Timestamp:** %s\n' "$TIMESTAMP"
+            printf '**Severity Threshold:** %s+\n' "$SEVERITY_THRESHOLD"
+            printf '**Repository:** %s @ %s\n\n' "$REPOSITORY" "$REF_NAME"
+            printf '| Scan | Enabled | Status |\n| --- | --- | --- |\n'
+            printf '| Trivy Config | yes | %s |\n' "$TRIVY_CONFIG_OUTCOME"
+            printf '| Terraform | %s | %s |\n' "$SCAN_TERRAFORM" "$TERRAFORM_OUTCOME"
+            printf '| Kubernetes | %s | %s |\n' "$SCAN_KUBERNETES" "$KUBERNETES_OUTCOME"
+            printf '| Ansible | %s | %s |\n\n' "$SCAN_ANSIBLE" "$ANSIBLE_OUTCOME"
+            # shellcheck disable=SC2016  # backticks are literal Markdown here
+            printf '> Secret detection is handled separately by `security-secrets.yml`\n'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # continue-on-error on the trivy-config / terraform scanners only lets the
       # later sequential steps run; it must not swallow the fail-on-findings
@@ -390,14 +403,19 @@ jobs:
       # stay non-blocking.
       - name: Enforce config-scan result
         if: always() && inputs.fail-on-findings
+        env:
+          TRIVY_CONFIG_OUTCOME: ${{ steps.trivy-config-scan.outcome }}
+          SCAN_TERRAFORM: ${{ inputs.scan-terraform }}
+          TERRAFORM_OUTCOME: ${{ steps.terraform-security.outcome }}
         run: |
+          set -euo pipefail
           fail=0
-          if [ "${{ steps.trivy-config-scan.outcome }}" = "failure" ]; then
+          if [ "$TRIVY_CONFIG_OUTCOME" = "failure" ]; then
             echo "::error::Trivy config scan found issues at/above the severity threshold"
             fail=1
           fi
-          if [ "${{ inputs.scan-terraform }}" = "true" ] \
-             && [ "${{ steps.terraform-security.outcome }}" = "failure" ]; then
+          if [ "$SCAN_TERRAFORM" = "true" ] \
+             && [ "$TERRAFORM_OUTCOME" = "failure" ]; then
             echo "::error::Terraform security scan found issues at/above the severity threshold"
             fail=1
           fi
