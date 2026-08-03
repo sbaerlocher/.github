@@ -95,21 +95,63 @@ CASE_PATTERN="$(sed -n 's/^ *\(\[A-Za-z_\]\*=\*\))$/\1/p' "$RELEASE_GO")"
 CR_LINE="$(sed -n 's/^ *if \(\[ "\$line" != .*\]\); then$/\1/p' "$RELEASE_GO")"
 [ -n "$CR_LINE" ] || fail "no extra-env CR test found"
 
+# Both case arms test the name the same way, so the first match is the shared
+# condition; `head -1` keeps the eval below a single expression.
 # shellcheck disable=SC2016 # the $name text is matched literally in the YAML
-NAME_LINE="$(sed -n 's/^ *if \(\[ "\$name" != .*\]\); then$/\1/p' "$RELEASE_GO")"
+NAME_LINE="$(sed -n 's/^ *if \(\[ "\$name" != "\${name\/\/\[^A-Za-z0-9_\]\/}" \]\).*; then$/\1/p' \
+  "$RELEASE_GO" | head -1)"
 [ -n "$NAME_LINE" ] || fail "no extra-env identifier test found"
+
+# The delimiter arm, so the documented `NAME<<EOF` form stays covered here too.
+# The workflow quotes `<<` inside the glob; the quotes only make it literal,
+# which it already is in a pattern, so they are dropped for the replay below —
+# left in, `case` would match them as characters and every block would fail.
+DELIM_PATTERN="$(sed -n "s/^ *\(\[A-Za-z_\]\*'<<'\*\))$/\1/p" "$RELEASE_GO" |
+  tr -d "'")"
+[ -n "$DELIM_PATTERN" ] || fail "no extra-env delimiter pattern found"
+
+# An unterminated block must be rejected after the loop. The replay below models
+# that, so the assertion has to come from the workflow — otherwise dropping the
+# workflow's check would leave the replay's own copy green.
+# The same `[ -n "$delim" ]` test also guards the in-loop body skip, so the
+# check is located by its error message and then verified to be a real test
+# followed by an abort — grepping the bare condition would match the in-loop
+# one and stay green while the post-loop check was disabled.
+# shellcheck disable=SC2016 # the $delim text is matched literally in the YAML
+UNTERM_LINE="$(grep -n '^ *echo "Error: extra-env has an unterminated \$delim block" >&2$' \
+  "$RELEASE_GO" | cut -d: -f1 || true)"
+[ -n "$UNTERM_LINE" ] || fail "no extra-env unterminated-block check found"
+[ "$(grep -c . <<<"$UNTERM_LINE")" -eq 1 ] ||
+  fail "expected exactly one extra-env unterminated-block check"
+# shellcheck disable=SC2016 # the $delim text is matched literally in the YAML
+sed -n "$((UNTERM_LINE - 1))p" "$RELEASE_GO" | grep -q '^ *if \[ -n "\$delim" \]; then$' ||
+  fail "extra-env unterminated-block check is not guarded by a delim test"
+sed -n "$((UNTERM_LINE + 1))p" "$RELEASE_GO" | grep -q '^ *exit 1$' ||
+  fail "extra-env unterminated-block check does not abort"
 
 # Replays the workflow's per-line loop using the conditions read above.
 # Returns 0 when every line is accepted, 1 when one is rejected.
 run_extra_env_guard() {
-  local line name
+  local line name delim=''
   while IFS= read -r line; do
-    [ -z "$line" ] && continue
     if eval "$CR_LINE"; then
       return 1
     fi
-    # shellcheck disable=SC2254 # $CASE_PATTERN is the workflow's glob, by design
+    if [ -n "$delim" ]; then
+      [ "$line" = "$delim" ] && delim=''
+      continue
+    fi
+    [ -z "$line" ] && continue
+    # shellcheck disable=SC2254 # the patterns are the workflow's globs, by design
     case "$line" in
+    $DELIM_PATTERN)
+      # shellcheck disable=SC2034 # $name is read by the guard inside the eval
+      name=${line%%<<*}
+      delim=${line#*<<}
+      if eval "$NAME_LINE" || [ -z "$delim" ]; then
+        return 1
+      fi
+      ;;
     $CASE_PATTERN)
       # shellcheck disable=SC2034 # $name is read by the guard inside the eval
       name=${line%%=*}
@@ -122,7 +164,8 @@ run_extra_env_guard() {
       ;;
     esac
   done <<<"$1"
-  return 0
+  # An unterminated block is rejected, matching the check after the loop.
+  [ -z "$delim" ]
 }
 
 accept_env() {
@@ -145,6 +188,17 @@ accept_env "value containing an equals sign" 'FLAGS=-X=main.version=1.2.3'
 accept_env "value with spaces and shell metacharacters" 'ARGS=a b $`|;&'
 accept_env "value containing a literal backslash-n" 'LITERAL=a\nb'
 accept_env "value containing a tab" "$(printf 'TABBED=a\tb')"
+# The delimiter form documented for $GITHUB_ENV — the reason a blanket
+# "every line is an assignment" rule would have been a breaking change.
+accept_env "delimiter block" "$(printf 'JSON_CONFIG<<EOF\n{"a": 1}\nEOF')"
+accept_env "delimiter block with a blank body line" \
+  "$(printf 'LDFLAGS<<EOF\n-X main.a=1\n\n-X main.b=2\nEOF')"
+accept_env "delimiter body that looks like garbage" \
+  "$(printf 'BLOB<<EOF\nnot an assignment\n  indented\nEOF')"
+accept_env "assignment after a closed delimiter block" \
+  "$(printf 'A<<EOF\nbody\nEOF\nB=2')"
+accept_env "two delimiter blocks" \
+  "$(printf 'A<<EOF\nx\nEOF\nB<<END\ny\nEND')"
 
 reject_env "line without an equals sign" 'PATH /tmp/evil'
 reject_env "second line without an equals sign" "$(printf 'A=1\nnot an assignment')"
@@ -155,6 +209,12 @@ reject_env "name containing a shell metacharacter" 'BAD$NAME=x'
 reject_env "leading equals sign" '=orphan'
 reject_env "carriage return in a value" "$(printf 'A=a\rPATH=/tmp/evil')"
 reject_env "CRLF between assignments" "$(printf 'A=1\r\nB=2')"
+reject_env "unterminated delimiter block" "$(printf 'A<<EOF\nbody')"
+reject_env "delimiter block with an empty delimiter" "$(printf 'A<<\nbody')"
+reject_env "delimiter name that is not an identifier" "$(printf 'BAD NAME<<EOF\nx\nEOF')"
+reject_env "garbage after a closed delimiter block" \
+  "$(printf 'A<<EOF\nbody\nEOF\nnot an assignment')"
+reject_env "CR inside a delimiter body" "$(printf 'A<<EOF\nx\ry\nEOF')"
 
 # --- deploy-terraform.yml: single values, per-value LF/CR reject -------------
 
@@ -165,11 +225,11 @@ guard_above_write "$DEPLOY_TF" \
   'R2 credential'
 
 # The mapping guard shares its condition with the R2 loop above, so the grep
-# anchors on the `$dst` message that only the mapping one carries — matching the
-# bare condition would find both and the count assertion would trip.
-# shellcheck disable=SC2016 # the $dst text is matched literally in the YAML
+# anchors on the name loop that only the mapping one carries — matching the bare
+# condition would find both and the count assertion would trip.
+# shellcheck disable=SC2016 # the $src text is matched literally in the YAML
 guard_above_write "$DEPLOY_TF" \
-  '^ *echo "Error: multi-line value for \$dst is not supported" >&2$' \
+  '^ *for name in "\$src" "\$dst"; do$' \
   '^ *\[ -n "\$value" \] && echo "\$dst=\$value" >> "\$GITHUB_ENV"$' \
   'env-mapping value'
 
@@ -234,27 +294,55 @@ reject_value "newline carrying a complete assignment" \
 reject_value "carriage return in the access key" "$(printf 'a\rPATH=/tmp/evil')" secret token
 reject_value "CRLF in the Bitwarden token" key secret "$(printf 'a\r\nb')"
 
-# The identifier check on the mapping target. `xargs` strips whitespace but
-# passes through a name that is not an identifier.
-# shellcheck disable=SC2016 # the $dst text is matched literally in the YAML
-DST_LINE="$(sed -n 's/^ *if \(\[ -z "\$dst" \].*\); then$/\1/p' "$DEPLOY_TF")"
-[ -n "$DST_LINE" ] || fail "no env-mapping target identifier test found"
+# The identifier check on both mapping names. `xargs` strips whitespace but does
+# not expand, so a name reaches the loop intact — and bash evaluates an array
+# subscript inside `${!src}` as an arithmetic expression, which performs command
+# substitution. Both names must therefore be checked, and checked *before* the
+# expansion; a guard that only covered `dst`, or that ran after `value=`, would
+# leave that path open.
+# The reject arm is read whole and replayed via `eval`, not substituted into a
+# `case` as a variable: an expanded variable's `|` is not a pattern separator,
+# so an alternation would collapse into one literal pattern and match nothing.
+NAME_PATTERN="$(sed -n "s/^ *\('' | \[0-9\]\* | \*\[!A-Za-z0-9_\]\*\))$/\1/p" "$DEPLOY_TF")"
+[ -n "$NAME_PATTERN" ] || fail "no env-mapping name reject pattern found"
+[ "$(grep -c . <<<"$NAME_PATTERN")" -eq 1 ] ||
+  fail "expected exactly one env-mapping name reject pattern"
 
-run_dst_guard() {
-  # shellcheck disable=SC2034 # $dst is read by the guard inside the eval below
-  local dst="$1"
-  if eval "$DST_LINE"; then
-    return 1
-  fi
-  return 0
+# shellcheck disable=SC2016 # the $src text is matched literally in the YAML
+NAME_LOOP="$(grep -n '^ *for name in "\$src" "\$dst"; do$' "$DEPLOY_TF" | cut -d: -f1 || true)"
+[ -n "$NAME_LOOP" ] || fail "no env-mapping name guard covering both names found"
+
+# shellcheck disable=SC2016 # the ${!src} text is matched literally in the YAML
+EXPANSION="$(grep -n '^ *value="\${!src}"$' "$DEPLOY_TF" | cut -d: -f1 || true)"
+[ -n "$EXPANSION" ] || fail "no env-mapping indirect expansion found"
+[ "$NAME_LOOP" -lt "$EXPANSION" ] ||
+  fail "env-mapping name guard is at line $NAME_LOOP, below the expansion at $EXPANSION"
+
+# Returns 0 when the name is accepted, 1 when the workflow's arm rejects it.
+# `eval` on a pattern just read from a tracked file in this repo, not on input.
+run_name_guard() {
+  # shellcheck disable=SC2034 # $name is read by the case inside the eval below
+  local name="$1" rejected=1
+  eval "case \"\$name\" in
+  $NAME_PATTERN) rejected=0 ;;
+  esac"
+  [ "$rejected" -eq 1 ]
 }
 
-run_dst_guard 'TF_VAR_token' || fail "target guard rejects a legitimate name"
-run_dst_guard 'A1_b2' || fail "target guard rejects a legitimate name with digits"
-run_dst_guard '' && fail "target guard accepts an empty name"
-run_dst_guard 'BAD NAME' && fail "target guard accepts a name with a space"
-run_dst_guard 'BAD-NAME' && fail "target guard accepts a name with a dash"
-# shellcheck disable=SC2016 # the metacharacter is the test value, unexpanded
-run_dst_guard 'BAD$NAME' && fail "target guard accepts a name with a metacharacter"
+# Guard the extraction itself: a capture that swallowed the wrong `)` would
+# yield a pattern matching nothing, and every reject case below would pass
+# vacuously while only the accept cases failed.
+run_name_guard 'Ab' || fail "env-mapping name pattern extracted wrong: [$NAME_PATTERN]"
+run_name_guard 'X' || fail "name guard rejects a single-character name"
+
+run_name_guard 'TF_VAR_token' || fail "name guard rejects a legitimate name"
+run_name_guard 'A1_b2' || fail "name guard rejects a legitimate name with digits"
+run_name_guard '' && fail "name guard accepts an empty name"
+run_name_guard 'BAD NAME' && fail "name guard accepts a name with a space"
+run_name_guard 'BAD-NAME' && fail "name guard accepts a name with a dash"
+run_name_guard '1LEADING' && fail "name guard accepts a name starting with a digit"
+# The indirect-expansion payload the name guard exists to stop.
+# shellcheck disable=SC2016 # the subscript is the test value, unexpanded
+run_name_guard 'x[$(id)]' && fail "name guard accepts an array-subscript payload"
 
 echo "PASS: release-go.yml and deploy-terraform.yml \$GITHUB_ENV guards"

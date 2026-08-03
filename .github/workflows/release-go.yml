@@ -100,21 +100,39 @@ jobs:
           EXTRA_ENV: ${{ inputs.extra-env }}
         run: |
           set -euo pipefail
-          # $GITHUB_ENV is line-based, and `extra-env` is a multi-line
-          # KEY=VALUE list, so its own newlines are legitimate separators
-          # rather than injection. What has to be rejected is a line that is
-          # not a KEY=VALUE assignment: a value carrying a CR splits the
-          # entry on the runner's .NET-side line reader, and a line without a
-          # `=` or with a name that is not a shell identifier is not an
-          # assignment the caller could have meant. Either way the entry
-          # reaching every following step is not the one that was declared.
+          # $GITHUB_ENV is line-based, and `extra-env` is a multi-line list,
+          # so its own newlines are legitimate separators rather than
+          # injection. What is checked is the shape of each line: a line that
+          # is neither a `KEY=VALUE` assignment nor part of a `NAME<<DELIM`
+          # block is not an entry the caller could have declared, and a CR
+          # splits the entry on the runner's .NET-side line reader.
+          #
+          # The delimiter form documented for $GITHUB_ENV is accepted, since
+          # it is how a caller passes a multi-line ldflags block or a JSON
+          # blob. Inside such a block the body is opaque by definition and is
+          # not validated — only the terminator is required, and a body line
+          # equal to the delimiter closes the block, exactly as the runner
+          # reads it.
+          delim=''
           while IFS= read -r line; do
-            [ -z "$line" ] && continue
             if [ "$line" != "${line//$'\r'/}" ]; then
               echo "Error: extra-env lines must not contain a CR byte" >&2
               exit 1
             fi
+            if [ -n "$delim" ]; then
+              [ "$line" = "$delim" ] && delim=''
+              continue
+            fi
+            [ -z "$line" ] && continue
             case "$line" in
+            [A-Za-z_]*'<<'*)
+              name=${line%%<<*}
+              delim=${line#*<<}
+              if [ "$name" != "${name//[^A-Za-z0-9_]/}" ] || [ -z "$delim" ]; then
+                echo "Error: extra-env name is not a valid identifier: $name" >&2
+                exit 1
+              fi
+              ;;
             [A-Za-z_]*=*)
               name=${line%%=*}
               if [ "$name" != "${name//[^A-Za-z0-9_]/}" ]; then
@@ -128,6 +146,10 @@ jobs:
               ;;
             esac
           done <<< "$EXTRA_ENV"
+          if [ -n "$delim" ]; then
+            echo "Error: extra-env has an unterminated $delim block" >&2
+            exit 1
+          fi
           echo "$EXTRA_ENV" >> "$GITHUB_ENV"
 
       - name: Create release with GoReleaser

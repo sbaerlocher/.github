@@ -229,19 +229,30 @@ jobs:
               [ -z "$line" ] && continue
               src=$(echo "$line" | awk -F'>' '{print $1}' | xargs)
               dst=$(echo "$line" | awk -F'>' '{print $2}' | xargs)
+              # Both names are checked before `${!src}` runs. `xargs` strips
+              # whitespace but does not expand, so a name survives it intact —
+              # and bash evaluates an array subscript inside `${!name}` as an
+              # arithmetic expression, which performs command substitution. A
+              # `src` of `x[$(...)]` would therefore execute in a step that has
+              # already loaded the R2 keys and the Bitwarden token. Validating
+              # after the expansion would be too late, so this runs first.
+              # Stated as what is rejected, so a one-character name like `X`
+              # stays valid — an "identifier" glob spelled as first-char plus
+              # rest silently requires two characters.
+              for name in "$src" "$dst"; do
+                case "$name" in
+                '' | [0-9]* | *[!A-Za-z0-9_]*)
+                  echo "Error: env-mapping name is not a valid identifier" >&2
+                  exit 1
+                  ;;
+                esac
+              done
               value="${!src}"
               # Same line-based sink as above: the mapped value comes from a
               # Bitwarden secret, so a newline in it would inject entries for
-              # every following step. The target name is checked too — `xargs`
-              # strips whitespace but would happily pass through a `dst` that
-              # is not an identifier, which is not an assignment the mapping
-              # could have meant.
+              # every following step.
               if [ "$value" != "${value//[$'\n\r']/}" ]; then
                 echo "Error: multi-line value for $dst is not supported" >&2
-                exit 1
-              fi
-              if [ -z "$dst" ] || [ "$dst" != "${dst//[^A-Za-z0-9_]/}" ]; then
-                echo "Error: env-mapping target is not a valid identifier: $dst" >&2
                 exit 1
               fi
               [ -n "$value" ] && echo "$dst=$value" >> "$GITHUB_ENV"
