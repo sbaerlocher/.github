@@ -18,6 +18,23 @@
         "'[^:'\\n]+:(?<currentValue>[^'@\\n]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?'"
       ],
       "autoReplaceStringTemplate": "'{{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}'"
+    },
+    {
+      "customType": "regex",
+      "description": "Track the actionlint container tag used by the justfile lint recipe",
+      "managerFilePatterns": ["/(^|/)justfile$/"],
+      "matchStrings": [
+        "actionlint_image\\s*:=\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^\"@]+)\""
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Track the prettier version used by the justfile fmt and fmt-check recipes",
+      "managerFilePatterns": ["/(^|/)justfile$/"],
+      "matchStrings": ["prettier_version\\s*:=\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "prettier",
+      "datasourceTemplate": "npm"
     }
   ],
   "packageRules": [

@@ -22,6 +22,25 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ## 2026-08-03
 
+### Fixed
+
+- **The two justfile `customManagers` moved from `.github/renovate.json` to the
+  root `renovate.json`, and `.github/renovate.json` is deleted.** Renovate reads
+  the first config file it finds and checks `renovate.json{,c,5}` before
+  `.github/renovate.json{,c,5}`, so with the root file present the `.github/`
+  one was never evaluated: the managers tracking `actionlint_image` and
+  `prettier_version` in the `justfile` had never run, and both pins were stale
+  while the surrounding comments claimed Renovate kept them current. The
+  managers are now in the root file where they take effect, the comments name
+  the right file, and `actionlint_image` is bumped `1.7.7` → `1.7.12` so the
+  docker manager starts from the current tag. `prettier_version` was already at
+  the latest release (`3.9.6`) and is unchanged. `just lint` no longer passes
+  the removed file to `jq empty`. The precedence rule is now written down under
+  "Renovate Preset Conventions" in `AGENTS.md` — this is the second time a
+  manager was placed in the shadowed file. Local-only change; no reusable
+  workflow, action or shared preset is affected, and consumer repos see no
+  behaviour change.
+
 ### Changed
 
 - **Nine more workflows pass caller inputs through `env:` instead of
