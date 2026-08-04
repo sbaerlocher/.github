@@ -86,6 +86,19 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   asserts the suite exists, so an empty collection fails rather than reporting
   green). `python-version` now selects the interpreter for both `validate-yaml`
   and this job. Opt in per repository.
+- **`ai-claude-review.yml` no longer lets the reviewer describe machines it
+  cannot see.** A review claimed one tool was missing and another installed at
+  a specific path on the build host, with both statements matching the hosted
+  runner instead — the inverse of what the host actually had, turning a correct
+  pull request into a `CHANGES_REQUESTED` verdict. The runner is not the machine
+  a pull request talks about, so its tool inventory says nothing about the
+  developer or build host. Two independent measures, because the job log had
+  already expired and the cause could not be pinned down: a new environment
+  section in the prompt scopes tool-availability claims to the
+  repository's own documentation, workflow files and hook configuration, and a
+  `--disallowedTools` entry blocks `which`, `command`, `whereis` and `type`
+  outright. The prompt rule covers the reviewer asserting an inventory it never
+  measured; the deny list covers the allowlist letting a probe through.
 - **`ci-gitops.yml` and both Go workflows fall under the injection guard.**
   `scripts/tests/test-workflow-input-injection.sh` asserts structurally that no
   caller-controlled `${{ }}` reaches a `run:` body. `ci-go.yml` and
