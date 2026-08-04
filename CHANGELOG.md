@@ -53,6 +53,19 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### Details
 
+- **`ci-gitops.yml` gained an opt-in `validate-python` job.** GitOps consumers'
+  pytest suites ran only in a local `pre-push` hook — opt-in via
+  `lefthook install`, and bypassed by `--no-verify`, web-UI edits and bot
+  branches. New inputs: `enable-python-tests` (default `false`, so existing
+  callers are unaffected), `python-test-paths` (default `scripts`),
+  `python-test-requirements` (default `pytest pyyaml`) and
+  `allow-no-python-tests` (default `false` — a caller that enables the job
+  asserts the suite exists, so an empty collection fails rather than reporting
+  green). `python-version` now selects the interpreter for both `validate-yaml`
+  and this job. Opt in per repository.
+- **`ci-gitops.yml` joined the injection guard's `MIGRATED` list.**
+  `scripts/tests/test-workflow-input-injection.sh` now covers every job in the
+  file, so a job added there later is guarded without a separate check.
 - **Both Go workflows joined the injection guard's `MIGRATED` list.**
   `scripts/tests/test-workflow-input-injection.sh` asserts structurally that no
   caller-controlled `${{ }}` reaches a `run:` body; `ci-go.yml` and

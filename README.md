@@ -79,7 +79,7 @@ All files live in [.github/workflows/](./.github/workflows/).
 | File                                                       | Purpose                                  |
 | ---------------------------------------------------------- | ---------------------------------------- |
 | [`ci-ansible.yml`](./.github/workflows/ci-ansible.yml)     | Ansible syntax & ansible-lint            |
-| [`ci-gitops.yml`](./.github/workflows/ci-gitops.yml)       | Fleet, Helm, kubeconform validation      |
+| [`ci-gitops.yml`](./.github/workflows/ci-gitops.yml)       | Fleet, Helm, kubeconform, pytest         |
 | [`ci-go.yml`](./.github/workflows/ci-go.yml)               | Build, test, golangci-lint, gosec        |
 | [`ci-js.yml`](./.github/workflows/ci-js.yml)               | Quality, tests, audit (multi-pm)         |
 | [`ci-terraform.yml`](./.github/workflows/ci-terraform.yml) | `terraform fmt`, validate, tflint, Trivy |
