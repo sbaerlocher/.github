@@ -76,6 +76,17 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   leaving the guard's coverage line claiming something the docs no longer said.
   The shared script buffers its output and exits non-zero on an unparseable
   workflow, so a partial classification is never mistaken for a complete one.
+- **`ci-gitops.yml`'s `summary` job reports the real job results.** It printed
+  five fixed lines including `All validation checks completed!` without ever
+  reading `needs.*.result`, so a run in which every needed job failed still
+  told anyone reading the job that validation had passed. It now writes a
+  Markdown table of all eight results to `$GITHUB_STEP_SUMMARY`, the same shape
+  `ci-js.yml` already used. Results are printed verbatim — `skipped` means
+  either the job's `enable-*` input is off or `validate-yaml` failed, and the
+  table does not distinguish the two. The job stays exit 0 and is still not a
+  gate; a failed job fails the called run and therefore the caller's job.
+  Consumer-visible only in where the output appears: the stdout log lines move
+  to the run's step summary.
 - **`ci-gitops.yml` gained an opt-in `validate-python` job.** GitOps consumers'
   pytest suites ran only in a local `pre-push` hook — opt-in via
   `lefthook install`, and bypassed by `--no-verify`, web-UI edits and bot
