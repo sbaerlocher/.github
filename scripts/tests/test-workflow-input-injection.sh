@@ -30,6 +30,7 @@ fail() {
 
 # The workflows this migration covers.
 MIGRATED=(
+  ci-gitops.yml
   ci-go.yml
   ci-js.yml
   ci-terraform.yml

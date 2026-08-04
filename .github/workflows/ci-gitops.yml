@@ -8,7 +8,10 @@ on:
   workflow_call:
     inputs:
       python-version:
-        description: 'Python version for yamllint'
+        description: |
+          Python version used by both `validate-yaml` (yamllint) and
+          `validate-python` (pytest). Shared deliberately — one interpreter per
+          repo — so bumping it moves the test runner too.
         type: string
         required: false
         default: '3.14'
@@ -129,6 +132,19 @@ on:
         type: string
         required: false
         default: 'pytest pyyaml'
+      allow-no-python-tests:
+        description: |
+          Treat "no tests collected" (pytest exit 5) as success instead of a
+          failure. Default `false`: a caller that sets `enable-python-tests`
+          asserts the suite exists, so an empty collection is a configuration
+          error — a renamed test file or a broken `conftest.py` would otherwise
+          report green, which is the silent pass this job exists to close.
+
+          Same "nothing to validate" question as `require-gitrepo-file`, and
+          resolved the same way: strict by default, tolerance is opt-in.
+        type: boolean
+        required: false
+        default: false
       fleet-paths:
         description: |
           Space-separated paths to search for fleet.yaml files.
@@ -663,7 +679,15 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-pytest-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml') }}
+          # The requirements list is part of the key: the target repos have no
+          # requirements file, so a hashFiles()-only key would collapse to one
+          # constant for every caller — and cache entries are immutable, so the
+          # first run's entry would be pinned forever while two callers with
+          # different requirements shared it.
+          key: >-
+            ${{ runner.os }}-pip-pytest-${{
+              hashFiles('**/requirements*.txt', '**/pyproject.toml')
+            }}-${{ inputs.python-test-requirements }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
@@ -681,30 +705,48 @@ jobs:
         env:
           # Same word-splitting contract as above.
           TEST_PATHS: ${{ inputs.python-test-paths }}
+          ALLOW_NO_TESTS: ${{ inputs.allow-no-python-tests }}
           # `-q` keeps the log readable; failures print in full regardless.
           PYTEST_ADDOPTS: '-q'
         run: |
           set -euo pipefail
+          # Empty or whitespace-only word-splits to nothing, which would leave a
+          # bare `pytest` collecting the whole checkout instead of the given
+          # paths. `set -u` does not catch it — empty is not unset.
+          if [ -z "${TEST_PATHS//[[:space:]]/}" ]; then
+            echo "::error::python-test-paths is empty; pass at least one path"
+            exit 1
+          fi
           # A path that does not exist is a caller configuration error, not
           # "nothing to test" — pytest would exit 4 with a usage error that
           # reads like an infrastructure fault. Say so plainly instead.
+          # `${path}` needs no newline guard below: it comes out of default-IFS
+          # word splitting, which cannot leave a newline inside it.
           for path in ${TEST_PATHS}; do
             if [ ! -e "$path" ]; then
               echo "::error::python-test-paths entry not found: ${path}"
               exit 1
             fi
           done
-          # Collecting nothing exits 5. That is green here: a repo can enable
-          # the job before its first test exists, and the paths were just
-          # checked, so exit 5 means "no tests yet", not "tests went missing".
           set +e
           # shellcheck disable=SC2086  # must split into one word per path
           python3 -m pytest ${TEST_PATHS}
           status=$?
           set -e
+          # Collecting nothing exits 5. Strict by default: the paths above all
+          # exist, so an empty collection means the tests stopped being found
+          # (renamed file, broken conftest.py), not that there are none.
           if [ "$status" -eq 5 ]; then
-            echo "::notice::No tests collected under: ${TEST_PATHS}"
-            exit 0
+            if [ "$ALLOW_NO_TESTS" = "true" ]; then
+              # Unsplit value reaching a `::` sink: strip at the first newline
+              # so it cannot smuggle a second workflow command, as the
+              # gitrepo-file notices in this file do.
+              echo "::notice::No tests collected under: ${TEST_PATHS%%$'\n'*}"
+              exit 0
+            fi
+            echo "::error::No tests collected under: ${TEST_PATHS%%$'\n'*}"
+            echo "::error::Set allow-no-python-tests to treat this as success."
+            exit 1
           fi
           exit "$status"
 

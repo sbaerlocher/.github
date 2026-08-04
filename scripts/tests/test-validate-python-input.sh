@@ -11,9 +11,11 @@
 #      defaults to `false` — unlike every other `enable-*` here — so existing
 #      callers do not get a job they never asked for and a repo without Python
 #      tests does not turn red on upgrade.
-#   2. The job exists, is gated on that input, and interpolates no `inputs.*`
-#      into a `run:` body (same class of hole as test-workflow-input-injection.sh
-#      closes for the other workflows).
+#   2. The job exists and is gated on that input, with a credential-less
+#      checkout. The `inputs.*`-in-a-`run:`-body hole is *not* re-checked here:
+#      `ci-gitops.yml` is in the MIGRATED list of
+#      test-workflow-input-injection.sh, which covers every job in the file
+#      rather than this one, so a job added here later stays guarded.
 #   3. `summary.needs` lists the job. `summary` runs with `if: always()` and is
 #      what the branch protection reads; a job missing from `needs` still runs,
 #      but its red never reaches the gate — green PR, failing tests.
@@ -59,6 +61,10 @@ EXPECTED = {
     "enable-python-tests": ("boolean", False),
     "python-test-paths": ("string", "scripts"),
     "python-test-requirements": ("string", "pytest pyyaml"),
+    # Strict by default: an empty collection is a configuration error unless the
+    # caller opts out. Flipping this default would turn a suite that stopped
+    # being collected back into a silent green.
+    "allow-no-python-tests": ("boolean", False),
 }
 
 def norm(value):
@@ -112,16 +118,6 @@ else:
         errors.append("job `validate-python`: no actions/checkout step")
     elif (checkout.get("with") or {}).get("persist-credentials") is not False:
         errors.append("job `validate-python`: checkout needs `persist-credentials: false`")
-
-    # The actual hardening: a caller-supplied value substituted into a `run:`
-    # body is text before the shell sees it, so it can close a quote and execute.
-    # Values must travel via `env:` and be referenced as shell variables.
-    for step in steps:
-        if "inputs." in str(step.get("run", "")):
-            errors.append(
-                f"job `validate-python`: step {step.get('name', '?')!r} "
-                "interpolates inputs.* into a run: body — pass it via env:"
-            )
 
 # 3 — the gate. `needs` accepts a string or a list; both are checked so a
 # single-entry rewrite cannot slip past.

@@ -24,8 +24,9 @@ default:
 # 34 were plain unquoted `$GITHUB_OUTPUT` / `$GITHUB_ENV` redirects and an
 # unquoted `${BINARY_NAME}` — ordinary defects, not deliberate splitting, and
 # inconsistent with the 40 sites that already quoted the same redirect. Those
-# are fixed. The 5 genuinely deliberate sites are all in ci-gitops.yml, where
-# fleet-paths and the yamllint `-c <file>` argument must word-split, and each
+# are fixed. The 7 genuinely deliberate sites are all in ci-gitops.yml, where
+# fleet-paths, the yamllint `-c <file>` argument, python-test-paths and
+# python-test-requirements must word-split, and each
 # now carries a local `# shellcheck disable=SC2086` naming the reason. The
 # class therefore catches new occurrences again.
 #
