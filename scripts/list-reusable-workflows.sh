@@ -28,6 +28,15 @@ if [ -z "$DIR" ]; then
   exit 2
 fi
 
+# A typo'd mode must not fall through to the other output form: a caller asking
+# for bare basenames would silently parse tab-separated lines instead, which is
+# the same "quietly returns something other than what was asked for" the buffered
+# output below exists to prevent.
+if [ -n "$MODE" ] && [ "$MODE" != "--reusable" ]; then
+  echo "${0##*/}: unknown option '$MODE' (expected --reusable)" >&2
+  exit 2
+fi
+
 command -v python3 >/dev/null 2>&1 || {
   echo "python3 required to parse the workflow YAML" >&2
   exit 1
