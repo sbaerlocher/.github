@@ -5,11 +5,18 @@
 # (`<< EOF`) the body is expanded too, so a value reaching a step summary that
 # way executes as well.
 #
-# The workflows below were migrated to pass such values through `env:` and
-# reference them as shell variables. This asserts the migration holds: no
-# interpolated caller-controlled value left in a `run:` body — block-scalar,
-# folded or single-line — and no unquoted heredoc delimiter. It is a structural
-# check on the YAML, so a regression fails here rather than on a runner.
+# Reusable workflows pass such values through `env:` and reference them as shell
+# variables. This asserts that holds: no interpolated caller-controlled value
+# left in a `run:` body — block-scalar, folded or single-line — and no unquoted
+# heredoc delimiter. It is a structural check on the YAML, so a regression fails
+# here rather than on a runner.
+#
+# The checked set is *derived* from the `workflow_call` trigger, not maintained
+# as a list. An allow-list inverts the guard: a workflow absent from it is
+# unchecked by default, and the reason for its absence tends to be the very
+# defect the guard exists to catch (PR #299 — two workflows sat outside the list
+# exactly as long as they were unsafe). Deriving it means a new reusable
+# workflow is covered the day it lands.
 #
 # A value that merely *travels* through `env:` is not automatically safe: it can
 # leave a step again as a workflow-level output and be interpolated downstream,
@@ -28,25 +35,61 @@ fail() {
   exit 1
 }
 
-# The workflows this migration covers.
-MIGRATED=(
-  ci-gitops.yml
-  ci-go.yml
-  ci-js.yml
-  ci-terraform.yml
-  deploy-cloudflare-workers.yml
-  deploy-terraform.yml
-  e2e-docker.yml
-  release-docker.yml
-  release-go.yml
-  release-npm.yml
-  security-code.yml
-  security-config.yml
-  security-containers.yml
-  security-deps.yml
-  security-sbom.yml
-  security-secrets.yml
+command -v python3 >/dev/null 2>&1 || fail "python3 required to parse the workflow YAML"
+
+# Workflows excluded from the check, each with the reason inline. An exception is
+# a deliberate, argued carve-out — not a parking space for an unreviewed
+# workflow. Both entries below build a heredoc body out of values that already
+# arrived via `env:`; the expansion is the point, so quoting the delimiter would
+# break them, and rule 2 has no way to tell that apart from the unsafe case.
+EXCEPTIONS=(
+  ops-drift-issue.yml      # issue body + delta comment expand env-passed values
+  ops-terraform-report.yml # deployment-metadata.json expands env-passed values
 )
+
+# The reusable set, derived from the `workflow_call` trigger. Classification runs
+# on the parsed `on:` mapping rather than a grep for the bare token, which also
+# appears in prose comments — same approach as scripts/tests/test-workflow-counts.sh.
+REUSABLE_FILES=()
+while IFS= read -r name; do
+  [ -n "$name" ] && REUSABLE_FILES+=("$name")
+done < <(
+  python3 - "$WORKFLOWS" <<'PY'
+import os, sys, glob, yaml
+
+workflows = sys.argv[1]
+paths = sorted(glob.glob(os.path.join(workflows, "*.yml")) +
+               glob.glob(os.path.join(workflows, "*.yaml")))
+
+for path in paths:
+    with open(path) as fh:
+        doc = yaml.safe_load(fh) or {}
+    # YAML 1.1 resolves an unquoted `on:` key to the boolean True.
+    triggers = doc.get("on", doc.get(True))
+    # All three trigger spellings count: the block mapping (`on:\n  workflow_call:`),
+    # the flow sequence (`on: [workflow_call]`) and the bare scalar
+    # (`on: workflow_call`). Accepting only the mapping would undercount.
+    if isinstance(triggers, (dict, list)):
+        reusable = "workflow_call" in triggers
+    else:
+        reusable = triggers == "workflow_call"
+    if reusable:
+        print(os.path.basename(path))
+PY
+) || fail "could not parse the workflow files"
+
+[ ${#REUSABLE_FILES[@]} -gt 0 ] || fail "no reusable workflows found in $WORKFLOWS"
+
+# A stale exception is a silent hole: the workflow it named is gone or no longer
+# reusable, so the carve-out protects nothing while still reading as reviewed.
+for exc in "${EXCEPTIONS[@]}"; do
+  found=0
+  for wf in "${REUSABLE_FILES[@]}"; do
+    [ "$wf" = "$exc" ] && found=1 && break
+  done
+  [ "$found" -eq 1 ] ||
+    fail "EXCEPTIONS lists '$exc', which is not a reusable workflow — drop the entry"
+done
 
 # Print every line inside a `run:` body, as "<line-number>:<text>".
 # Block scalars (`run: |`, `run: >`) open a block; a single-line `run: cmd` is a
@@ -88,9 +131,16 @@ run_block_lines() {
   ' "$1"
 }
 
-for wf in "${MIGRATED[@]}"; do
+CHECKED=0
+for wf in "${REUSABLE_FILES[@]}"; do
+  skip=0
+  for exc in "${EXCEPTIONS[@]}"; do
+    [ "$wf" = "$exc" ] && skip=1 && break
+  done
+  [ "$skip" -eq 0 ] || continue
+
   path="$WORKFLOWS/$wf"
-  [ -f "$path" ] || fail "$wf not found — update this test if it was renamed"
+  CHECKED=$((CHECKED + 1))
 
   # 1. No caller-controlled value interpolated into a shell body. `inputs.*` is
   #    the class this migration closed; `secrets.*` and `github.event.*` are the
@@ -138,4 +188,4 @@ IMAGE_REF="ghcr.io/org/app:\$(touch '$marker')" \
 grep -qF '$(touch' "$summary" ||
   fail "the env:+printf pattern dropped the literal value from the summary"
 
-echo "PASS: workflow inputs reach run: blocks via env: (${#MIGRATED[@]} workflows)"
+echo "PASS: workflow inputs reach run: blocks via env: ($CHECKED of ${#REUSABLE_FILES[@]} reusable workflows, ${#EXCEPTIONS[@]} exceptions)"
