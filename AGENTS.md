@@ -195,13 +195,13 @@ consumers have an escape hatch.
 
 **Purpose**: Validate code quality, tests, and security before merge
 
-| Workflow       | File               | Description               | Languages/Tools                 |
-| -------------- | ------------------ | ------------------------- | ------------------------------- |
-| CI (Ansible)   | `ci-ansible.yml`   | Ansible syntax & lint     | Ansible, ansible-lint           |
-| CI (GitOps)    | `ci-gitops.yml`    | Fleet & K8s validation    | Fleet, Helm, kubeconform        |
-| CI (Go)        | `ci-go.yml`        | Go build, test & security | Go, golangci-lint, gosec        |
-| CI (JS/TS)     | `ci-js.yml`        | Quality, tests & security | JS/TS, Prettier, ESLint, Vitest |
-| CI (Terraform) | `ci-terraform.yml` | Terraform validation      | Terraform, tflint               |
+| Workflow       | File               | Description               | Languages/Tools                  |
+| -------------- | ------------------ | ------------------------- | -------------------------------- |
+| CI (Ansible)   | `ci-ansible.yml`   | Ansible syntax & lint     | Ansible, ansible-lint            |
+| CI (GitOps)    | `ci-gitops.yml`    | Fleet & K8s validation    | Fleet, Helm, kubeconform, pytest |
+| CI (Go)        | `ci-go.yml`        | Go build, test & security | Go, golangci-lint, gosec         |
+| CI (JS/TS)     | `ci-js.yml`        | Quality, tests & security | JS/TS, Prettier, ESLint, Vitest  |
+| CI (Terraform) | `ci-terraform.yml` | Terraform validation      | Terraform, tflint                |
 
 **Key Features**:
 

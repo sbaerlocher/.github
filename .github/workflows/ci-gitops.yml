@@ -99,6 +99,36 @@ on:
         type: boolean
         required: false
         default: true
+      enable-python-tests:
+        description: |
+          Run the repository's pytest suite.
+
+          Defaults to `false`, unlike the other `enable-*` inputs here: the job
+          was added after the fact, so enabling it by default would hand every
+          existing caller a job it never asked for, and a repo without Python
+          tests would go red on nothing but the upgrade. Opt in per caller.
+        type: boolean
+        required: false
+        default: false
+      python-test-paths:
+        description: |
+          Space-separated paths to search for tests.
+          Expanded unquoted so the separate paths survive word splitting —
+          pass static caller configuration only, never event-controlled data.
+        type: string
+        required: false
+        default: 'scripts'
+      python-test-requirements:
+        description: |
+          Space-separated pip requirements installed before the tests run.
+          Expanded unquoted so the separate requirements survive word splitting —
+          pass static caller configuration only, never event-controlled data.
+
+          A plain list rather than a requirements file: the consumers have no
+          `pyproject.toml`, `requirements*.txt` or `pytest.ini` to point at.
+        type: string
+        required: false
+        default: 'pytest pyyaml'
       fleet-paths:
         description: |
           Space-separated paths to search for fleet.yaml files.
@@ -607,6 +637,77 @@ jobs:
 
           echo "All required documentation files present!"
 
+  validate-python:
+    name: Validate Python Tests
+    # Gate behind validate-yaml, like the other post-YAML jobs: the gate is
+    # conditional, so always()/!failure()/!cancelled() runs this job when the
+    # gate succeeds OR is skipped, and blocks only on a gate failure.
+    needs: [validate-yaml]
+    if: >-
+      always() && !failure() && !cancelled()
+      && inputs.enable-python-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-pytest-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install test requirements
+        env:
+          # Unquoted at the call site below so the separate requirements split
+          # into argv words; see the input description.
+          REQUIREMENTS: ${{ inputs.python-test-requirements }}
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2086  # must split into one word per requirement
+          pip install ${REQUIREMENTS}
+
+      - name: Run pytest
+        env:
+          # Same word-splitting contract as above.
+          TEST_PATHS: ${{ inputs.python-test-paths }}
+          # `-q` keeps the log readable; failures print in full regardless.
+          PYTEST_ADDOPTS: '-q'
+        run: |
+          set -euo pipefail
+          # A path that does not exist is a caller configuration error, not
+          # "nothing to test" — pytest would exit 4 with a usage error that
+          # reads like an infrastructure fault. Say so plainly instead.
+          for path in ${TEST_PATHS}; do
+            if [ ! -e "$path" ]; then
+              echo "::error::python-test-paths entry not found: ${path}"
+              exit 1
+            fi
+          done
+          # Collecting nothing exits 5. That is green here: a repo can enable
+          # the job before its first test exists, and the paths were just
+          # checked, so exit 5 means "no tests yet", not "tests went missing".
+          set +e
+          # shellcheck disable=SC2086  # must split into one word per path
+          python3 -m pytest ${TEST_PATHS}
+          status=$?
+          set -e
+          if [ "$status" -eq 5 ]; then
+            echo "::notice::No tests collected under: ${TEST_PATHS}"
+            exit 0
+          fi
+          exit "$status"
+
   summary:
     name: Validation Summary
     runs-on: ubuntu-latest
@@ -620,6 +721,7 @@ jobs:
         validate-helm-template,
         validate-kubernetes,
         check-documentation,
+        validate-python,
       ]
     if: always()
     steps:
