@@ -782,9 +782,43 @@ jobs:
     if: always()
     steps:
       - name: Summary
+        env:
+          REPOSITORY: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
+          YAML_RESULT: ${{ needs.validate-yaml.result }}
+          FLEET_RESULT: ${{ needs.validate-fleet-configs.result }}
+          GITREPO_RESULT: ${{ needs.validate-gitrepo.result }}
+          HELM_RESULT: ${{ needs.validate-helm.result }}
+          HELM_TEMPLATE_RESULT: ${{ needs.validate-helm-template.result }}
+          KUBERNETES_RESULT: ${{ needs.validate-kubernetes.result }}
+          DOCUMENTATION_RESULT: ${{ needs.check-documentation.result }}
+          PYTHON_RESULT: ${{ needs.validate-python.result }}
+        # Every value arrives via `env:` and both heredoc delimiters are quoted,
+        # so nothing in the template bodies is expanded by the shell. The
+        # dynamic lines are emitted with `printf` between the heredocs.
+        #
+        # Results are printed verbatim: every job below is gated by an
+        # `enable-*` input, so `skipped` is a normal state rather than a
+        # failure and is not rewritten into `success`.
         run: |
-          echo "## GitOps Validation Summary"
-          echo ""
-          echo "All validation checks completed!"
-          echo ""
-          echo "Please review any warnings above before merging."
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          {
+            cat << 'EOF'
+          # CI — GitOps Validation
+
+          EOF
+            printf '**Timestamp:** %s\n**Repository:** %s @ %s\n\n' \
+              "$TIMESTAMP" "$REPOSITORY" "$REF_NAME"
+            cat << 'EOF'
+          | Job | Status |
+          | --- | --- |
+          EOF
+            printf '| Validate YAML Syntax | %s |\n' "$YAML_RESULT"
+            printf '| Validate Fleet Configurations | %s |\n' "$FLEET_RESULT"
+            printf '| Validate GitRepo Configuration | %s |\n' "$GITREPO_RESULT"
+            printf '| Validate Helm Charts | %s |\n' "$HELM_RESULT"
+            printf '| Validate Rendered Helm Output | %s |\n' "$HELM_TEMPLATE_RESULT"
+            printf '| Validate Kubernetes Manifests | %s |\n' "$KUBERNETES_RESULT"
+            printf '| Check Documentation | %s |\n' "$DOCUMENTATION_RESULT"
+            printf '| Validate Python Tests | %s |\n' "$PYTHON_RESULT"
+          } >> "$GITHUB_STEP_SUMMARY"
