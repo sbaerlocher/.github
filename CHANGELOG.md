@@ -59,15 +59,23 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   default — and the reason for absence tended to be the very defect the guard
   exists to catch, as the `pre-build-commands` entry above shows. It now parses
   the `on:` block of every workflow and checks each one declaring a
-  `workflow_call` trigger, the same classification
-  `scripts/tests/test-workflow-counts.sh` already uses. Coverage goes from 15
-  hand-listed files to 22 of the 24 reusable workflows, and a new reusable
-  workflow is covered the day it lands. Two files are carved out in an
-  `EXCEPTIONS` array with the reason inline — `ops-drift-issue.yml` and
-  `ops-terraform-report.yml` build heredoc bodies out of values that already
+  `workflow_call` trigger. Coverage goes from 15 hand-listed files to all 24
+  reusable workflows, and a new reusable workflow is covered the day it lands.
+  `ops-drift-issue.yml` and `ops-terraform-report.yml` are exempt from the
+  heredoc rule only — both build heredoc bodies out of values that already
   arrived via `env:`, where the expansion is the intent and quoting the
-  delimiter would break them. A stale exception naming a file that is gone or no
-  longer reusable fails the test rather than passing as reviewed.
+  delimiter would break them. The interpolation rule, which is the primary
+  injection class, still runs on them. An exception that has outlived its reason
+  fails the test rather than passing as reviewed: whether its file is gone, is
+  no longer reusable, or has had its heredocs quoted since.
+- **The `workflow_call` classifier moved to
+  `scripts/list-reusable-workflows.sh`.** `test-workflow-counts.sh` and
+  `test-workflow-input-injection.sh` derive different things from the same
+  classification — the counts stated in the docs, and the set scanned for
+  injection sinks. Two copies could drift apart while both tests stayed green,
+  leaving the guard's coverage line claiming something the docs no longer said.
+  The shared script buffers its output and exits non-zero on an unparseable
+  workflow, so a partial classification is never mistaken for a complete one.
 - **`ci-gitops.yml` gained an opt-in `validate-python` job.** GitOps consumers'
   pytest suites ran only in a local `pre-push` hook — opt-in via
   `lefthook install`, and bypassed by `--no-verify`, web-UI edits and bot

@@ -23,37 +23,12 @@ fail() {
   exit 1
 }
 
-command -v python3 >/dev/null 2>&1 || fail "python3 required to parse the workflow YAML"
-
-# Classification is done on the parsed `on:` mapping, not by grepping for the
-# bare token: `workflow_call` also appears in prose comments (e.g.
-# ai-claude-review.yml, ops-drift-issue.yml), which would misclassify an
-# internal workflow as reusable. Both .yml and .yaml are collected — GitHub
-# loads either, and a workflow added with the other extension would otherwise
-# be invisible to every count while the check still passed.
-CLASSIFIED="$(
-  python3 - "$WORKFLOWS" <<'PY'
-import os, sys, glob, yaml
-
-workflows = sys.argv[1]
-paths = sorted(glob.glob(os.path.join(workflows, "*.yml")) +
-               glob.glob(os.path.join(workflows, "*.yaml")))
-
-for path in paths:
-    with open(path) as fh:
-        doc = yaml.safe_load(fh) or {}
-    # YAML 1.1 resolves an unquoted `on:` key to the boolean True.
-    triggers = doc.get("on", doc.get(True))
-    # All three trigger spellings count: the block mapping (`on:\n  workflow_call:`),
-    # the flow sequence (`on: [workflow_call]`) and the bare scalar
-    # (`on: workflow_call`). Accepting only the mapping would undercount.
-    if isinstance(triggers, (dict, list)):
-        reusable = "workflow_call" in triggers
-    else:
-        reusable = triggers == "workflow_call"
-    print(f"{'reusable' if reusable else 'internal'}\t{os.path.basename(path)}")
-PY
-)" || fail "could not parse the workflow files"
+# Classification is shared with scripts/tests/test-workflow-input-injection.sh,
+# which derives the set it scans for injection sinks from the same `workflow_call`
+# trigger. Two copies could drift apart while both tests stayed green, and then
+# the guard's coverage line would stop meaning what the counts below assert.
+CLASSIFIED="$("$HERE/../list-reusable-workflows.sh" "$WORKFLOWS")" ||
+  fail "could not classify the workflow files"
 
 [ -n "$CLASSIFIED" ] || fail "no workflow files found in $WORKFLOWS"
 
