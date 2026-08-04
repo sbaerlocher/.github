@@ -675,11 +675,25 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
 
+      - name: Derive requirements cache key
+        id: reqs
+        env:
+          REQUIREMENTS: ${{ inputs.python-test-requirements }}
+        run: |
+          set -euo pipefail
+          # The value goes into a cache key, which rejects commas — and a pip
+          # range (`pytest>=8.0,<9.0`) has one. Hash it: the key still changes
+          # when the requirements do, without constraining what a caller passes,
+          # and the length stays bounded.
+          printf 'hash=%s\n' \
+            "$(printf '%s' "$REQUIREMENTS" | sha256sum | cut -c1-16)" \
+            >>"$GITHUB_OUTPUT"
+
       - name: Cache pip dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/pip
-          # The requirements list is part of the key: the target repos have no
+          # The requirements are part of the key: the target repos have no
           # requirements file, so a hashFiles()-only key would collapse to one
           # constant for every caller — and cache entries are immutable, so the
           # first run's entry would be pinned forever while two callers with
@@ -687,7 +701,7 @@ jobs:
           key: >-
             ${{ runner.os }}-pip-pytest-${{
               hashFiles('**/requirements*.txt', '**/pyproject.toml')
-            }}-${{ inputs.python-test-requirements }}
+            }}-${{ steps.reqs.outputs.hash }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
