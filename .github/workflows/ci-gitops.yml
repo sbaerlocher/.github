@@ -797,9 +797,11 @@ jobs:
         # so nothing in the template bodies is expanded by the shell. The
         # dynamic lines are emitted with `printf` between the heredocs.
         #
-        # Results are printed verbatim: every job below is gated by an
-        # `enable-*` input, so `skipped` is a normal state rather than a
-        # failure and is not rewritten into `success`.
+        # Results are printed verbatim. `skipped` has two causes here and the
+        # table does not distinguish them: the job's `enable-*` input is false,
+        # or `validate-yaml` failed — the seven downstream jobs are gated on
+        # `always() && !failure() && !cancelled()`, so a gate failure skips all
+        # of them. Read the `Validate YAML Syntax` row before the rest.
         run: |
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
           {
