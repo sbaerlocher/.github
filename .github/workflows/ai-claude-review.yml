@@ -181,6 +181,24 @@ jobs:
 
             ---
 
+            ## Environment constraints
+
+            You are running inside an ephemeral GitHub Actions runner. It is not
+            the developer machine, the build host, or any deployment target the
+            pull request may describe, and its installed tooling is unrelated to
+            theirs. Therefore:
+
+            - Never infer tool availability on another machine from your own
+              environment, and never run a command to probe it.
+            - Never claim a tool is missing, present, or installed at some path
+              outside this runner.
+            - Judge claims about tool availability against the repository's
+              documentation, workflow files and hook configuration only.
+            - When the repository states that a tool is unavailable somewhere,
+              treat that as the source of truth.
+
+            ---
+
             ## If MODE == first (no previous review by you on this PR)
 
             Perform a thorough, detailed code review:
