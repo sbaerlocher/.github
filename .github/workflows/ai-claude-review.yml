@@ -153,10 +153,14 @@ jobs:
           classify_inline_comments: 'false'
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
+          # Environment probing is denied on top of the allowlist below: the
+          # runner is not the machine a PR talks about, so its tool inventory
+          # says nothing about the developer or build host.
           claude_args: |
             --max-turns ${{ steps.mode.outputs.mode == 'first' && format('{0}', inputs.max-turns-first) || format('{0}', inputs.max-turns-followup) }}
             --model ${{ inputs.model }}
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Agent,Read,Glob,Grep,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh pr checks:*),Bash(gh pr review:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),Bash(git log:*),Bash(gh api repos/*/pulls/*/comments*),Bash(gh api repos/*/pulls/comments*),Bash(gh api repos/*/pulls/*/comments/*/replies*),Bash(gh api repos/*/pulls/*/reviews*),Bash(gh api repos/*/compare/*),Bash(gh api graphql:*)"
+            --disallowedTools "Bash(which:*),Bash(command:*),Bash(whereis:*),Bash(type:*)"
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
@@ -174,6 +178,24 @@ jobs:
 
             If a rule in these files conflicts with a generic best practice, follow the file.
             If none exist, proceed with generic best practices.
+
+            ---
+
+            ## Environment constraints
+
+            You are running inside an ephemeral GitHub Actions runner. It is not
+            the developer machine, the build host, or any deployment target the
+            pull request may describe, and its installed tooling is unrelated to
+            theirs. Therefore:
+
+            - Never infer tool availability on another machine from your own
+              environment, and never run a command to probe it.
+            - Never claim a tool is missing, present, or installed at some path
+              outside this runner.
+            - Judge claims about tool availability against the repository's
+              documentation, workflow files and hook configuration only.
+            - When the repository states that a tool is unavailable somewhere,
+              treat that as the source of truth.
 
             ---
 
