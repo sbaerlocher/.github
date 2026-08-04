@@ -5,11 +5,18 @@
 # (`<< EOF`) the body is expanded too, so a value reaching a step summary that
 # way executes as well.
 #
-# The workflows below were migrated to pass such values through `env:` and
-# reference them as shell variables. This asserts the migration holds: no
-# interpolated caller-controlled value left in a `run:` body — block-scalar,
-# folded or single-line — and no unquoted heredoc delimiter. It is a structural
-# check on the YAML, so a regression fails here rather than on a runner.
+# Reusable workflows pass such values through `env:` and reference them as shell
+# variables. This asserts that holds: no interpolated caller-controlled value
+# left in a `run:` body — block-scalar, folded or single-line — and no unquoted
+# heredoc delimiter. It is a structural check on the YAML, so a regression fails
+# here rather than on a runner.
+#
+# The checked set is *derived* from the `workflow_call` trigger, not maintained
+# as a list. An allow-list inverts the guard: a workflow absent from it is
+# unchecked by default, and the reason for its absence tends to be the very
+# defect the guard exists to catch (PR #299 — two workflows sat outside the list
+# exactly as long as they were unsafe). Deriving it means a new reusable
+# workflow is covered the day it lands.
 #
 # A value that merely *travels* through `env:` is not automatically safe: it can
 # leave a step again as a workflow-level output and be interpolated downstream,
@@ -28,25 +35,55 @@ fail() {
   exit 1
 }
 
-# The workflows this migration covers.
-MIGRATED=(
-  ci-gitops.yml
-  ci-go.yml
-  ci-js.yml
-  ci-terraform.yml
-  deploy-cloudflare-workers.yml
-  deploy-terraform.yml
-  e2e-docker.yml
-  release-docker.yml
-  release-go.yml
-  release-npm.yml
-  security-code.yml
-  security-config.yml
-  security-containers.yml
-  security-deps.yml
-  security-sbom.yml
-  security-secrets.yml
+# Workflows exempt from rule 2 only, each with the reason inline. An exception is
+# a deliberate, argued carve-out — not a parking space for an unreviewed
+# workflow. Both entries below build a heredoc body out of values that already
+# arrived via `env:`; the expansion is the point, so quoting the delimiter would
+# break them, and rule 2 has no way to tell that apart from the unsafe case.
+#
+# The exemption stops there. Rule 1 still runs on these files: it is the primary
+# injection class, has nothing to do with heredoc quoting, and these two are the
+# worst files to leave unchecked — their bodies already expand, so a substituted
+# `$(...)` would execute rather than merely mis-parse.
+HEREDOC_EXCEPTIONS=(
+  ops-drift-issue.yml      # issue body + delta comment expand env-passed values
+  ops-terraform-report.yml # deployment-metadata.json expands env-passed values
 )
+
+# The reusable set, derived from the `workflow_call` trigger. The classifier is
+# shared with scripts/tests/test-workflow-counts.sh so the set scanned here and
+# the counts stated in the docs cannot drift apart. Command substitution, not a
+# process substitution: `done < <(...)` would not propagate the classifier's exit
+# status, so a parse error would yield a silently shortened set and a green run.
+REUSABLE="$("$REPO/scripts/list-reusable-workflows.sh" "$WORKFLOWS" --reusable)" ||
+  fail "could not classify the workflow files"
+
+REUSABLE_FILES=()
+while IFS= read -r name; do
+  [ -n "$name" ] || continue
+  REUSABLE_FILES+=("$name")
+done <<<"$REUSABLE"
+
+[ ${#REUSABLE_FILES[@]} -gt 0 ] || fail "no reusable workflows found in $WORKFLOWS"
+
+# An exception outlives its reason in two ways, and both read as "reviewed" while
+# protecting nothing. `${arr[@]+…}` guards the empty case: bash 3.2, which macOS
+# still ships as /bin/bash, treats an empty array as unset under `set -u`, and an
+# empty array is the intended end state here.
+for exc in ${HEREDOC_EXCEPTIONS[@]+"${HEREDOC_EXCEPTIONS[@]}"}; do
+  # 1 — the file is gone, or no longer reusable.
+  found=0
+  for wf in "${REUSABLE_FILES[@]}"; do
+    [ "$wf" = "$exc" ] && found=1 && break
+  done
+  [ "$found" -eq 1 ] ||
+    fail "HEREDOC_EXCEPTIONS lists '$exc', which is not a reusable workflow — drop the entry"
+
+  # 2 — the heredocs got quoted, so the carve-out is no longer buying anything.
+  #     This makes the array self-emptying as the files are fixed.
+  grep -qE '<<-?[[:space:]]*[A-Za-z_][A-Za-z0-9_]*([[:space:]]|$)' "$WORKFLOWS/$exc" ||
+    fail "HEREDOC_EXCEPTIONS lists '$exc', which no longer has an unquoted heredoc — drop the entry"
+done
 
 # Print every line inside a `run:` body, as "<line-number>:<text>".
 # Block scalars (`run: |`, `run: >`) open a block; a single-line `run: cmd` is a
@@ -88,9 +125,13 @@ run_block_lines() {
   ' "$1"
 }
 
-for wf in "${MIGRATED[@]}"; do
+for wf in "${REUSABLE_FILES[@]}"; do
+  heredoc_exempt=0
+  for exc in ${HEREDOC_EXCEPTIONS[@]+"${HEREDOC_EXCEPTIONS[@]}"}; do
+    [ "$wf" = "$exc" ] && heredoc_exempt=1 && break
+  done
+
   path="$WORKFLOWS/$wf"
-  [ -f "$path" ] || fail "$wf not found — update this test if it was renamed"
 
   # 1. No caller-controlled value interpolated into a shell body. `inputs.*` is
   #    the class this migration closed; `secrets.*` and `github.event.*` are the
@@ -112,10 +153,14 @@ for wf in "${MIGRATED[@]}"; do
   #    called. `<<-` strips tabs but still expands, and the delimiter may be
   #    followed by a redirect (`cat <<EOF >"$f"`), so match the word itself
   #    rather than requiring it at end of line.
-  heredocs="$(grep -nE '<<-?[[:space:]]*[A-Za-z_][A-Za-z0-9_]*([[:space:]]|$)' "$path" || true)"
-  if [ -n "$heredocs" ]; then
-    echo "$heredocs" >&2
-    fail "$wf has an unquoted heredoc delimiter; quote it, e.g. << 'EOF'"
+  #    Skipped only for the argued carve-outs above, where the expansion is the
+  #    intent and every value in the body reached the shell through `env:`.
+  if [ "$heredoc_exempt" -eq 0 ]; then
+    heredocs="$(grep -nE '<<-?[[:space:]]*[A-Za-z_][A-Za-z0-9_]*([[:space:]]|$)' "$path" || true)"
+    if [ -n "$heredocs" ]; then
+      echo "$heredocs" >&2
+      fail "$wf has an unquoted heredoc delimiter; quote it, e.g. << 'EOF'"
+    fi
   fi
 done
 
@@ -138,4 +183,4 @@ IMAGE_REF="ghcr.io/org/app:\$(touch '$marker')" \
 grep -qF '$(touch' "$summary" ||
   fail "the env:+printf pattern dropped the literal value from the summary"
 
-echo "PASS: workflow inputs reach run: blocks via env: (${#MIGRATED[@]} workflows)"
+echo "PASS: workflow inputs reach run: blocks via env: (${#REUSABLE_FILES[@]} reusable workflows, ${#HEREDOC_EXCEPTIONS[@]} heredoc-exempt)"
