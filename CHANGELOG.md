@@ -14,13 +14,30 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   `### ⚠ BREAKING` heading in its dated entry below, naming the affected
   workflow and a one-line migration step. Scan for `⚠ BREAKING` before bumping
   a tag — that is the single source of truth for what might break.
-- **Only the latest tag is supported.** Older date tags keep working
-  (immutable), but fixes and security patches land only on `main` / the newest
-  tag. Pin an old tag at your own risk; there is no backport.
+- **Only the latest tag is supported.** Past days' tags keep working and no
+  longer move, but fixes and security patches land only on `main` / the newest
+  tag. Pin an old tag at your own risk; there is no backport. The current UTC
+  day's tag is the exception: it follows that day's latest merge, so it can
+  still change until the day is over.
 
 ---
 
 ## 2026-08-05
+
+### ⚠ BREAKING
+
+- **The current UTC day's date tag is now mutable.** `merge.yml` used to skip
+  tagging when the day's tag already existed, so a tag was pinned to that day's
+  first merge and never moved. Every later merge stayed unreachable from any
+  date tag until the next day's first merge — `2026-08-03` missed 8 commits
+  across 10 workflow files, `2026-08-04` missed 3 across 5. Those were real
+  workflow fixes no consumer could pin. The tag now moves to the newest commit
+  on every push to `main`, so one tag covers a whole day.
+  **Migration:** none required, and past days' tags never move. But a consumer
+  that pins the _current_ day's tag and re-fetches later in that same day can
+  receive a newer tree under the same name — CI caches or mirrors keyed on the
+  tag name may serve either. Pin a past day's tag when you need a target that
+  is fixed the moment you pin it.
 
 ### Details
 
