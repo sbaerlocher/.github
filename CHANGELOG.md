@@ -99,6 +99,29 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   `--disallowedTools` entry blocks `which`, `command`, `whereis` and `type`
   outright. The prompt rule covers the reviewer asserting an inventory it never
   measured; the deny list covers the allowlist letting a probe through.
+- **`ai-claude-review.yml` reports a workflow-validation skip as a skip instead
+  of a missing review.** The guard added on 2026-08-04 turned every pull request
+  that changes a workflow file into a permanently red `claude-review` check, so
+  a real review finding was no longer distinguishable from the standing
+  failure — the signal the guard exists to protect. The cause is a deliberate
+  skip, not a failure: `anthropics/claude-code-action` exchanges an OIDC token
+  for an app token at startup, and when the pull request's workflow file differs
+  from the one on the default branch the exchange answers
+  `workflow_not_found_on_default_branch`. The action treats that as a skip —
+  warning, step output `skipped_due_to_workflow_validation_mismatch`, return
+  without `setFailed` — so the step ends `success` after a few seconds instead
+  of running for minutes. The guard never read that output and reported the
+  absent review instead, pointing at the symptom rather than the cause. The
+  action step now carries `id: claude` and the guard checks that output first:
+  on a skip it upserts a PR comment under its own
+  `<!-- claude-review-skipped -->` marker, emits a `::notice::` and exits 0. The
+  regular path is unchanged. **The accepted cost:** workflow-changing pull
+  requests merge without a Claude review, because the skip is unavoidable for
+  the author until the changed file is on the default branch. The PR comment
+  keeps that visible on the pull request rather than in the job log, which is
+  `Forbidden` over the API for these runs. `scripts/tests/test-claude-review-skip-guard.sh`
+  covers the wiring, which is a plain string reference that GitHub Actions
+  resolves to the empty string when broken.
 - **`ci-gitops.yml` and both Go workflows fall under the injection guard.**
   `scripts/tests/test-workflow-input-injection.sh` asserts structurally that no
   caller-controlled `${{ }}` reaches a `run:` body. `ci-go.yml` and

@@ -141,7 +141,12 @@ jobs:
             echo "last-review-sha=$SHA" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b # v1
+      # The `id` is load-bearing, not cosmetic: the assertion step below reads
+      # this step's `skipped_due_to_workflow_validation_mismatch` output to tell
+      # a deliberate skip apart from a review that should have been posted.
+      # Without an `id`, `steps.*.outputs` has nothing to address it by.
+      - id: claude
+        uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # claude-code-action@v1 blocks bot-initiated runs by default.
@@ -308,8 +313,39 @@ jobs:
           # Marker keeps the comment idempotent across re-runs and later pushes,
           # same upsert idea as ops-drift-issue.yml.
           MARKER: '<!-- claude-review-missing -->'
+          # A separate marker from MARKER above: "skipped, expected" and "should
+          # have run, no review here" are different states, and a shared marker
+          # would suppress whichever text landed second.
+          SKIP_MARKER: '<!-- claude-review-skipped -->'
+          SKIPPED: ${{ steps.claude.outputs.skipped_due_to_workflow_validation_mismatch }}
         run: |
           set -euo pipefail
+
+          # The action refuses to run when the PR changes a workflow file that
+          # differs from the default branch: the OIDC-to-app-token exchange
+          # answers `workflow_not_found_on_default_branch`, and the action
+          # treats that as a skip — warning, output set, no `setFailed`. The
+          # step ends `success` in seconds. Report that as the skip it is
+          # rather than as a missing review, which points at the wrong cause.
+          #
+          # Green rather than red: the skip is unavoidable for the PR author
+          # until the changed file is on the default branch, so a red check
+          # would be permanent and would destroy the signal this guard exists
+          # for. The accepted cost is that workflow-changing PRs merge without
+          # a Claude review; the PR comment keeps that visible on the PR
+          # instead of leaving it in the job log.
+          if [ "${SKIPPED:-}" = "true" ]; then
+            POSTED=$(gh api --paginate "repos/$REPO/issues/$PR/comments" \
+              | jq -s --arg m "$SKIP_MARKER" 'add // [] | [.[] | select(.body | contains($m))] | length')
+
+            if [ "$POSTED" -eq 0 ]; then
+              gh pr comment "$PR" --repo "$REPO" --body "$(printf '%s\n%s' "$SKIP_MARKER" \
+                'Claude Code Review was skipped: this pull request changes a workflow file that differs from the default branch, which the action refuses to run against. This diff is therefore unreviewed — review it manually before merging. The skip resolves once the workflow change is on the default branch.')"
+            fi
+
+            echo "::notice::Claude Code Review skipped — the PR changes a workflow file that differs from the default branch."
+            exit 0
+          fi
 
           # Same bot predicate as the `mode` step above rather than its
           # `bot-login` output: that output falls back to a hard-coded
