@@ -20,6 +20,32 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-08-06
+
+### Details
+
+- **`ai-claude-review.yml` reports a workflow-validation skip as a skip instead
+  of a missing review.** The guard added on 2026-08-04 was correct — the diff
+  really was unreviewed — but it could not tell the two causes apart, so every
+  pull request whose triggering workflow file differs from the default branch
+  carried a permanent red check with a message pointing at the wrong thing. That
+  is unavoidable for the author while the changed file is not on `main` yet, and
+  a permanently red check destroys the signal the guard exists for. The action
+  returns before its token exchange on such a skip, so its `github_token` output
+  arrives empty; the guard now reads that output — the action step gained the
+  id this requires — and, after the existing head-SHA review check, reports
+  the skip via `::notice::` plus a PR comment under its own
+  `<!-- claude-review-skipped -->` marker and exits 0. The regular path is
+  unchanged and still exits 1. `scripts/tests/test-claude-review-skip-guard.sh`
+  pins the wiring: the detection channel is an undocumented implementation
+  detail of the action whose failure direction is green, so a rename on this
+  side would otherwise take the check green on unreviewed diffs in silence.
+  Affected pull requests now merge without a Claude review rather than with a
+  red check — the comment keeps that visible on the PR, where the job log is
+  not: its API endpoints answer `Forbidden` for these runs.
+
+---
+
 ## 2026-08-05
 
 ### Details

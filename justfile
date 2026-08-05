@@ -111,6 +111,7 @@ test:
     scripts/tests/test-ci-go-postgres-env-guard.sh
     scripts/tests/test-github-env-guards.sh
     scripts/tests/test-validate-python-input.sh
+    scripts/tests/test-claude-review-skip-guard.sh
 
 # fmt → format Markdown and JSON in place
 fmt:

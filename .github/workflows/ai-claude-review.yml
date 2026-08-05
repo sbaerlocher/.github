@@ -141,7 +141,12 @@ jobs:
             echo "last-review-sha=$SHA" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b # v1
+      # `id:` is load-bearing, not decoration: the assertion step below reads
+      # `steps.claude.outputs.github_token` to tell a workflow-validation skip
+      # apart from a genuinely missing review. Without an id those outputs are
+      # not addressable and the skip branch can never fire.
+      - id: claude
+        uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # claude-code-action@v1 blocks bot-initiated runs by default.
@@ -308,6 +313,16 @@ jobs:
           # Marker keeps the comment idempotent across re-runs and later pushes,
           # same upsert idea as ops-drift-issue.yml.
           MARKER: '<!-- claude-review-missing -->'
+          # A separate marker, not the one above: "skipped, expected" and "should
+          # have run, no review" are different states, and one shared marker
+          # would suppress whichever text came second.
+          SKIP_MARKER: '<!-- claude-review-skipped -->'
+          # Skip detection channel. On a workflow-validation skip the action
+          # returns before its token is exchanged, so this declared output
+          # arrives empty; on a regular run it carries the app token. It is an
+          # undocumented implementation detail of the action — the self-check in
+          # scripts/tests/ pins the wiring on this side, not the action's.
+          SKIPPED_TOKEN: ${{ steps.claude.outputs.github_token }}
         run: |
           set -euo pipefail
 
@@ -324,6 +339,33 @@ jobs:
 
           if [ "$COUNT" -gt 0 ]; then
             echo "Review found on $HEAD_SHA."
+            exit 0
+          fi
+
+          # The action skips itself when the triggering workflow file differs
+          # from the one on the default branch: the token exchange answers
+          # `workflow_not_found_on_default_branch`, the action warns and returns
+          # without failing, so the step ends green in seconds with no review.
+          # That is unavoidable for the PR author while the changed file is not
+          # on the default branch yet, so a permanent red check here would
+          # destroy the signal the assertion exists for. Report it as a skip and
+          # leave a comment on the PR instead — the job log is the only other
+          # place this shows up, and its API endpoints answer `Forbidden`.
+          #
+          # An unknown `steps.*` resolves to the empty string, and empty means
+          # "skipped" here, so a broken channel fails green. The review check
+          # above bounds that: it only slips through when a review is missing
+          # for a real reason *and* the channel is broken at the same time.
+          if [ -z "$SKIPPED_TOKEN" ]; then
+            SKIP_POSTED=$(gh api --paginate "repos/$REPO/issues/$PR/comments" \
+              | jq -s --arg m "$SKIP_MARKER" 'add // [] | [.[] | select(.body | contains($m))] | length')
+
+            if [ "$SKIP_POSTED" -eq 0 ]; then
+              gh pr comment "$PR" --repo "$REPO" --body "$(printf '%s\n%s' "$SKIP_MARKER" \
+                'Claude Code Review skipped this pull request: the action only runs when the triggering workflow file matches the one on the default branch. This diff was not reviewed — review it manually before merging.')"
+            fi
+
+            echo "::notice::Review skipped on $HEAD_SHA — the workflow file differs from the default branch."
             exit 0
           fi
 
