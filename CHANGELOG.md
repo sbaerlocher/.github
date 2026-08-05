@@ -20,6 +20,70 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-08-05
+
+### Details
+
+- **`ci-gitops.yml`'s `summary` job reports the real job results.** It printed
+  five fixed lines including `All validation checks completed!` without ever
+  reading `needs.*.result`, so a run in which every needed job failed still
+  told anyone reading the job that validation had passed. It now writes a
+  Markdown table of all eight results to `$GITHUB_STEP_SUMMARY`, the same shape
+  `ci-js.yml` already used. Results are printed verbatim — `skipped` means
+  either the job's `enable-*` input is off or `validate-yaml` failed, and the
+  table does not distinguish the two. The job stays exit 0 and is still not a
+  gate; a failed job fails the called run and therefore the caller's job.
+  Consumer-visible only in where the output appears: the stdout log lines move
+  to the run's step summary.
+- **`ai-claude-review.yml` no longer lets the reviewer describe machines it
+  cannot see.** A review claimed one tool was missing and another installed at
+  a specific path on the build host, with both statements matching the hosted
+  runner instead — the inverse of what the host actually had, turning a correct
+  pull request into a `CHANGES_REQUESTED` verdict. The runner is not the machine
+  a pull request talks about, so its tool inventory says nothing about the
+  developer or build host. Two independent measures, because the job log had
+  already expired and the cause could not be pinned down: a new environment
+  section in the prompt scopes tool-availability claims to the
+  repository's own documentation, workflow files and hook configuration, and a
+  `--disallowedTools` entry blocks `which`, `command`, `whereis` and `type`
+  outright. The prompt rule covers the reviewer asserting an inventory it never
+  measured; the deny list covers the allowlist letting a probe through.
+- **`ci-gitops.yml` and both Go workflows fall under the injection guard.**
+  `scripts/tests/test-workflow-input-injection.sh` asserts structurally that no
+  caller-controlled `${{ }}` reaches a `run:` body. `ci-go.yml` and
+  `release-go.yml` were previously outside the guard's set precisely because
+  `pre-build-commands` disqualified them; with the input gone they are covered,
+  which is what keeps the pattern from returning. This also resolves the caveat
+  in the 2026-08-02 entry below, which named `pre-build-commands` as the one
+  remaining `run:` interpolation in `ci-go.yml` that could not move to `env:`.
+  `ci-gitops.yml` is covered job-for-job, so a job added there later is guarded
+  without a separate check.
+- **The injection guard derives its checked set instead of maintaining an
+  allow-list.** `scripts/tests/test-workflow-input-injection.sh` used to iterate
+  a hand-kept `MIGRATED` array, so a workflow absent from it was unchecked by
+  default — and the reason for absence tended to be the very defect the guard
+  exists to catch, as the `pre-build-commands` entry below shows. It now parses
+  the `on:` block of every workflow and checks each one declaring a
+  `workflow_call` trigger. Coverage goes from 15 hand-listed files to all 24
+  reusable workflows, and a new reusable workflow is covered the day it lands.
+  `ops-drift-issue.yml` and `ops-terraform-report.yml` are exempt from the
+  heredoc rule only — both build heredoc bodies out of values that already
+  arrived via `env:`, where the expansion is the intent and quoting the
+  delimiter would break them. The interpolation rule, which is the primary
+  injection class, still runs on them. An exception that has outlived its reason
+  fails the test rather than passing as reviewed: whether its file is gone, is
+  no longer reusable, or has had its heredocs quoted since.
+- **The `workflow_call` classifier moved to
+  `scripts/list-reusable-workflows.sh`.** `test-workflow-counts.sh` and
+  `test-workflow-input-injection.sh` derive different things from the same
+  classification — the counts stated in the docs, and the set scanned for
+  injection sinks. Two copies could drift apart while both tests stayed green,
+  leaving the guard's coverage line claiming something the docs no longer said.
+  The shared script buffers its output and exits non-zero on an unparseable
+  workflow, so a partial classification is never mistaken for a complete one.
+
+---
+
 ## 2026-08-04
 
 ### ⚠ BREAKING
@@ -53,40 +117,6 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### Details
 
-- **The injection guard derives its checked set instead of maintaining an
-  allow-list.** `scripts/tests/test-workflow-input-injection.sh` used to iterate
-  a hand-kept `MIGRATED` array, so a workflow absent from it was unchecked by
-  default — and the reason for absence tended to be the very defect the guard
-  exists to catch, as the `pre-build-commands` entry above shows. It now parses
-  the `on:` block of every workflow and checks each one declaring a
-  `workflow_call` trigger. Coverage goes from 15 hand-listed files to all 24
-  reusable workflows, and a new reusable workflow is covered the day it lands.
-  `ops-drift-issue.yml` and `ops-terraform-report.yml` are exempt from the
-  heredoc rule only — both build heredoc bodies out of values that already
-  arrived via `env:`, where the expansion is the intent and quoting the
-  delimiter would break them. The interpolation rule, which is the primary
-  injection class, still runs on them. An exception that has outlived its reason
-  fails the test rather than passing as reviewed: whether its file is gone, is
-  no longer reusable, or has had its heredocs quoted since.
-- **The `workflow_call` classifier moved to
-  `scripts/list-reusable-workflows.sh`.** `test-workflow-counts.sh` and
-  `test-workflow-input-injection.sh` derive different things from the same
-  classification — the counts stated in the docs, and the set scanned for
-  injection sinks. Two copies could drift apart while both tests stayed green,
-  leaving the guard's coverage line claiming something the docs no longer said.
-  The shared script buffers its output and exits non-zero on an unparseable
-  workflow, so a partial classification is never mistaken for a complete one.
-- **`ci-gitops.yml`'s `summary` job reports the real job results.** It printed
-  five fixed lines including `All validation checks completed!` without ever
-  reading `needs.*.result`, so a run in which every needed job failed still
-  told anyone reading the job that validation had passed. It now writes a
-  Markdown table of all eight results to `$GITHUB_STEP_SUMMARY`, the same shape
-  `ci-js.yml` already used. Results are printed verbatim — `skipped` means
-  either the job's `enable-*` input is off or `validate-yaml` failed, and the
-  table does not distinguish the two. The job stays exit 0 and is still not a
-  gate; a failed job fails the called run and therefore the caller's job.
-  Consumer-visible only in where the output appears: the stdout log lines move
-  to the run's step summary.
 - **`ci-gitops.yml` gained an opt-in `validate-python` job.** GitOps consumers'
   pytest suites ran only in a local `pre-push` hook — opt-in via
   `lefthook install`, and bypassed by `--no-verify`, web-UI edits and bot
@@ -97,29 +127,6 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   asserts the suite exists, so an empty collection fails rather than reporting
   green). `python-version` now selects the interpreter for both `validate-yaml`
   and this job. Opt in per repository.
-- **`ai-claude-review.yml` no longer lets the reviewer describe machines it
-  cannot see.** A review claimed one tool was missing and another installed at
-  a specific path on the build host, with both statements matching the hosted
-  runner instead — the inverse of what the host actually had, turning a correct
-  pull request into a `CHANGES_REQUESTED` verdict. The runner is not the machine
-  a pull request talks about, so its tool inventory says nothing about the
-  developer or build host. Two independent measures, because the job log had
-  already expired and the cause could not be pinned down: a new environment
-  section in the prompt scopes tool-availability claims to the
-  repository's own documentation, workflow files and hook configuration, and a
-  `--disallowedTools` entry blocks `which`, `command`, `whereis` and `type`
-  outright. The prompt rule covers the reviewer asserting an inventory it never
-  measured; the deny list covers the allowlist letting a probe through.
-- **`ci-gitops.yml` and both Go workflows fall under the injection guard.**
-  `scripts/tests/test-workflow-input-injection.sh` asserts structurally that no
-  caller-controlled `${{ }}` reaches a `run:` body. `ci-go.yml` and
-  `release-go.yml` were previously outside the guard's set precisely because
-  `pre-build-commands` disqualified them; with the input gone they are covered,
-  which is what keeps the pattern from returning. This also resolves the caveat
-  in the 2026-08-02 entry below, which named `pre-build-commands` as the one
-  remaining `run:` interpolation in `ci-go.yml` that could not move to `env:`.
-  `ci-gitops.yml` is covered job-for-job, so a job added there later is guarded
-  without a separate check.
 - **`release-go.yml` validates the shape of each `extra-env` line before
   writing it to `$GITHUB_ENV`.** The `Parse extra environment variables` step
   appended the whole input unchecked. `extra-env` is a multi-line list, so its
