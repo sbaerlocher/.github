@@ -24,18 +24,23 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ## 2026-08-05
 
+### ⚠ BREAKING
+
+- **The current UTC day's date tag is now mutable.** `merge.yml` used to skip
+  tagging when the day's tag already existed, so a tag was pinned to that day's
+  first merge and never moved. Every later merge stayed unreachable from any
+  date tag until the next day's first merge — `2026-08-03` missed 8 commits
+  across 10 workflow files, `2026-08-04` missed 3 across 5. Those were real
+  workflow fixes no consumer could pin. The tag now moves to the newest commit
+  on every push to `main`, so one tag covers a whole day.
+  **Migration:** none required, and past days' tags never move. But a consumer
+  that pins the _current_ day's tag and re-fetches later in that same day can
+  receive a newer tree under the same name — CI caches or mirrors keyed on the
+  tag name may serve either. Pin a past day's tag when you need a target that
+  is fixed the moment you pin it.
+
 ### Details
 
-- **The date tag tracks the day's latest merge instead of its first.**
-  `merge.yml` exited early when the tag already existed, so only the first
-  merge of a UTC day was ever tagged. Every later merge that day stayed
-  unreachable from any date tag until the next day's first merge — measured
-  over the preceding days, `2026-08-03` missed 8 commits across 10 workflow
-  files and `2026-08-04` missed 3 commits across 5. The step now force-updates
-  the tag on every push to `main`. Consumer-visible consequence: a date tag is
-  mutable during its own UTC day and settles once that day is over, so a
-  consumer who pins today's tag mid-day and re-fetches later can receive a
-  newer tree under the same name. Tags from previous days never move.
 - **`ci-gitops.yml`'s `summary` job reports the real job results.** It printed
   five fixed lines including `All validation checks completed!` without ever
   reading `needs.*.result`, so a run in which every needed job failed still

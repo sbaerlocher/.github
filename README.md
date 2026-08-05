@@ -212,8 +212,10 @@ Rules:
 
 - Date tag is mandatory in consumer repos. `@main` and `@v1` are not
   supported.
-- New tags are cut from `main` after a batch of changes settles.
-  See [CHANGELOG.md](./CHANGELOG.md) for the history.
+- Every push to `main` moves that UTC day's tag to the newest commit, so one
+  tag covers the whole day. A tag stops changing once its day is over; only
+  the current day's tag is still mutable. Pin a past day's tag if you need a
+  fixed target. See [CHANGELOG.md](./CHANGELOG.md) for the history.
 - Renovate updates these tags automatically via the custom manager in
   [`renovate-base.json`](./renovate-base.json).
 

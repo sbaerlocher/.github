@@ -8,9 +8,19 @@ on:
 permissions:
   contents: write # Tag-Push
 
+# The tag move is read-modify-write on a single ref, so two runs must never
+# overlap. Queue them instead of cancelling: a cancelled run would skip the
+# tag move for a commit that is already on main.
+concurrency:
+  group: date-tag
+  cancel-in-progress: false
+
 jobs:
   date-tag:
-    name: Cut Date Tag
+    name: Move Date Tag
+    # A dispatch from another branch would otherwise force the day's tag onto
+    # that branch, and consumer repos pin these tags.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -25,6 +35,20 @@ jobs:
           # The tag tracks the day's latest merge, not its first. Skipping when
           # the tag already existed left every merge after the first one
           # unreachable by any tag until the next day's first merge.
+          git fetch origin --tags --quiet
+          # Only ever move the tag forward. Runs are serialised, but a queued
+          # run still checks out its own commit, so without this an older one
+          # finishing last would drag the tag backwards.
+          if OLD=$(git rev-parse -q --verify "refs/tags/$TAG^{commit}"); then
+            if [ "$OLD" = "$(git rev-parse HEAD)" ]; then
+              echo "Tag $TAG already points at HEAD, nothing to do."
+              exit 0
+            fi
+            if ! git merge-base --is-ancestor "$OLD" HEAD; then
+              echo "Tag $TAG points at $OLD, which is not an ancestor of HEAD — leaving it alone."
+              exit 0
+            fi
+          fi
           git tag -f "$TAG"
           git push -f origin "refs/tags/$TAG"
           echo "Tag $TAG now points at $(git rev-parse --short HEAD)."
