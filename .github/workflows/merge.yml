@@ -18,15 +18,13 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Create date tag if absent
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Move date tag to this commit
         run: |
           set -euo pipefail
           TAG=$(date -u +%Y-%m-%d)
-          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
-            echo "Tag $TAG exists, nothing to do."
-            exit 0
-          fi
-          git tag "$TAG"
-          git push origin "$TAG"
+          # The tag tracks the day's latest merge, not its first. Skipping when
+          # the tag already existed left every merge after the first one
+          # unreachable by any tag until the next day's first merge.
+          git tag -f "$TAG"
+          git push -f origin "refs/tags/$TAG"
+          echo "Tag $TAG now points at $(git rev-parse --short HEAD)."

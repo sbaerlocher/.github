@@ -14,9 +14,11 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   `### ⚠ BREAKING` heading in its dated entry below, naming the affected
   workflow and a one-line migration step. Scan for `⚠ BREAKING` before bumping
   a tag — that is the single source of truth for what might break.
-- **Only the latest tag is supported.** Older date tags keep working
-  (immutable), but fixes and security patches land only on `main` / the newest
-  tag. Pin an old tag at your own risk; there is no backport.
+- **Only the latest tag is supported.** Past days' tags keep working and no
+  longer move, but fixes and security patches land only on `main` / the newest
+  tag. Pin an old tag at your own risk; there is no backport. The current UTC
+  day's tag is the exception: it follows that day's latest merge, so it can
+  still change until the day is over.
 
 ---
 
@@ -24,6 +26,16 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### Details
 
+- **The date tag tracks the day's latest merge instead of its first.**
+  `merge.yml` exited early when the tag already existed, so only the first
+  merge of a UTC day was ever tagged. Every later merge that day stayed
+  unreachable from any date tag until the next day's first merge — measured
+  over the preceding days, `2026-08-03` missed 8 commits across 10 workflow
+  files and `2026-08-04` missed 3 commits across 5. The step now force-updates
+  the tag on every push to `main`. Consumer-visible consequence: a date tag is
+  mutable during its own UTC day and settles once that day is over, so a
+  consumer who pins today's tag mid-day and re-fetches later can receive a
+  newer tree under the same name. Tags from previous days never move.
 - **`ci-gitops.yml`'s `summary` job reports the real job results.** It printed
   five fixed lines including `All validation checks completed!` without ever
   reading `needs.*.result`, so a run in which every needed job failed still

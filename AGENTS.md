@@ -119,8 +119,9 @@ uses: sbaerlocher/.github/.github/workflows/ci-js.yml@2026-04-25
 - Consumers MUST reference workflows by date tag.
 - `@main` is forbidden in consumer repos — breaking changes would propagate
   immediately to all of them.
-- New tags are cut from `main` after a batch of changes has settled. The
-  cadence is documented in `CHANGELOG.md`.
+- `merge.yml` tags every push to `main` with the current UTC date, moving that
+  day's tag to the newest commit. A tag therefore covers the whole day and
+  stops changing once the day is over; only the current day's tag is mutable.
 - Renovate updates date tags in consumer repos automatically via the
   custom manager defined in `renovate-base.json`.
 
@@ -308,7 +309,7 @@ carry a `workflow_call` trigger — they are not reusable from consumer repos.
 | ---------------- | ---------------------- | ------------------------------------------ |
 | Test dde actions | `test-actions-dde.yml` | Smoke-test `setup-dde` on Linux/macOS      |
 | Pull Request     | `pull-request.yml`     | `just lint` + `just test` on PRs to `main` |
-| Merge to Main    | `merge.yml`            | Cuts the `YYYY-MM-DD` date tag on push     |
+| Merge to Main    | `merge.yml`            | Moves the `YYYY-MM-DD` date tag on push    |
 | Weekly Security  | `weekly-security.yml`  | Scheduled config + secret self-scan (Mon)  |
 
 ---
@@ -571,7 +572,7 @@ Ensure lock files are committed:
 │   │   ├── release-*.yml   # Release workflows
 │   │   ├── security-*.yml  # Security workflows
 │   │   ├── test-*.yml      # Internal self-tests (NOT reusable)
-│   │   ├── merge.yml       # Internal: cuts the date tag on push to main
+│   │   ├── merge.yml       # Internal: moves the date tag on push to main
 │   │   ├── pull-request.yml # Internal: lint + test on this repo's PRs
 │   │   └── weekly-security.yml # Internal: scheduled self-scan
 │   ├── ISSUE_TEMPLATE/     # Org-default issue forms
