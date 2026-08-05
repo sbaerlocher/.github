@@ -318,11 +318,24 @@ jobs:
           # would suppress whichever text came second.
           SKIP_MARKER: '<!-- claude-review-skipped -->'
           # Skip detection channel. On a workflow-validation skip the action
-          # returns before its token is exchanged, so this declared output
+          # returns before its token is exchanged, so its `github_token` output
           # arrives empty; on a regular run it carries the app token. It is an
           # undocumented implementation detail of the action — the self-check in
           # scripts/tests/ pins the wiring on this side, not the action's.
-          SKIPPED_TOKEN: ${{ steps.claude.outputs.github_token }}
+          #
+          # `outcome == 'success'` is part of the condition, not decoration: an
+          # empty token also describes a step that *failed* before the exchange
+          # (rejected token, plugin install failure, transport error), and this
+          # step runs under `!cancelled()`, so those runs reach the branch too.
+          # Without the outcome test they would get the skip comment — the same
+          # wrong-cause message this change removes, pointing the other way.
+          #
+          # The comparison happens in the expression, so only its result reaches
+          # the step: a live app token never enters the environment, where only
+          # its emptiness is ever used (REVIEW.md, "Secret handling").
+          SKIPPED: >-
+            ${{ steps.claude.outcome == 'success'
+              && steps.claude.outputs.github_token == '' }}
         run: |
           set -euo pipefail
 
@@ -338,6 +351,19 @@ jobs:
                     and .commit_id == env.HEAD_SHA)] | length')
 
           if [ "$COUNT" -gt 0 ]; then
+            # A review on the head SHA proves the action ran and exchanged its
+            # token, so the detection channel must report "not skipped" here. If
+            # it reports a skip on this path, the channel is broken — an id
+            # rename, or the action dropping the output — and the skip branch
+            # below would then fire on every run and take the check green on
+            # unreviewed diffs. This is the one branch where that is provable at
+            # runtime, so it is asserted where it is free rather than left to
+            # the self-check alone. A warning, not a failure: the review is
+            # there and the diff is reviewed.
+            if [ "$SKIPPED" = "true" ]; then
+              echo "::warning::A review exists on $HEAD_SHA but the skip channel reports a skip — steps.claude.outputs.github_token is no longer a reliable signal; see scripts/tests/test-claude-review-skip-guard.sh."
+            fi
+
             echo "Review found on $HEAD_SHA."
             exit 0
           fi
@@ -353,10 +379,12 @@ jobs:
           # place this shows up, and its API endpoints answer `Forbidden`.
           #
           # An unknown `steps.*` resolves to the empty string, and empty means
-          # "skipped" here, so a broken channel fails green. The review check
-          # above bounds that: it only slips through when a review is missing
-          # for a real reason *and* the channel is broken at the same time.
-          if [ -z "$SKIPPED_TOKEN" ]; then
+          # "skipped" here, so a broken channel fails green on exactly this
+          # guard's population — a review missing for a real reason (turns
+          # exhausted, model error, failed post). The review branch above is
+          # where that break is provable and warns about it; the self-check
+          # pins the wiring statically.
+          if [ "$SKIPPED" = "true" ]; then
             SKIP_POSTED=$(gh api --paginate "repos/$REPO/issues/$PR/comments" \
               | jq -s --arg m "$SKIP_MARKER" 'add // [] | [.[] | select(.body | contains($m))] | length')
 

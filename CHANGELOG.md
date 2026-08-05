@@ -20,7 +20,7 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
-## 2026-08-06
+## 2026-08-05
 
 ### Details
 
@@ -32,23 +32,24 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   is unavoidable for the author while the changed file is not on `main` yet, and
   a permanently red check destroys the signal the guard exists for. The action
   returns before its token exchange on such a skip, so its `github_token` output
-  arrives empty; the guard now reads that output — the action step gained the
-  id this requires — and, after the existing head-SHA review check, reports
-  the skip via `::notice::` plus a PR comment under its own
-  `<!-- claude-review-skipped -->` marker and exits 0. The regular path is
-  unchanged and still exits 1. `scripts/tests/test-claude-review-skip-guard.sh`
-  pins the wiring: the detection channel is an undocumented implementation
-  detail of the action whose failure direction is green, so a rename on this
-  side would otherwise take the check green on unreviewed diffs in silence.
-  Affected pull requests now merge without a Claude review rather than with a
-  red check — the comment keeps that visible on the PR, where the job log is
-  not: its API endpoints answer `Forbidden` for these runs.
-
----
-
-## 2026-08-05
-
-### Details
+  arrives empty; the guard now treats a step that succeeded _and_ produced no
+  token as a skip — the action step gained the id this requires — and, after
+  the existing head-SHA review check, reports it via `::notice::` plus a pull
+  request comment under its own `<!-- claude-review-skipped -->` marker, then
+  exits 0. The success test is part of the condition: an empty token also
+  describes a step that failed before the exchange, and the assertion runs under
+  `!cancelled()`, so those runs reach the branch too and must keep the red path.
+  The regular path is otherwise unchanged and still exits 1.
+  `scripts/tests/test-claude-review-skip-guard.sh` pins the wiring, because the
+  detection channel is an undocumented implementation detail of the action whose
+  failure direction is green — a rename on this side would otherwise take the
+  check green on unreviewed diffs in silence. The branch where a review _was_
+  posted additionally warns when the channel still reports a skip: a review on
+  the head SHA proves the action ran, so that combination can only mean the
+  wiring broke, and it is the one place that is provable at runtime. Affected
+  pull requests now merge without a Claude review rather than with a red check —
+  the comment keeps that visible on the pull request, where the job log is not:
+  its API endpoints answer `Forbidden` for these runs.
 
 - **`ci-gitops.yml`'s `summary` job reports the real job results.** It printed
   five fixed lines including `All validation checks completed!` without ever
