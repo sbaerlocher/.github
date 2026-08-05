@@ -52,13 +52,16 @@ ACTION_ID="$(awk '
   END { if (found && !done) print id }
 ' "$WORKFLOW")"
 
+# Emptiness first: `grep -c .` counts non-empty lines, so an empty id would
+# report as "more than one line" and hide the very regression this file names as
+# its reason for existing.
+[ -n "$ACTION_ID" ] ||
+  fail "the anthropics/claude-code-action step has no id; its outputs are not addressable"
+
 # The id must be a single token: an extraction that returned two lines would
 # make every pattern built from it match nothing, which fails green.
 [ "$(grep -c . <<<"$ACTION_ID")" -eq 1 ] ||
   fail "the id extraction returned more than one line: [$ACTION_ID]"
-
-[ -n "$ACTION_ID" ] ||
-  fail "the anthropics/claude-code-action step has no id; its outputs are not addressable"
 
 # --- 2. the guard reads github_token under exactly that id -------------------
 
