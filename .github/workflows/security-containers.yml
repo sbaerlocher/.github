@@ -4,6 +4,10 @@ name: Security - Containers
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        default: 'ubuntu-latest'
+        description: 'Runner label or group for all jobs in this workflow'
       image-ref:
         type: string
         required: true
@@ -65,7 +69,7 @@ jobs:
   # report is the final always()-step reading step outcomes.
   container-scan:
     name: Scan Container Image
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     # Upper bound for the merged trivy + grype + analysis steps. Fixed rather
     # than derived from scan-timeout: GitHub-expression arithmetic isn't
     # portable across linters, and a timeout is only a ceiling. 40 covers

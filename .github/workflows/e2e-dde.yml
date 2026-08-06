@@ -4,6 +4,10 @@ name: End-to-End - dde
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        default: 'ubuntu-latest'
+        description: 'Runner label or group for all jobs in this workflow'
       # dde Configuration
       dde-version:
         type: string
@@ -157,7 +161,7 @@ concurrency:
 jobs:
   e2e-dde:
     name: E2E (dde)
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -370,7 +374,7 @@ jobs:
   comment:
     name: Comment PR
     needs: e2e-dde
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     if: >
       always()
       && github.event_name == 'pull_request'

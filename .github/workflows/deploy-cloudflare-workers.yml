@@ -4,6 +4,10 @@ name: Deploy - Cloudflare Workers
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        default: 'ubuntu-latest'
+        description: 'Runner label or group for all jobs in this workflow'
       workers:
         type: string
         required: true
@@ -68,7 +72,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy Worker (${{ matrix.worker }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 20
     strategy:
       fail-fast: false

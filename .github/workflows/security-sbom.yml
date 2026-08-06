@@ -4,6 +4,10 @@ name: Security - SBOM Generation
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        default: 'ubuntu-latest'
+        description: 'Runner label or group for all jobs in this workflow'
       artifact-type:
         type: string
         required: true
@@ -60,7 +64,7 @@ concurrency:
 jobs:
   generate-sbom:
     name: Generate SBOM
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 15
     outputs:
       sbom-file: ${{ steps.sbom-output.outputs.file }}
@@ -157,7 +161,7 @@ jobs:
 
   sbom-report:
     name: Create Report
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     needs: [generate-sbom]
     if: always() && !cancelled()
     steps:

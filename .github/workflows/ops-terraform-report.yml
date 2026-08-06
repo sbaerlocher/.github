@@ -4,6 +4,10 @@ name: Ops - Terraform Report
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        default: 'ubuntu-latest'
+        description: 'Runner label or group for all jobs in this workflow'
       project-name:
         type: string
         required: true
@@ -97,7 +101,7 @@ concurrency:
 jobs:
   report:
     name: Render Pipeline Report
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 5
     outputs:
       overall-status: ${{ steps.analysis.outputs.overall_status }}

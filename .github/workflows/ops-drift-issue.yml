@@ -4,6 +4,10 @@ name: Ops - Drift Issue
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        default: 'ubuntu-latest'
+        description: 'Runner label or group for all jobs in this workflow'
       project-name:
         type: string
         required: true
@@ -76,7 +80,7 @@ concurrency:
 jobs:
   upsert-drift-issue:
     name: Create or Update Drift Issue
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 5
     permissions:
       contents: read

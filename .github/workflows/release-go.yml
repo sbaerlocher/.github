@@ -4,6 +4,10 @@ name: Release - Go
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        default: 'ubuntu-latest'
+        description: 'Runner label or group for all jobs in this workflow'
       go-version:
         type: string
         required: false
@@ -62,7 +66,7 @@ concurrency:
 jobs:
   goreleaser:
     name: Build & Release
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
 
     steps:
       - name: Checkout code

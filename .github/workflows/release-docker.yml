@@ -4,6 +4,10 @@ name: Release - Docker
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        default: 'ubuntu-latest'
+        description: 'Runner label or group for all jobs in this workflow'
       registry:
         type: string
         required: false
@@ -118,7 +122,7 @@ concurrency:
 jobs:
   docker-build:
     name: Build & Push
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     outputs:
       image-digest: ${{ steps.build.outputs.digest }}
       image-tags: ${{ steps.meta.outputs.tags }}

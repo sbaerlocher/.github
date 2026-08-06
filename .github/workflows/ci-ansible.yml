@@ -4,6 +4,10 @@ name: Continuous Integration - Ansible
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        default: 'ubuntu-latest'
+        description: 'Runner label or group for all jobs in this workflow'
       ansible-version:
         type: string
         default: '8.5.0'
@@ -72,7 +76,7 @@ concurrency:
 jobs:
   validation:
     name: Validate
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 15
 
     steps:
@@ -143,7 +147,7 @@ jobs:
     # Gate behind validation: a failed syntax check aborts before ansible-lint
     # spends a runner. validation is unconditional, so plain needs is enough.
     needs: validation
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 15
 
     steps:
@@ -192,7 +196,7 @@ jobs:
     if: ${{ inputs.enable-yamllint }}
     # Gate behind validation so a syntax failure aborts before yamllint runs.
     needs: validation
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 10
 
     steps:

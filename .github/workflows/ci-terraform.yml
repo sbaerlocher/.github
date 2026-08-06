@@ -3,6 +3,10 @@ name: Continuous Integration - Terraform
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        default: 'ubuntu-latest'
+        description: 'Runner label or group for all jobs in this workflow'
       terraform-version:
         type: string
         default: '1.14.3'
@@ -54,7 +58,7 @@ env:
 jobs:
   validation:
     name: Validate
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 15
     outputs:
       validation_result: ${{ steps.validation.outputs.result }}
@@ -108,7 +112,7 @@ jobs:
     # tflint spends a runner. validation is unconditional, so plain needs is
     # enough — a validation failure skips this job.
     needs: validation
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 10
 
     steps:
@@ -140,7 +144,7 @@ jobs:
     name: Vulnerability Scanning
     # Gate behind validation so a broken config fails fast before the scan runs.
     needs: validation
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

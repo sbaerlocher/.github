@@ -4,6 +4,10 @@ name: Security - Config
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        default: 'ubuntu-latest'
+        description: 'Runner label or group for all jobs in this workflow'
       # Scan targets
       scan-terraform:
         type: boolean
@@ -81,7 +85,7 @@ jobs:
   # behind its original `if:`; the report is the final always()-step.
   config-scan:
     name: Scan Configuration
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     # Union of the merged jobs' timeouts (4×15).
     timeout-minutes: 60
     steps:

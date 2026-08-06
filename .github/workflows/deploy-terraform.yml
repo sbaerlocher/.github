@@ -4,6 +4,10 @@ name: Deploy - Terraform
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        default: 'ubuntu-latest'
+        description: 'Runner label or group for all jobs in this workflow'
       mode:
         type: string
         required: false
@@ -130,7 +134,7 @@ permissions:
 jobs:
   deploy:
     name: Deploy Infrastructure
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     environment:
       name: ${{ inputs.environment }}

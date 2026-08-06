@@ -4,6 +4,10 @@ name: End-to-End - Docker Compose
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        default: 'ubuntu-latest'
+        description: 'Runner label or group for all jobs in this workflow'
       # Docker Compose Configuration
       compose-file:
         type: string
@@ -87,7 +91,7 @@ concurrency:
 jobs:
   e2e-docker:
     name: E2E (Docker Compose)
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 30
 
     steps:

@@ -4,6 +4,10 @@ name: Security - Dependencies
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        default: 'ubuntu-latest'
+        description: 'Runner label or group for all jobs in this workflow'
       language:
         type: string
         required: true
@@ -72,7 +76,7 @@ jobs:
   # original `if:`; the report is the final always()-step reading step outcomes.
   dependency-scan:
     name: Scan Dependencies
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     # Union of the merged jobs' timeouts (review 10 + 3×15).
     timeout-minutes: 55
     steps:
