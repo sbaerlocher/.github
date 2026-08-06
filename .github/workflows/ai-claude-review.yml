@@ -5,8 +5,12 @@ on:
     inputs:
       runner:
         type: string
+        required: false
         default: 'ubuntu-latest'
-        description: 'Runner label or group for all jobs in this workflow'
+        description: >-
+          Single runner label for all jobs in this workflow (e.g.
+          `ubuntu-latest`, `self-hosted`). Runner groups and multi-label
+          selectors are not supported.
       model:
         type: string
         required: false

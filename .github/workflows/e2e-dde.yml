@@ -6,8 +6,13 @@ on:
     inputs:
       runner:
         type: string
+        required: false
         default: 'ubuntu-latest'
-        description: 'Runner label or group for all jobs in this workflow'
+        description: >-
+          Single runner label for all jobs in this workflow (e.g.
+          `ubuntu-latest`, `self-hosted`). Runner groups and multi-label
+          selectors are not supported. Must be a Linux runner with Docker —
+          `dde system:install` does not work on hosted macOS or Windows runners.
       # dde Configuration
       dde-version:
         type: string

@@ -125,6 +125,55 @@ uses: sbaerlocher/.github/.github/workflows/ci-js.yml@2026-04-25
 - Renovate updates date tags in consumer repos automatically via the
   custom manager defined in `renovate-base.json`.
 
+### Runner Convention
+
+Every reusable workflow exposes a `runner` input, and every `runs-on:` in it
+resolves through that input rather than naming a runner directly:
+
+```yaml
+inputs:
+  runner:
+    type: string
+    required: false
+    default: 'ubuntu-latest'
+    description: >-
+      Single runner label for all jobs in this workflow (e.g.
+      `ubuntu-latest`, `self-hosted`). Runner groups and multi-label
+      selectors are not supported.
+```
+
+```yaml
+runs-on: ${{ inputs.runner }}
+```
+
+`runs-on` sits in the called workflow and a caller cannot override it, so
+without this input no consumer can reach a self-hosted runner. The default
+keeps every existing caller on `ubuntu-latest`; a consumer opts in per repo
+with `with: runner: <label>`.
+
+**Single label only.** The input is a `type: string` interpolated bare, so it
+resolves as one label. The sequence form (`[self-hosted, linux, x64]`) and the
+mapping form (`group:`) need the expression to evaluate to a non-string via
+`fromJSON()`, which this shape does not do — a caller passing a runner-group
+name gets it matched as a label no runner carries, and the job waits for a
+runner until it times out rather than failing. Say so in the description
+instead of implying broader support.
+
+**Carry platform constraints into the description.** A hardcoded
+`ubuntu-latest` used to enforce a platform requirement structurally; the input
+removes that enforcement, so a workflow that only works on Linux states it in
+its own `runner` description — `e2e-dde.yml` (needs Docker) and
+`security-secrets.yml` (TruffleHog shells out to `apt-get` and a Docker image)
+both do.
+
+**Scope.** Only workflows with a `workflow_call` trigger. The internal
+workflows have no caller that could set an input, so they keep naming their
+runner directly.
+
+`runner` is workflow-wide: a consumer cannot route individual jobs of a
+multi-job reusable to different runners. Add a second input if that need is
+ever demonstrated.
+
 ### Concurrency Convention
 
 Every reusable workflow exposes the same two inputs so consumers can adjust
