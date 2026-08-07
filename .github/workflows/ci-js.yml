@@ -177,7 +177,7 @@ jobs:
 
       - name: Setup pnpm
         if: inputs.package-manager == 'pnpm'
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
       - name: Setup Bun
         if: inputs.package-manager == 'bun'
@@ -464,7 +464,7 @@ jobs:
 
       - name: Setup pnpm
         if: matrix.scanner == 'dependency-audit' && inputs.package-manager == 'pnpm'
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
       - name: Get cache directory
         if: matrix.scanner == 'dependency-audit'
@@ -557,7 +557,7 @@ jobs:
 
       - name: Upload SARIF file
         if: inputs.enable-sarif-upload && matrix.scanner == 'trivy-fs'
-        uses: github/codeql-action/upload-sarif@f205ea1c3313d32999d8d6a48b4f6530d4437b38 # v4.37.4
+        uses: github/codeql-action/upload-sarif@d1ba80a13dd99fba24a470575428917156a28b43 # v4.37.5
         with:
           sarif_file: trivy-fs.sarif
           category: trivy-fs

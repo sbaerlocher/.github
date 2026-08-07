@@ -124,7 +124,7 @@ jobs:
 
       - name: Setup pnpm
         if: inputs.package-manager == 'pnpm'
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
       - name: Setup Bun
         if: inputs.package-manager == 'bun'
@@ -267,7 +267,7 @@ jobs:
 
       - name: Setup pnpm
         if: inputs.package-manager == 'pnpm'
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
       - name: Setup Bun
         if: inputs.package-manager == 'bun'
@@ -444,7 +444,7 @@ jobs:
       # the same rolling date-tag model used by consumers.
       - name: Generate npm SBOM
         id: sbom
-        uses: sbaerlocher/.github/.github/actions/sbom-npm@2026-08-04
+        uses: sbaerlocher/.github/.github/actions/sbom-npm@2026-08-05
         with:
           package-manager: ${{ inputs.package-manager }}
           working-directory: ${{ inputs.working-directory }}
