@@ -37,20 +37,30 @@ fail() {
 
 # --- 1. the skip channel is established from the PR's changed files ----------
 
-# Scoped to the assertion step's `run:` body rather than the whole file: the
-# workflow's own comments name these things in prose, so a file-wide grep would
-# stay green on a body that no longer does any of it, matching the comment that
-# explains the wiring instead of the wiring.
+# Scoped to the assertion step's shell body rather than the whole file, and
+# anchored on `run: |` rather than on the step's `- name:` line: the `env:`
+# block in between carries a `DEFAULT_BRANCH:` entry, and a range that starts at
+# the step header would let an assertion about the comparison match that
+# declaration instead of the comparison.
 #
-# The body runs from the step's `run: |` to EOF. That is the last step in the
-# file, so no end anchor is needed; a step added after it would widen the range,
-# which can only add matches, and every assertion below is a positive one whose
-# subject is unique to this body.
+# The body runs to EOF. That is the last step in the file, so no end anchor is
+# needed; a step added after it would widen the range, which can only add
+# matches, and every assertion below is a positive one whose subject is unique
+# to this body.
 ASSERT_LINE="$(grep -n '^      - name: Assert a review was posted$' "$WORKFLOW" | cut -d: -f1 || true)"
 [ -n "$ASSERT_LINE" ] || fail "no 'Assert a review was posted' step found"
 [ "$(grep -c . <<<"$ASSERT_LINE")" -eq 1 ] || fail "expected exactly one assertion step"
 
-BODY="$(sed -n "${ASSERT_LINE},\$p" "$WORKFLOW")"
+RUN_OFFSET="$(sed -n "${ASSERT_LINE},\$p" "$WORKFLOW" | grep -n '^        run: |$' | head -1 | cut -d: -f1 || true)"
+[ -n "$RUN_OFFSET" ] || fail "the assertion step has no 'run: |' body"
+
+BODY="$(sed -n "$((ASSERT_LINE + RUN_OFFSET)),\$p" "$WORKFLOW")"
+
+# Every assertion below is anchored on shell syntax unique to the logic, never
+# on a bare word. The body is mostly prose — it carries `default_branch` inside
+# `workflow_not_found_on_default_branch` in two comments — and a word that also
+# occurs in a comment would let the check pass on the explanation of the wiring
+# rather than the wiring, which is the failure this file exists to catch.
 
 # The API query is the channel itself: without it the step has no way to know
 # whether the PR touches a workflow file.
@@ -59,14 +69,23 @@ grep -q 'pulls/\$PR/files' <<<"$BODY" ||
   fail "the assertion step does not query the PR's changed files; the skip channel has no source"
 
 # The path filter is what makes the answer mean "workflow file", not "any file".
-grep -q '\.github/workflows/' <<<"$BODY" ||
+# Anchored on the jq call, not the bare path: the path appears in prose too.
+grep -q 'startswith(".github/workflows/")' <<<"$BODY" ||
   fail "the assertion step does not filter the changed files to .github/workflows/; every PR would be reported as a skip"
 
 # The comparison against the default branch is the other half of the action's
 # own condition: a workflow file that matches the default branch does not stop
-# the action from running, so changing one is not by itself a skip.
-grep -q 'default_branch' <<<"$BODY" ||
-  fail "the assertion step does not compare against the default branch; a workflow file identical to the default branch would be reported as a skip"
+# the action from running, so changing one is not by itself a skip. Both halves
+# are asserted — the base-side lookup and the comparison that consumes it —
+# because gutting either one alone leaves every changed workflow file reported
+# as a skip.
+# shellcheck disable=SC2016 # the $DEFAULT_BRANCH text is matched literally in the YAML
+grep -q 'ref=\$DEFAULT_BRANCH' <<<"$BODY" ||
+  fail "the assertion step never looks the file up on the default branch; every changed workflow file would be reported as a skip"
+
+# shellcheck disable=SC2016 # the $HEAD_BLOB/$BASE_BLOB text is matched literally in the YAML
+grep -q '"\$HEAD_BLOB" != "\$BASE_BLOB"' <<<"$BODY" ||
+  fail "the assertion step never compares the head blob against the default-branch blob; the lookup result is unused and every changed workflow file would be reported as a skip"
 
 # The channel has to actually feed the branch below.
 grep -q 'SKIPPED=true' <<<"$BODY" ||

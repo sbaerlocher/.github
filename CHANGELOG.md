@@ -39,9 +39,8 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   if the pull request changes a file under `.github/workflows/` whose blob
   differs from the default branch — including a file the default branch does not
   have — the action structurally cannot run, and the run is reported as a skip.
-  The criterion counts _any_ changed workflow file, not only the triggering one:
-  this workflow ships as `workflow_call`, so the triggering file lives in the
-  consumer repo under a name this side does not know. A pull request that
+  The criterion counts _any_ changed workflow file, not only the triggering one.
+  A pull request that
   changes an unrelated workflow file and misses its review for a real reason now
   gets the skip comment rather than a red check; it stays unreviewed either way
   and says so. Narrowing to the triggering file via `github.workflow_ref` was
