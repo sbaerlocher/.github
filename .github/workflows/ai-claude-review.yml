@@ -149,10 +149,6 @@ jobs:
             echo "last-review-sha=$SHA" >> "$GITHUB_OUTPUT"
           fi
 
-      # `id:` is load-bearing, not decoration: the assertion step below reads
-      # `steps.claude.outputs.github_token` to tell a workflow-validation skip
-      # apart from a genuinely missing review. Without an id those outputs are
-      # not addressable and the skip branch can never fire.
       - id: claude
         uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b # v1
         with:
@@ -325,25 +321,7 @@ jobs:
           # have run, no review" are different states, and one shared marker
           # would suppress whichever text came second.
           SKIP_MARKER: '<!-- claude-review-skipped -->'
-          # Skip detection channel. On a workflow-validation skip the action
-          # returns before its token is exchanged, so its `github_token` output
-          # arrives empty; on a regular run it carries the app token. It is an
-          # undocumented implementation detail of the action — the self-check in
-          # scripts/tests/ pins the wiring on this side, not the action's.
-          #
-          # `outcome == 'success'` is part of the condition, not decoration: an
-          # empty token also describes a step that *failed* before the exchange
-          # (rejected token, plugin install failure, transport error), and this
-          # step runs under `!cancelled()`, so those runs reach the branch too.
-          # Without the outcome test they would get the skip comment — the same
-          # wrong-cause message this change removes, pointing the other way.
-          #
-          # The comparison happens in the expression, so only its result reaches
-          # the step: a live app token never enters the environment, where only
-          # its emptiness is ever used (REVIEW.md, "Secret handling").
-          SKIPPED: >-
-            ${{ steps.claude.outcome == 'success'
-              && steps.claude.outputs.github_token == '' }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
 
@@ -359,22 +337,67 @@ jobs:
                     and .commit_id == env.HEAD_SHA)] | length')
 
           if [ "$COUNT" -gt 0 ]; then
-            # A review on the head SHA proves the action ran and exchanged its
-            # token, so the detection channel must report "not skipped" here. If
-            # it reports a skip on this path, the channel is broken — an id
-            # rename, or the action dropping the output — and the skip branch
-            # below would then fire on every run and take the check green on
-            # unreviewed diffs. This is the one branch where that is provable at
-            # runtime, so it is asserted where it is free rather than left to
-            # the self-check alone. A warning, not a failure: the review is
-            # there and the diff is reviewed.
-            if [ "$SKIPPED" = "true" ]; then
-              echo "::warning::A review exists on $HEAD_SHA but the skip channel reports a skip — steps.claude.outputs.github_token is no longer a reliable signal; see scripts/tests/test-claude-review-skip-guard.sh."
-            fi
-
             echo "Review found on $HEAD_SHA."
             exit 0
           fi
+
+          # No review. Establish whether the action could have run at all: it
+          # refuses when the PR changes a workflow file that differs from the
+          # one on the default branch. That condition is observable from here,
+          # so it is checked here rather than asked of the action — the previous
+          # channel read an undocumented action output whose failure direction
+          # was green, and it never fired once org-wide.
+          #
+          # The criterion is deliberately wide: *any* changed workflow file
+          # counts, not just the one that triggered this run. This workflow
+          # ships as `workflow_call`, so the triggering file lives in the
+          # consumer repo under a name this side does not know. Price of the
+          # width: a PR that changes an unrelated workflow file and misses its
+          # review for a real reason gets the skip comment instead of a red
+          # check. It stays unreviewed either way, and it says so.
+          #
+          # Everything below runs under `set -euo pipefail`: unlike the retired
+          # channel, a broken query fails the step rather than resolving to
+          # "skipped".
+          SKIPPED=false
+
+          # `removed` is excluded: a workflow file deleted by the PR is absent
+          # from the head, so the blob lookup below would 404 on a state the
+          # action does not object to. `renamed` stays in — `.filename` is the
+          # new name, which is what exists at the head SHA.
+          #
+          # Read into an array rather than iterating the string: a path may
+          # contain whitespace, and word splitting would turn one such file into
+          # several nonexistent ones. `mapfile` runs in this shell, so `SKIPPED`
+          # set in the loop survives it — a `while read` behind a pipe would not.
+          mapfile -t CHANGED_WORKFLOWS < <(gh api --paginate "repos/$REPO/pulls/$PR/files" \
+            | jq -rs 'add // [] | .[]
+                | select(.status != "removed")
+                | .filename
+                | select(startswith(".github/workflows/"))')
+
+          for FILE in "${CHANGED_WORKFLOWS[@]}"; do
+            # Blob SHAs, not file contents: the comparison only needs to know
+            # whether the two sides differ, and the blob SHA is what the API
+            # returns for free on both. `--jq` on a directory response yields
+            # nothing, but these paths are files by construction.
+            HEAD_BLOB=$(gh api "repos/$REPO/contents/$FILE?ref=$HEAD_SHA" --jq '.sha')
+
+            # A file absent from the default branch is a difference, and it is
+            # exactly the case the action refuses: a workflow file the default
+            # branch has never seen. `|| true` keeps that 404 from ending the
+            # step under `set -e`; any other failure still surfaces as a
+            # difference, because an empty BASE_BLOB can only mean "differs",
+            # never "matches" — this errs toward reporting a skip, never toward
+            # calling an unreviewed diff reviewed.
+            BASE_BLOB=$(gh api "repos/$REPO/contents/$FILE?ref=$DEFAULT_BRANCH" --jq '.sha' 2>/dev/null || true)
+
+            if [ "$HEAD_BLOB" != "$BASE_BLOB" ]; then
+              echo "Workflow file $FILE differs from $DEFAULT_BRANCH — the action cannot run."
+              SKIPPED=true
+              break
+            fi
+          done
 
           # The action skips itself when the triggering workflow file differs
           # from the one on the default branch: the token exchange answers
@@ -385,13 +408,6 @@ jobs:
           # destroy the signal the assertion exists for. Report it as a skip and
           # leave a comment on the PR instead — the job log is the only other
           # place this shows up, and its API endpoints answer `Forbidden`.
-          #
-          # An unknown `steps.*` resolves to the empty string, and empty means
-          # "skipped" here, so a broken channel fails green on exactly this
-          # guard's population — a review missing for a real reason (turns
-          # exhausted, model error, failed post). The review branch above is
-          # where that break is provable and warns about it; the self-check
-          # pins the wiring statically.
           if [ "$SKIPPED" = "true" ]; then
             SKIP_POSTED=$(gh api --paginate "repos/$REPO/issues/$PR/comments" \
               | jq -s --arg m "$SKIP_MARKER" 'add // [] | [.[] | select(.body | contains($m))] | length')
