@@ -349,16 +349,26 @@ jobs:
           # was green, and it never fired once org-wide.
           #
           # The criterion is deliberately wide: *any* changed workflow file
-          # counts, not just the one that triggered this run. This workflow
-          # ships as `workflow_call`, so the triggering file lives in the
-          # consumer repo under a name this side does not know. Price of the
-          # width: a PR that changes an unrelated workflow file and misses its
-          # review for a real reason gets the skip comment instead of a red
-          # check. It stays unreviewed either way, and it says so.
+          # counts, not just the one that triggered this run.
           #
-          # Everything below runs under `set -euo pipefail`: unlike the retired
-          # channel, a broken query fails the step rather than resolving to
-          # "skipped".
+          # `github.workflow_ref` would name the triggering file — in a
+          # `workflow_call` context it resolves to the caller's top-level
+          # workflow (same fact ops-drift-issue.yml relies on). It is rejected
+          # anyway, because narrowing to it would only be correct if the
+          # validation checked that one file, and nothing here can establish
+          # that. The check is server-side: the OIDC exchange answers
+          # `workflow_not_found_on_default_branch` and the action only reads the
+          # error code (`src/github/token.ts`), so which files the server
+          # compares is not observable from either side.
+          #
+          # The two errors are not symmetric, which decides the width. Too wide
+          # reports a skip for a review missing for a real reason — a green
+          # check plus a comment that says the diff was not reviewed and must be
+          # reviewed by hand. Too narrow reports that same real state as a
+          # workflow-validation skip's opposite: a red `missing` comment on a PR
+          # whose author can do nothing about it, which is the failure this
+          # change exists to remove. Both are wrong-cause messages; only the
+          # narrow one recreates the one being fixed.
           SKIPPED=false
 
           # `removed` is excluded: a workflow file deleted by the PR is absent
@@ -366,22 +376,42 @@ jobs:
           # action does not object to. `renamed` stays in — `.filename` is the
           # new name, which is what exists at the head SHA.
           #
-          # Read into an array rather than iterating the string: a path may
-          # contain whitespace, and word splitting would turn one such file into
-          # several nonexistent ones. `mapfile` runs in this shell, so `SKIPPED`
-          # set in the loop survives it — a `while read` behind a pipe would not.
-          mapfile -t CHANGED_WORKFLOWS < <(gh api --paginate "repos/$REPO/pulls/$PR/files" \
-            | jq -rs 'add // [] | .[]
+          # Captured into a variable first, not consumed straight from a process
+          # substitution: `set -e` and `pipefail` do not inspect a substituted
+          # command, so a rate-limited or 5xx `gh api` would silently yield an
+          # empty list and read as "no workflow files changed".
+          CHANGED_FILES_JSON=$(gh api --paginate "repos/$REPO/pulls/$PR/files" | jq -s 'add // []')
+
+          # Read loop instead of `mapfile -t`, which is a bash-4 builtin macOS's
+          # bash 3.2 does not have — same ruling as ci-gitops.yml and
+          # security-config.yml, and `runner` is consumer-settable here too.
+          # Process substitution rather than a pipe, so the loop runs in this
+          # shell and the `SKIPPED` it sets survives.
+          CHANGED_WORKFLOWS=()
+          while IFS= read -r workflow_file; do
+            CHANGED_WORKFLOWS+=("$workflow_file")
+          done < <(printf '%s' "$CHANGED_FILES_JSON" \
+            | jq -r '.[]
                 | select(.status != "removed")
                 | .filename
                 | select(startswith(".github/workflows/"))')
 
-          for FILE in "${CHANGED_WORKFLOWS[@]}"; do
+          # `${arr[@]+"${arr[@]}"}` guards the empty-array case, which `set -u`
+          # rejects on bash < 4.4.
+          for FILE in ${CHANGED_WORKFLOWS[@]+"${CHANGED_WORKFLOWS[@]}"}; do
+            # The path is interpolated into the URL, so it is percent-encoded
+            # first — a filename may contain characters that are not URL-safe,
+            # and an unencoded one makes the request malformed rather than
+            # answered. Encoded per segment: `@uri` on the whole path would turn
+            # its slashes into `%2F` and address a single oddly-named file at
+            # the repo root. `-X GET` with `-f` puts `ref` in the query string;
+            # without the explicit method `gh` would POST it as a body.
+            FILE_PATH_ENC=$(jq -rn --arg p "$FILE" '$p | split("/") | map(@uri) | join("/")')
+
             # Blob SHAs, not file contents: the comparison only needs to know
             # whether the two sides differ, and the blob SHA is what the API
-            # returns for free on both. `--jq` on a directory response yields
-            # nothing, but these paths are files by construction.
-            HEAD_BLOB=$(gh api "repos/$REPO/contents/$FILE?ref=$HEAD_SHA" --jq '.sha')
+            # returns for free on both.
+            HEAD_BLOB=$(gh api -X GET "repos/$REPO/contents/$FILE_PATH_ENC" -f "ref=$HEAD_SHA" --jq '.sha')
 
             # A file absent from the default branch is a difference, and it is
             # exactly the case the action refuses: a workflow file the default
@@ -390,7 +420,7 @@ jobs:
             # difference, because an empty BASE_BLOB can only mean "differs",
             # never "matches" — this errs toward reporting a skip, never toward
             # calling an unreviewed diff reviewed.
-            BASE_BLOB=$(gh api "repos/$REPO/contents/$FILE?ref=$DEFAULT_BRANCH" --jq '.sha' 2>/dev/null || true)
+            BASE_BLOB=$(gh api -X GET "repos/$REPO/contents/$FILE_PATH_ENC" -f "ref=$DEFAULT_BRANCH" --jq '.sha' 2>/dev/null || true)
 
             if [ "$HEAD_BLOB" != "$BASE_BLOB" ]; then
               echo "Workflow file $FILE differs from $DEFAULT_BRANCH — the action cannot run."

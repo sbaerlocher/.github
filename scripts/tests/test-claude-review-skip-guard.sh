@@ -14,7 +14,8 @@
 # The channel is now established in the assertion step itself: it asks the API
 # whether the PR changes a file under `.github/workflows/` that differs from the
 # default branch, which is exactly the condition the action refuses to run
-# under. Everything runs under `set -euo pipefail`, so a broken channel is red.
+# under. A channel that breaks now falls through to the red path rather than
+# resolving to "skipped".
 #
 # This file pins that wiring: the API query, the path filter, the default-branch
 # comparison, and the absence of the retired output. It also pins the branch
@@ -82,6 +83,18 @@ grep -q 'SKIPPED=true' <<<"$BODY" ||
 # grep, reporting the healthy file as a failure with no message.
 if grep -q 'outputs\.github_token' "$WORKFLOW"; then
   fail "the workflow still reads outputs.github_token; that channel fails green on unreviewed diffs and was replaced by the changed-files check"
+fi
+
+# --- 2b. no bash-4 builtins ---------------------------------------------------
+
+# `runner` is a consumer-settable input on this workflow and its description
+# carries no platform constraint, so the step may run on macOS, where
+# /bin/bash is still 3.2. Same ruling as ci-gitops.yml and security-config.yml,
+# which both say so in comments; asserted here because the failure would land on
+# the one path that matters — no review found — and turn the guard into a hard
+# red on every workflow-touching PR.
+if grep -qE '^\s*mapfile\b|^\s*readarray\b' "$WORKFLOW"; then
+  fail "the workflow uses mapfile/readarray, a bash-4 builtin absent from macOS's bash 3.2; use a read loop fed by process substitution"
 fi
 
 # --- locate the guard branches ------------------------------------------------

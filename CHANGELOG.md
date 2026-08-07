@@ -44,8 +44,13 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   consumer repo under a name this side does not know. A pull request that
   changes an unrelated workflow file and misses its review for a real reason now
   gets the skip comment rather than a red check; it stays unreviewed either way
-  and says so. Everything runs under `set -euo pipefail`, so the new channel
-  fails red rather than green. No consumer-visible surface changes: `inputs:`,
+  and says so. Narrowing to the triggering file via `github.workflow_ref` was
+  rejected deliberately: the validation is server-side (the OIDC exchange
+  answers `workflow_not_found_on_default_branch`), so which files it compares
+  cannot be established from here, and guessing too narrow would recreate the
+  red wrong-cause comment this change removes. The API result is captured into a
+  variable before it is read, so a rate-limited or failing query cannot pass as
+  "no workflow files changed". No consumer-visible surface changes: `inputs:`,
   `secrets:` and both comment markers are untouched.
 
 - **Every reusable workflow now takes a `runner` input.** `runs-on` sits in the
