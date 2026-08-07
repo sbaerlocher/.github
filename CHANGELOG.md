@@ -22,6 +22,32 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-08-07
+
+### Details
+
+- **Every reusable workflow now takes a `runner` input.** `runs-on` sits in the
+  called workflow and a caller cannot override it, so no consumer could reach a
+  self-hosted runner through these workflows no matter what it configured on its
+  own side. All 24 reusables gained the input and all 51 `runs-on:` in them
+  resolve through it. `default: 'ubuntu-latest'` keeps every existing caller on
+  exactly the runner it had — nothing changes until a consumer opts in with
+  `with: runner: <label>`, one repo at a time. The four internal workflows
+  (`merge.yml`, `pull-request.yml`, `test-actions-dde.yml`,
+  `weekly-security.yml`) are unchanged: they have no caller that could set an
+  input.
+  The input is a single **label**, not a runner group or a multi-label selector.
+  Those two forms need `runs-on` to receive a non-string via `fromJSON()`, which
+  a bare `type: string` never produces; a caller passing a group name would have
+  it matched as a label no runner carries, and the job would wait for a runner
+  until it timed out rather than fail. The description says so at the point of
+  use. `e2e-dde.yml` and `security-secrets.yml` additionally state that they
+  need a Linux runner — the hardcoded `ubuntu-latest` used to enforce that
+  structurally, and Docker resp. the TruffleHog action still require it.
+  The self-hosted path is latent: it changes no behaviour until it is chosen.
+
+---
+
 ## 2026-08-05
 
 ### ⚠ BREAKING

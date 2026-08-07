@@ -4,6 +4,14 @@ name: Ops - Terraform Report
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        required: false
+        default: 'ubuntu-latest'
+        description: >-
+          Single runner label for all jobs in this workflow (e.g.
+          `ubuntu-latest`, `self-hosted`). Runner groups and multi-label
+          selectors are not supported.
       project-name:
         type: string
         required: true
@@ -97,7 +105,7 @@ concurrency:
 jobs:
   report:
     name: Render Pipeline Report
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 5
     outputs:
       overall-status: ${{ steps.analysis.outputs.overall_status }}

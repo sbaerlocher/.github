@@ -4,6 +4,14 @@ name: Release - NPM
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        required: false
+        default: 'ubuntu-latest'
+        description: >-
+          Single runner label for all jobs in this workflow (e.g.
+          `ubuntu-latest`, `self-hosted`). Runner groups and multi-label
+          selectors are not supported.
       package-manager:
         type: string
         default: 'pnpm'
@@ -95,7 +103,7 @@ concurrency:
 jobs:
   pre-release-checks:
     name: Validate Package
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 15
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -237,7 +245,7 @@ jobs:
     name: Publish Package
     needs: [pre-release-checks]
     if: needs.pre-release-checks.outputs.should-publish == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 15
     permissions:
       id-token: write # Required for NPM provenance
@@ -420,7 +428,7 @@ jobs:
     name: Generate SBOM
     needs: [pre-release-checks, publish]
     if: inputs.enable-sbom && needs.pre-release-checks.outputs.should-publish == 'true' && !inputs.dry-run
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 10
     permissions:
       contents: read
@@ -455,7 +463,7 @@ jobs:
     name: Create Release
     needs: [pre-release-checks, publish]
     if: inputs.create-github-release && needs.pre-release-checks.outputs.should-publish == 'true' && !inputs.dry-run
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 10
     outputs:
       release-url: ${{ steps.create-release.outputs.html_url }}
@@ -548,7 +556,7 @@ jobs:
 
   release-summary:
     name: Create Summary
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     needs: [pre-release-checks, publish, github-release]
     if: always() && !cancelled()
     steps:

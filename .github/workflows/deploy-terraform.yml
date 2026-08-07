@@ -4,6 +4,14 @@ name: Deploy - Terraform
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        required: false
+        default: 'ubuntu-latest'
+        description: >-
+          Single runner label for all jobs in this workflow (e.g.
+          `ubuntu-latest`, `self-hosted`). Runner groups and multi-label
+          selectors are not supported.
       mode:
         type: string
         required: false
@@ -130,7 +138,7 @@ permissions:
 jobs:
   deploy:
     name: Deploy Infrastructure
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     environment:
       name: ${{ inputs.environment }}

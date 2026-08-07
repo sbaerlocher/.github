@@ -4,6 +4,14 @@ name: Security - Code
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        required: false
+        default: 'ubuntu-latest'
+        description: >-
+          Single runner label for all jobs in this workflow (e.g.
+          `ubuntu-latest`, `self-hosted`). Runner groups and multi-label
+          selectors are not supported.
       languages:
         type: string
         default: '["javascript-typescript"]'
@@ -74,7 +82,7 @@ concurrency:
 jobs:
   analyze:
     name: Analyze Code (${{ matrix.language }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 30
     strategy:
       fail-fast: false

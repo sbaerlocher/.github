@@ -4,6 +4,14 @@ name: Release - Go
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        required: false
+        default: 'ubuntu-latest'
+        description: >-
+          Single runner label for all jobs in this workflow (e.g.
+          `ubuntu-latest`, `self-hosted`). Runner groups and multi-label
+          selectors are not supported.
       go-version:
         type: string
         required: false
@@ -62,7 +70,7 @@ concurrency:
 jobs:
   goreleaser:
     name: Build & Release
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
 
     steps:
       - name: Checkout code

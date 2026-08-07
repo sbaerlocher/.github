@@ -7,6 +7,14 @@ name: Continuous Integration - GitOps
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        required: false
+        default: 'ubuntu-latest'
+        description: >-
+          Single runner label for all jobs in this workflow (e.g.
+          `ubuntu-latest`, `self-hosted`). Runner groups and multi-label
+          selectors are not supported.
       python-version:
         description: |
           Python version used by both `validate-yaml` (yamllint) and
@@ -186,7 +194,7 @@ jobs:
   validate-yaml:
     name: Validate YAML Syntax
     if: inputs.enable-yaml-lint
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 5
     steps:
       - name: Checkout code
@@ -241,7 +249,7 @@ jobs:
     if: >-
       always() && !failure() && !cancelled()
       && inputs.enable-fleet-validation
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 5
     steps:
       - name: Checkout code
@@ -315,7 +323,7 @@ jobs:
     if: >-
       always() && !failure() && !cancelled()
       && inputs.enable-gitrepo-validation
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 5
     steps:
       - name: Checkout code
@@ -418,7 +426,7 @@ jobs:
     if: >-
       always() && !failure() && !cancelled()
       && inputs.enable-helm-lint
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 10
     steps:
       - name: Checkout code
@@ -477,7 +485,7 @@ jobs:
     if: >-
       always() && !failure() && !cancelled()
       && inputs.enable-helm-template-validation
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 10
     steps:
       - name: Checkout code
@@ -565,7 +573,7 @@ jobs:
     if: >-
       always() && !failure() && !cancelled()
       && inputs.enable-k8s-validation
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 10
     steps:
       - name: Checkout code
@@ -624,7 +632,7 @@ jobs:
     if: >-
       always() && !failure() && !cancelled()
       && inputs.enable-docs-check
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 5
     steps:
       - name: Checkout code
@@ -662,7 +670,7 @@ jobs:
     if: >-
       always() && !failure() && !cancelled()
       && inputs.enable-python-tests
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 5
     steps:
       - name: Checkout code
@@ -766,7 +774,7 @@ jobs:
 
   summary:
     name: Validation Summary
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 5
     needs:
       [

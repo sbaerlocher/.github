@@ -4,6 +4,15 @@ name: Security - Config
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        required: false
+        default: 'ubuntu-latest'
+        description: >-
+          Single runner label for all jobs in this workflow (e.g.
+          `ubuntu-latest`, `self-hosted`). Runner groups and multi-label
+          selectors are not supported. Must be a Linux runner with Docker —
+          the kubesec scan runs via `docker run`.
       # Scan targets
       scan-terraform:
         type: boolean
@@ -81,7 +90,7 @@ jobs:
   # behind its original `if:`; the report is the final always()-step.
   config-scan:
     name: Scan Configuration
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     # Union of the merged jobs' timeouts (4×15).
     timeout-minutes: 60
     steps:

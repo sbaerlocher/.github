@@ -4,6 +4,15 @@ name: Release - Docker
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        required: false
+        default: 'ubuntu-latest'
+        description: >-
+          Single runner label for all jobs in this workflow (e.g.
+          `ubuntu-latest`, `self-hosted`). Runner groups and multi-label
+          selectors are not supported. Must be a Linux runner with Docker —
+          the image tests run `docker run` and mount `/var/run/docker.sock`.
       registry:
         type: string
         required: false
@@ -118,7 +127,7 @@ concurrency:
 jobs:
   docker-build:
     name: Build & Push
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     outputs:
       image-digest: ${{ steps.build.outputs.digest }}
       image-tags: ${{ steps.meta.outputs.tags }}

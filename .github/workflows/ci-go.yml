@@ -4,6 +4,14 @@ name: Continuous Integration - Go
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        required: false
+        default: 'ubuntu-latest'
+        description: >-
+          Single runner label for all jobs in this workflow (e.g.
+          `ubuntu-latest`, `self-hosted`). Runner groups and multi-label
+          selectors are not supported.
       go-version:
         type: string
         required: false
@@ -116,7 +124,7 @@ concurrency:
 jobs:
   setup:
     name: Setup
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     outputs:
       version: ${{ steps.version.outputs.version }}
       should-run-tests: ${{ steps.should-run.outputs.tests }}
@@ -154,7 +162,7 @@ jobs:
 
   test-and-lint:
     name: Test & Lint
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     needs: setup
     if: needs.setup.outputs.should-run-tests == 'true'
     outputs:
@@ -331,7 +339,7 @@ jobs:
 
   security-scan:
     name: Scan Security (${{ matrix.scanner }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     # Job-level grant: SARIF upload (enable-sarif-upload) needs
     # security-events: write on push events.
     permissions:
@@ -430,7 +438,7 @@ jobs:
 
   codeql-analysis:
     name: Analyze Code
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     # Job-level grant: the workflow-level default is contents: read, but
     # uploading CodeQL results needs security-events: write on push events
     # (public-repo pull_request uploads succeed with a read token).
@@ -484,7 +492,7 @@ jobs:
 
   dependency-review:
     name: Dependency Review
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     if: inputs.enable-dependency-review && github.event_name == 'pull_request' && github.event.repository.visibility == 'public'
 
     steps:

@@ -4,6 +4,15 @@ name: End-to-End - dde
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        required: false
+        default: 'ubuntu-latest'
+        description: >-
+          Single runner label for all jobs in this workflow (e.g.
+          `ubuntu-latest`, `self-hosted`). Runner groups and multi-label
+          selectors are not supported. Must be a Linux runner with Docker —
+          `dde system:install` does not work on hosted macOS or Windows runners.
       # dde Configuration
       dde-version:
         type: string
@@ -157,7 +166,7 @@ concurrency:
 jobs:
   e2e-dde:
     name: E2E (dde)
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -370,7 +379,7 @@ jobs:
   comment:
     name: Comment PR
     needs: e2e-dde
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     if: >
       always()
       && github.event_name == 'pull_request'

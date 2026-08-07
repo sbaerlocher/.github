@@ -4,6 +4,14 @@ name: Continuous Integration - JavaScript
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        required: false
+        default: 'ubuntu-latest'
+        description: >-
+          Single runner label for all jobs in this workflow (e.g.
+          `ubuntu-latest`, `self-hosted`). Runner groups and multi-label
+          selectors are not supported.
       package-manager:
         type: string
         default: 'pnpm'
@@ -128,7 +136,7 @@ concurrency:
 jobs:
   setup:
     name: Setup
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     outputs:
       should-run-tests: ${{ steps.should-run.outputs.tests }}
       should-run-security: ${{ steps.should-run.outputs.security }}
@@ -148,7 +156,7 @@ jobs:
 
   quality-and-test:
     name: Test & Lint
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     needs: setup
     if: needs.setup.outputs.should-run-tests == 'true'
     timeout-minutes: 20
@@ -426,7 +434,7 @@ jobs:
 
   security-scan:
     name: Security (${{ matrix.scanner }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     # Job-level grant: SARIF upload (enable-sarif-upload) needs
     # security-events: write on push events.
     permissions:
@@ -557,7 +565,7 @@ jobs:
 
   dependency-review:
     name: Review Dependencies
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     if: inputs.primary && inputs.enable-dependency-review && github.event_name == 'pull_request' && github.event.repository.visibility == 'public'
     timeout-minutes: 10
 
@@ -575,7 +583,7 @@ jobs:
 
   summary:
     name: Create Summary
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     needs: [quality-and-test, security-scan, dependency-review]
     if: always() && !cancelled()
     steps:

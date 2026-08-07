@@ -4,6 +4,14 @@ name: Deploy - Cloudflare Workers
 on:
   workflow_call:
     inputs:
+      runner:
+        type: string
+        required: false
+        default: 'ubuntu-latest'
+        description: >-
+          Single runner label for all jobs in this workflow (e.g.
+          `ubuntu-latest`, `self-hosted`). Runner groups and multi-label
+          selectors are not supported.
       workers:
         type: string
         required: true
@@ -68,7 +76,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy Worker (${{ matrix.worker }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
