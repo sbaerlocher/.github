@@ -150,9 +150,10 @@ jobs:
           fi
 
       # The id has no readers since the skip channel stopped asking the action
-      # for its outputs. Kept as the step's label: without it the run appears as
-      # its full `uses:` line, and this is the step whose duration and outcome
-      # one reads first when a review is missing.
+      # for its outputs. Kept, not load-bearing: it costs nothing and keeps
+      # `steps.claude.outcome` addressable for a future guard. It does not
+      # affect how the step is labelled — `name:` does that, and this step has
+      # none, so it renders as its `uses:` line either way.
       - id: claude
         uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b # v1
         with:
