@@ -22,7 +22,7 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
-## 2026-08-06
+## 2026-08-07
 
 ### Details
 
