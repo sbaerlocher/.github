@@ -162,9 +162,13 @@ instead of implying broader support.
 **Carry platform constraints into the description.** A hardcoded
 `ubuntu-latest` used to enforce a platform requirement structurally; the input
 removes that enforcement, so a workflow that only works on Linux states it in
-its own `runner` description — `e2e-dde.yml` (needs Docker) and
-`security-secrets.yml` (TruffleHog shells out to `apt-get` and a Docker image)
-both do.
+its own `runner` description. Five do: `e2e-dde.yml` (needs Docker),
+`e2e-docker.yml` (`docker compose`), `release-docker.yml` (`docker run` plus a
+`/var/run/docker.sock` mount), `security-config.yml` (kubesec via `docker run`)
+and `security-secrets.yml` (TruffleHog shells out to `apt-get` and a Docker
+image). Note that an action being a _container_ action is not the test —
+`gitleaks-action` is `node24` and `trivy-action` is `composite`; what binds a
+workflow to Linux is what its steps actually invoke.
 
 **Scope.** Only workflows with a `workflow_call` trigger. The internal
 workflows have no caller that could set an input, so they keep naming their

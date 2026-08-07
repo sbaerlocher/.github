@@ -11,7 +11,8 @@ on:
         description: >-
           Single runner label for all jobs in this workflow (e.g.
           `ubuntu-latest`, `self-hosted`). Runner groups and multi-label
-          selectors are not supported.
+          selectors are not supported. Must be a Linux runner with Docker —
+          the image tests run `docker run` and mount `/var/run/docker.sock`.
       registry:
         type: string
         required: false
