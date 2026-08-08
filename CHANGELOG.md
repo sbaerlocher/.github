@@ -26,6 +26,32 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### Details
 
+- **`ai-claude-review.yml` establishes the workflow-validation skip itself
+  instead of reading it off the action.** The skip channel introduced on
+  2026-08-05 asked the action: an empty `github_token` output meant "skipped".
+  That output is an undocumented implementation detail, it is not observable
+  from the job log (the log API answers `Forbidden`), and its failure direction
+  was green — an unknown `steps.*` resolves to the empty string, and empty meant
+  skip, so a broken channel would have taken the check green on unreviewed
+  diffs. Org-wide the skip branch never fired once, while the branch it was
+  built for produced a `claude-review-missing` comment naming the wrong cause.
+  The assertion step now asks the API directly, after the head-SHA review check:
+  if the pull request changes a file under `.github/workflows/` whose blob
+  differs from the default branch — including a file the default branch does not
+  have — the action structurally cannot run, and the run is reported as a skip.
+  The criterion counts _any_ changed workflow file, not only the triggering one.
+  A pull request that
+  changes an unrelated workflow file and misses its review for a real reason now
+  gets the skip comment rather than a red check; it stays unreviewed either way
+  and says so. Narrowing to the triggering file via `github.workflow_ref` was
+  rejected deliberately: the validation is server-side (the OIDC exchange
+  answers `workflow_not_found_on_default_branch`), so which files it compares
+  cannot be established from here, and guessing too narrow would recreate the
+  red wrong-cause comment this change removes. The API result is captured into a
+  variable before it is read, so a rate-limited or failing query cannot pass as
+  "no workflow files changed". No consumer-visible surface changes: `inputs:`,
+  `secrets:` and both comment markers are untouched.
+
 - **Every reusable workflow now takes a `runner` input.** `runs-on` sits in the
   called workflow and a caller cannot override it, so no consumer could reach a
   self-hosted runner through these workflows no matter what it configured on its

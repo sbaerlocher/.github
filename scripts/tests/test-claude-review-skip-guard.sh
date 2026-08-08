@@ -2,19 +2,24 @@
 # The claude-code-action skips itself when the triggering workflow file differs
 # from the one on the default branch: it warns and returns without failing, so
 # the step ends green in seconds with no review posted. The assertion step in
-# ai-claude-review.yml tells that skip apart from a genuinely missing review by
-# reading the action's `github_token` output, which arrives empty on a skip.
+# ai-claude-review.yml has to tell that skip apart from a genuinely missing
+# review, or every PR that touches a workflow file gets a permanent red check.
 #
-# That channel is an undocumented implementation detail of the action, and its
-# failure direction is green: an unknown `steps.*` resolves to the empty string,
-# and empty means "skipped" here. A rename on this side would therefore make the
-# skip branch fire on *every* run and take the check green on unreviewed diffs,
-# silently. This file pins the wiring so that edit fails loudly instead.
+# It used to ask the action, by reading its `github_token` output — empty was
+# taken to mean "skipped". That channel was an undocumented implementation
+# detail whose failure direction was green: an unknown `steps.*` resolves to the
+# empty string, and empty meant "skip", so a broken channel took the check green
+# on unreviewed diffs. Org-wide it never once fired.
 #
-# Everything is derived from the workflow rather than hard-coded, so the file
-# under test is the shipped one: the id is read out of the action step and the
-# guard's reference is then checked against whatever was read, which catches a
-# one-sided rename while leaving a consistent one free.
+# The channel is now established in the assertion step itself: it asks the API
+# whether the PR changes a file under `.github/workflows/` that differs from the
+# default branch, which is exactly the condition the action refuses to run
+# under. A channel that breaks now falls through to the red path rather than
+# resolving to "skipped".
+#
+# This file pins that wiring: the API query, the path filter, the default-branch
+# comparison, and the absence of the retired output. It also pins the branch
+# order, which is what keeps the review check ahead of the skip branch.
 #
 # Run: scripts/tests/test-claude-review-skip-guard.sh
 set -euo pipefail
@@ -30,56 +35,86 @@ fail() {
 
 [ -f "$WORKFLOW" ] || fail "ai-claude-review.yml not found at $WORKFLOW"
 
-# --- 1. the action step carries an id ----------------------------------------
+# --- 1. the skip channel is established from the PR's changed files ----------
 
-# The candidate is reset at every `      - ` step boundary. Without that reset a
-# step with no id of its own would inherit the previous step's (`mode`), and the
-# assertion would pass on a file where the id had been dropped — the exact
-# regression this check exists for.
+# Scoped to the assertion step's shell body rather than the whole file, and
+# anchored on `run: |` rather than on the step's `- name:` line: the `env:`
+# block in between carries a `DEFAULT_BRANCH:` entry, and a range that starts at
+# the step header would let an assertion about the comparison match that
+# declaration instead of the comparison.
 #
-# Both key orderings are accepted. YAML mapping keys are unordered, so `uses:`
-# first and `id:` first are the same step; matching only the latter would report
-# "the step has no id" on a file that has one, which is a loud failure with a
-# misleading cause. The `uses:` line therefore only records that the step is the
-# one under test, and the id is printed at the following step boundary or at EOF.
-# `done` rather than a bare `exit`: awk still runs the END block after `exit`,
-# so without it the id is printed twice and every pattern built from it below
-# carries an embedded newline and matches nothing — a green run on any file.
-ACTION_ID="$(awk '
-  /^      - / { if (found) { print id; done = 1; exit } id = "" }
-  /^ *(- )?id: / { id = $NF }
-  /^ *(- )?uses: anthropics\/claude-code-action@/ { found = 1 }
-  END { if (found && !done) print id }
-' "$WORKFLOW")"
+# The body runs to EOF. That is the last step in the file, so no end anchor is
+# needed; a step added after it would widen the range, which can only add
+# matches, and every assertion below is a positive one whose subject is unique
+# to this body.
+ASSERT_LINE="$(grep -n '^      - name: Assert a review was posted$' "$WORKFLOW" | cut -d: -f1 || true)"
+[ -n "$ASSERT_LINE" ] || fail "no 'Assert a review was posted' step found"
+[ "$(grep -c . <<<"$ASSERT_LINE")" -eq 1 ] || fail "expected exactly one assertion step"
 
-# Emptiness first: `grep -c .` counts non-empty lines, so an empty id would
-# report as "more than one line" and hide the very regression this file names as
-# its reason for existing.
-[ -n "$ACTION_ID" ] ||
-  fail "the anthropics/claude-code-action step has no id; its outputs are not addressable"
+RUN_OFFSET="$(sed -n "${ASSERT_LINE},\$p" "$WORKFLOW" | grep -n '^        run: |$' | head -1 | cut -d: -f1 || true)"
+[ -n "$RUN_OFFSET" ] || fail "the assertion step has no 'run: |' body"
 
-# The id must be a single token: an extraction that returned two lines would
-# make every pattern built from it match nothing, which fails green.
-[ "$(grep -c . <<<"$ACTION_ID")" -eq 1 ] ||
-  fail "the id extraction returned more than one line: [$ACTION_ID]"
+BODY="$(sed -n "$((ASSERT_LINE + RUN_OFFSET)),\$p" "$WORKFLOW")"
 
-# --- 2. the guard reads github_token under exactly that id -------------------
+# Every assertion below is anchored on shell syntax unique to the logic, never
+# on a bare word. The body is mostly prose — it carries `default_branch` inside
+# `workflow_not_found_on_default_branch` in two comments — and a word that also
+# occurs in a comment would let the check pass on the explanation of the wiring
+# rather than the wiring, which is the failure this file exists to catch.
 
-# Anchored to the env entry, not matched anywhere in the file: the workflow's
-# own comments name this expression in prose, so an unanchored grep stays green
-# after the `SKIPPED:` entry is deleted — it would be matching the comment that
-# explains the wiring rather than the wiring.
-SKIPPED_EXPR="$(sed -n '/^ *SKIPPED: /,/^ *[A-Za-z_-]*:/p' "$WORKFLOW")"
-[ -n "$SKIPPED_EXPR" ] || fail "no SKIPPED env entry found in the assertion step"
+# The API query is the channel itself: without it the step has no way to know
+# whether the PR touches a workflow file.
+# shellcheck disable=SC2016 # the $PR text is matched literally in the YAML
+grep -q 'pulls/\$PR/files' <<<"$BODY" ||
+  fail "the assertion step does not query the PR's changed files; the skip channel has no source"
 
-grep -q "steps\.$ACTION_ID\.outputs\.github_token" <<<"$SKIPPED_EXPR" ||
-  fail "the SKIPPED env entry does not read steps.$ACTION_ID.outputs.github_token; a stale id resolves to empty, which means 'skip' and takes the check green on unreviewed diffs"
+# The path filter is what makes the answer mean "workflow file", not "any file".
+# Anchored on the jq call, not the bare path: the path appears in prose too.
+grep -q 'startswith(".github/workflows/")' <<<"$BODY" ||
+  fail "the assertion step does not filter the changed files to .github/workflows/; every PR would be reported as a skip"
 
-# The outcome test is what keeps the branch to the state it describes: an empty
-# token also describes a step that failed before its token exchange, and the
-# assertion step runs under `!cancelled()`, so those runs reach it too.
-grep -q "steps\.$ACTION_ID\.outcome == 'success'" <<<"$SKIPPED_EXPR" ||
-  fail "the SKIPPED env entry does not require steps.$ACTION_ID.outcome == 'success'; a failed action step would be reported as a validation skip"
+# The comparison against the default branch is the other half of the action's
+# own condition: a workflow file that matches the default branch does not stop
+# the action from running, so changing one is not by itself a skip. Both halves
+# are asserted — the base-side lookup and the comparison that consumes it —
+# because gutting either one alone leaves every changed workflow file reported
+# as a skip.
+# shellcheck disable=SC2016 # the $DEFAULT_BRANCH text is matched literally in the YAML
+grep -q 'ref=\$DEFAULT_BRANCH' <<<"$BODY" ||
+  fail "the assertion step never looks the file up on the default branch; every changed workflow file would be reported as a skip"
+
+# shellcheck disable=SC2016 # the $HEAD_BLOB/$BASE_BLOB text is matched literally in the YAML
+grep -q '"\$HEAD_BLOB" != "\$BASE_BLOB"' <<<"$BODY" ||
+  fail "the assertion step never compares the head blob against the default-branch blob; the lookup result is unused and every changed workflow file would be reported as a skip"
+
+# The channel has to actually feed the branch below.
+grep -q 'SKIPPED=true' <<<"$BODY" ||
+  fail "the assertion step never sets SKIPPED=true; the skip branch is unreachable"
+
+# --- 2. the retired action-output channel is gone ----------------------------
+
+# The old channel failed green: an unknown `steps.*` resolves to the empty
+# string and empty meant "skipped". Reintroducing it anywhere in this workflow
+# brings that failure direction back, so it is asserted absent file-wide rather
+# than only in the step body.
+# `if grep`, not `grep && fail`: under `set -e` the latter would end the script
+# on the no-match case — the passing one — with the exit status of the failed
+# grep, reporting the healthy file as a failure with no message.
+if grep -q 'outputs\.github_token' "$WORKFLOW"; then
+  fail "the workflow still reads outputs.github_token; that channel fails green on unreviewed diffs and was replaced by the changed-files check"
+fi
+
+# --- 2b. no bash-4 builtins ---------------------------------------------------
+
+# `runner` is a consumer-settable input on this workflow and its description
+# carries no platform constraint, so the step may run on macOS, where
+# /bin/bash is still 3.2. Same ruling as ci-gitops.yml and security-config.yml,
+# which both say so in comments; asserted here because the failure would land on
+# the one path that matters — no review found — and turn the guard into a hard
+# red on every workflow-touching PR.
+if grep -qE '^\s*mapfile\b|^\s*readarray\b' "$WORKFLOW"; then
+  fail "the workflow uses mapfile/readarray, a bash-4 builtin absent from macOS's bash 3.2; use a read loop fed by process substitution"
+fi
 
 # --- locate the guard branches ------------------------------------------------
 
@@ -110,13 +145,6 @@ REVIEW_LINE="$(grep -n '^ *if \[ "\$COUNT" -gt 0 \]; then$' "$WORKFLOW" | cut -d
 [ -n "$REVIEW_LINE" ] || fail "no head-SHA review check found"
 [ "$REVIEW_LINE" -lt "$SKIP_LINE" ] ||
   fail "review check is at line $REVIEW_LINE, below the skip branch at $SKIP_LINE"
-
-# The review branch carries the runtime detector for a broken channel: a review
-# on the head SHA proves the action ran, so a skip reported there can only mean
-# the wiring broke. It is the one place that is provable at runtime, which is
-# why its loss should not be silent.
-sed -n "${REVIEW_LINE},$((SKIP_LINE - 1))p" "$WORKFLOW" | grep -q '::warning::' ||
-  fail "the review branch no longer warns when the skip channel reports a skip on a reviewed head SHA"
 
 # --- 3. the skip branch exits green ------------------------------------------
 
