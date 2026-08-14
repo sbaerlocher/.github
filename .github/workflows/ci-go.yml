@@ -395,7 +395,12 @@ jobs:
           rc=${PIPESTATUS[0]}
           set -e
           if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then
+            # A tool failure produces no findings to summarise, so say why the
+            # leg is red here — this exit is above the summary block below, and
+            # `tee` only captured stdout, leaving the diagnosis in the log alone.
             echo "::error::govulncheck failed (exit $rc)"
+            printf '### govulncheck\n\ngovulncheck itself failed (exit %s); see the job log.\n' \
+              "$rc" >> "$GITHUB_STEP_SUMMARY"
             exit "$rc"
           fi
           # Gate only on call-reachable findings. A finding whose top trace frame

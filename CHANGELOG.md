@@ -43,8 +43,12 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   `if-no-files-found: ignore` keeps it quiet when govulncheck aborted before
   writing the file. Gate behaviour is untouched: the same reachable-findings
   criterion decides pass and fail, and the existing `::warning::` / `::notice::`
-  annotations stay. What was blind is now visible; which findings gate is a
-  separate question and stays out of this change.
+  annotations stay. The early exit for a govulncheck _tool_ failure (an exit
+  code that is neither 0 nor the findings-code 3) writes its own summary line,
+  since it returns before the findings block and `tee` captured stdout only —
+  govulncheck's own error never reached `govulncheck.json` either, so without it
+  that red leg stayed log-only too. What was blind is now visible; which
+  findings gate is a separate question and stays out of this change.
 
 ---
 

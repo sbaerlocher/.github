@@ -28,31 +28,61 @@ fail() {
 
 # --- placement -------------------------------------------------------------
 
+# Everything below is scoped to the `Run govulncheck` step rather than to the
+# whole file: ci-go.yml is free to grow summary writes in other steps, and a
+# file-global "exactly one" assertion would break here with a message pointing
+# at the wrong place.
+#
 # `|| true` on the greps: under `set -euo pipefail` a non-matching grep would
 # abort at the assignment, turning the drift this file exists to catch into a
 # bare non-zero exit instead of the diagnostic below.
-# shellcheck disable=SC2016 # the $GITHUB_STEP_SUMMARY text is matched literally in the YAML
-SUMMARY_LINE="$(grep -n '>> "\$GITHUB_STEP_SUMMARY"' "$WORKFLOW" | cut -d: -f1 || true)"
-[ -n "$SUMMARY_LINE" ] || fail "no \$GITHUB_STEP_SUMMARY write found in ci-go.yml"
-[ "$(grep -c . <<<"$SUMMARY_LINE")" -eq 1 ] ||
-  fail "expected exactly one \$GITHUB_STEP_SUMMARY write in ci-go.yml"
-
-GATE_LINE="$(grep -n '::warning::Reachable vulnerabilities detected' "$WORKFLOW" | cut -d: -f1 || true)"
-[ -n "$GATE_LINE" ] || fail "no reachable-findings gate found in ci-go.yml"
-
-[ "$SUMMARY_LINE" -lt "$GATE_LINE" ] ||
-  fail "summary write is at line $SUMMARY_LINE, below the gate at $GATE_LINE"
-
-# Above the gate is not enough — a summary moved into an earlier step would
-# still be "above" it while running in a different shell, where neither
-# $reachable nor $imported exists.
 STEP_START="$(grep -n '^ *- name: Run govulncheck$' "$WORKFLOW" | cut -d: -f1 || true)"
 [ -n "$STEP_START" ] || fail "no 'Run govulncheck' step found in ci-go.yml"
-if sed -n "${SUMMARY_LINE},${GATE_LINE}p" "$WORKFLOW" | grep -q '^ *- name:'; then
-  fail "summary write and the gate are in different steps"
-fi
-[ "$STEP_START" -lt "$SUMMARY_LINE" ] ||
-  fail "summary write at line $SUMMARY_LINE is not inside the 'Run govulncheck' step"
+[ "$(grep -c . <<<"$STEP_START")" -eq 1 ] ||
+  fail "expected exactly one 'Run govulncheck' step in ci-go.yml"
+
+# The step ends at the next `- name:` at the same indent; without that bound the
+# assertions below would reach into the following steps.
+STEP_END="$(awk -v start="$STEP_START" 'NR > start && /^ *- name:/ { print NR - 1; exit }' "$WORKFLOW")"
+[ -n "$STEP_END" ] || STEP_END="$(wc -l <"$WORKFLOW")"
+
+step_grep() { sed -n "${STEP_START},${STEP_END}p" "$WORKFLOW" | grep -n "$@" || true; }
+# step_grep numbers from the step's first line; shift back onto file lines.
+step_line() { local n="$1" && [ -n "$n" ] && echo $((STEP_START + n - 1)); }
+
+# Two summary writes are expected: the tool-failure line on the early exit, and
+# the findings block on the normal path. Pinning the count keeps a third one
+# from appearing unnoticed on a path nobody checked the ordering for.
+# shellcheck disable=SC2016 # the $GITHUB_STEP_SUMMARY text is matched literally in the YAML
+SUMMARY_HITS="$(step_grep '>> "\$GITHUB_STEP_SUMMARY"' | cut -d: -f1)"
+[ -n "$SUMMARY_HITS" ] ||
+  fail "no \$GITHUB_STEP_SUMMARY write in the 'Run govulncheck' step of ci-go.yml"
+[ "$(grep -c . <<<"$SUMMARY_HITS")" -eq 2 ] ||
+  fail "expected exactly two \$GITHUB_STEP_SUMMARY writes in the 'Run govulncheck' step"
+SUMMARY_LINE="$(step_line "$(tail -1 <<<"$SUMMARY_HITS")")"
+
+# The tool-failure exit sits above the findings block and would otherwise leave
+# a red leg with no summary at all: `tee` captured stdout only, so govulncheck's
+# own error never reached govulncheck.json either.
+TOOLFAIL_LINE="$(step_line "$(step_grep 'govulncheck itself failed' | cut -d: -f1 | head -1)")"
+[ -n "$TOOLFAIL_LINE" ] ||
+  fail "the govulncheck tool-failure exit writes no summary line"
+# shellcheck disable=SC2016 # the $rc text is matched literally in the YAML
+TOOLFAIL_EXIT="$(step_line "$(step_grep '^ *exit "\$rc"$' | cut -d: -f1 | head -1)")"
+[ -n "$TOOLFAIL_EXIT" ] || fail "no 'exit \$rc' found in the 'Run govulncheck' step"
+[ "$TOOLFAIL_LINE" -lt "$TOOLFAIL_EXIT" ] ||
+  fail "tool-failure summary at line $TOOLFAIL_LINE is below its exit at $TOOLFAIL_EXIT"
+
+GATE_HIT="$(step_grep '::warning::Reachable vulnerabilities detected' | cut -d: -f1)"
+[ -n "$GATE_HIT" ] ||
+  fail "no reachable-findings gate in the 'Run govulncheck' step of ci-go.yml"
+GATE_LINE="$(step_line "$GATE_HIT")"
+
+# Scoping to the step already rules out a summary in a different shell; what is
+# left to check is the order inside it. A summary written after the gate exits
+# would leave every red run — the ones that need it — without a summary.
+[ "$SUMMARY_LINE" -lt "$GATE_LINE" ] ||
+  fail "summary write is at line $SUMMARY_LINE, below the gate at $GATE_LINE"
 
 # The gate must still fail the job. Making the findings visible must not turn
 # the gate into a report — every other assertion here would stay green if the
