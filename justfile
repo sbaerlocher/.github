@@ -109,6 +109,7 @@ test:
     scripts/tests/test-ci-go-test-env-guard.sh
     scripts/tests/test-workflow-input-injection.sh
     scripts/tests/test-ci-go-postgres-env-guard.sh
+    scripts/tests/test-ci-go-govulncheck-summary.sh
     scripts/tests/test-github-env-guards.sh
     scripts/tests/test-validate-python-input.sh
     scripts/tests/test-claude-review-skip-guard.sh
