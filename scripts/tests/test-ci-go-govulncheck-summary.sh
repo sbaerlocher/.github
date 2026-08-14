@@ -47,8 +47,11 @@ STEP_END="$(awk -v start="$STEP_START" 'NR > start && /^ *- name:/ { print NR - 
 [ -n "$STEP_END" ] || STEP_END="$(wc -l <"$WORKFLOW")"
 
 step_grep() { sed -n "${STEP_START},${STEP_END}p" "$WORKFLOW" | grep -n "$@" || true; }
-# step_grep numbers from the step's first line; shift back onto file lines.
-step_line() { local n="$1" && [ -n "$n" ] && echo $((STEP_START + n - 1)); }
+# step_grep numbers from the step's first line; shift back onto file lines. An
+# empty argument yields an empty result rather than a non-zero return: under
+# `set -e` the latter would abort at the assignment, so the `fail "..."` guard
+# on the next line would never run and the drift would surface as a bare exit 1.
+step_line() { local n="$1" && [ -n "$n" ] && echo $((STEP_START + n - 1)) || true; }
 
 # Two summary writes are expected: the tool-failure line on the early exit, and
 # the findings block on the normal path. Pinning the count keeps a third one
