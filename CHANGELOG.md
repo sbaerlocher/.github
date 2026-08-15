@@ -28,19 +28,25 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 - **`ci-gitops.yml` announces the Helm bundles `validate-helm-template` cannot
   render.** The render loop skipped every directory without a local
-  `Chart.yaml` and said nothing about it. A Fleet bundle that references its
-  chart via `chart: oci://…` has no local `Chart.yaml`, so it fell out of the
-  loop entirely: the job ended green and `Rendered N chart(s)` counted only the
-  local charts, which reads as full coverage. A wrong registry path, a chart
-  version that does not exist, or invalid values in such a bundle therefore
-  surfaced at Fleet deploy time rather than in CI. The loop now emits a
-  `::notice::` per skipped OCI bundle and the summary line reports the count
-  alongside the rendered one. Validation behaviour is unchanged — the bundles
-  are still not rendered, the gap is only visible now. Actually rendering them
-  needs registry authentication in the runner and an answer for how Fleet
-  values map onto `helm template` values, which is a larger separate change.
-  The detection reads the bundle's own `fleet.yaml`, so a directory that is
-  simply not a chart stays silent as before.
+  `Chart.yaml` and said nothing about it. A Fleet bundle that fetches its chart
+  from a registry — `chart: oci://…`, or `repo:` plus `chart:` against a classic
+  HTTP Helm repo — has no local `Chart.yaml`, so it fell out of the loop
+  entirely: the job ended green and `Rendered N chart(s)` counted only the local
+  charts, which reads as full coverage. A wrong registry path, a chart version
+  that does not exist, or invalid values in such a bundle therefore surfaced at
+  Fleet deploy time rather than in CI. The loop now emits a `::notice::` per
+  skipped bundle and the summary line reports the count alongside the rendered
+  one. Validation behaviour is unchanged — the bundles are still not rendered,
+  the gap is only visible now. Actually rendering them needs registry
+  authentication in the runner and an answer for how Fleet values map onto
+  `helm template` values, which is a larger separate change. Both remote forms
+  are detected, and the match tolerates quoting and arbitrary whitespace after
+  the key: covering only part of them would leave `skipped 0` asserting a
+  coverage the job does not have, which is worse than the ambiguous line it
+  replaced. The detection reads the bundle's own `fleet.yaml`, so a directory
+  that is simply not a chart stays silent as before, and `$dir` goes through the
+  same first-line-only guard the `validate-gitrepo` notice already uses, since
+  Git permits newlines in path names.
 
 ---
 
