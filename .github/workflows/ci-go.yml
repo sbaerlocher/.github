@@ -395,7 +395,12 @@ jobs:
           rc=${PIPESTATUS[0]}
           set -e
           if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then
+            # A tool failure produces no findings to summarise, so say why the
+            # leg is red here — this exit is above the summary block below, and
+            # `tee` only captured stdout, leaving the diagnosis in the log alone.
             echo "::error::govulncheck failed (exit $rc)"
+            printf '### govulncheck\n\ngovulncheck itself failed (exit %s); see the job log.\n' \
+              "$rc" >> "$GITHUB_STEP_SUMMARY"
             exit "$rc"
           fi
           # Gate only on call-reachable findings. A finding whose top trace frame
@@ -410,12 +415,45 @@ jobs:
             echo "::notice::Non-reachable (import-only) findings, not gating:"
             echo "$imported"
           fi
+          # Mirror the findings into the job summary. The log is the only place
+          # they appeared until now, and it is gone once retention expires or
+          # unreadable without job-log access - which is exactly when a failed
+          # gate needs diagnosing. The raw govulncheck.json is uploaded as an
+          # artifact by the following step.
+          {
+            echo "### govulncheck"
+            echo
+            if [ -n "$reachable" ]; then
+              echo "**Reachable (gating):**"
+              echo
+              printf '%s\n' "$reachable" | sed 's/^/- /'
+              echo
+            else
+              echo "No reachable vulnerabilities."
+              echo
+            fi
+            if [ -n "$imported" ]; then
+              echo "**Import-only (not gating):**"
+              echo
+              printf '%s\n' "$imported" | sed 's/^/- /'
+              echo
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
           if [ -n "$reachable" ]; then
             echo "::warning::Reachable vulnerabilities detected by govulncheck"
             echo "$reachable"
             exit 1
           fi
           echo "::notice::No reachable vulnerabilities found by govulncheck"
+
+      - name: Upload govulncheck report
+        if: always() && matrix.scanner == 'govulncheck'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ inputs.artifact-name-prefix }}govulncheck-report
+          path: govulncheck.json
+          retention-days: 30
+          if-no-files-found: ignore
 
       - name: Run Trivy filesystem scanner
         if: matrix.scanner == 'trivy-fs'

@@ -22,6 +22,36 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-08-14
+
+### Details
+
+- **`ci-go.yml` makes govulncheck findings readable without the job log.** The
+  gate step reported the reachable and import-only OSV IDs through `echo` only,
+  so the findings lived exclusively in the job log. Once log retention expires —
+  or when the log API answers `Forbidden`, which is the usual case for a run
+  someone else triggered — a red `Scan Security (govulncheck)` leg carries no
+  usable information at all: the IDs are gone and `govulncheck.json` was only
+  `tee`-d into the workspace, never kept. Diagnosing then means re-running the
+  scan locally against the same Go toolchain and module set, which is exactly
+  what a hosted gate exists to avoid. The step now mirrors both finding classes
+  into `$GITHUB_STEP_SUMMARY` before it exits, so the IDs are on the run page
+  itself, and a new `Upload govulncheck report` step keeps the raw
+  `govulncheck.json` as an artifact for 30 days under the same
+  `artifact-name-prefix` convention as the coverage upload. The upload runs
+  `if: always()`, since the fail case is the one that needs the data, and
+  `if-no-files-found: ignore` keeps it quiet when govulncheck aborted before
+  writing the file. Gate behaviour is untouched: the same reachable-findings
+  criterion decides pass and fail, and the existing `::warning::` / `::notice::`
+  annotations stay. The early exit for a govulncheck _tool_ failure (an exit
+  code that is neither 0 nor the findings-code 3) writes its own summary line,
+  since it returns before the findings block and `tee` captured stdout only —
+  govulncheck's own error never reached `govulncheck.json` either, so without it
+  that red leg stayed log-only too. What was blind is now visible; which
+  findings gate is a separate question and stays out of this change.
+
+---
+
 ## 2026-08-07
 
 ### Details
