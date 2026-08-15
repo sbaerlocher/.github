@@ -72,7 +72,7 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       env:
         # renovate: datasource=npm depName=@cyclonedx/cyclonedx-npm
-        CYCLONEDX_NPM_VERSION: '6.0.0'
+        CYCLONEDX_NPM_VERSION: '6.0.1'
         OUTPUT_FILE: ${{ inputs.output-file }}
         WORKING_DIRECTORY: ${{ inputs.working-directory }}
       run: |
