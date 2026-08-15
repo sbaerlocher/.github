@@ -22,6 +22,28 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-08-15
+
+### Details
+
+- **`ci-gitops.yml` announces the Helm bundles `validate-helm-template` cannot
+  render.** The render loop skipped every directory without a local
+  `Chart.yaml` and said nothing about it. A Fleet bundle that references its
+  chart via `chart: oci://…` has no local `Chart.yaml`, so it fell out of the
+  loop entirely: the job ended green and `Rendered N chart(s)` counted only the
+  local charts, which reads as full coverage. A wrong registry path, a chart
+  version that does not exist, or invalid values in such a bundle therefore
+  surfaced at Fleet deploy time rather than in CI. The loop now emits a
+  `::notice::` per skipped OCI bundle and the summary line reports the count
+  alongside the rendered one. Validation behaviour is unchanged — the bundles
+  are still not rendered, the gap is only visible now. Actually rendering them
+  needs registry authentication in the runner and an answer for how Fleet
+  values map onto `helm template` values, which is a larger separate change.
+  The detection reads the bundle's own `fleet.yaml`, so a directory that is
+  simply not a chart stays silent as before.
+
+---
+
 ## 2026-08-14
 
 ### Details

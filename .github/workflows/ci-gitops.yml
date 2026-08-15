@@ -512,13 +512,25 @@ jobs:
           echo "Rendering Helm charts and validating with kubeconform..."
           ERRORS=0
           RENDERED=0
+          SKIPPED_OCI=0
 
           # Same shape as the helm lint loop above: `read -a` + nested glob so a
           # chart directory containing a space is not split into bogus entries.
           read -r -a FLEET_DIRS <<<"${FLEET_PATHS}"
           for base in "${FLEET_DIRS[@]}"; do
             for dir in "$base"/*; do
-              [ -f "$dir/Chart.yaml" ] || continue
+              # A Fleet bundle that pulls its chart via `chart: oci://…` has no
+              # local Chart.yaml, so the skip below drops it silently and the
+              # job still reports success. Name the gap in the log instead of
+              # letting a bad registry path or chart version surface only at
+              # deploy time — same convention as validate-gitrepo above.
+              if [ ! -f "$dir/Chart.yaml" ]; then
+                if [ -f "$dir/fleet.yaml" ] && grep -q '^[[:space:]]*chart: oci://' "$dir/fleet.yaml"; then
+                  echo "::notice::$dir references an OCI chart; validate-helm-template does not render it (unsupported)"
+                  SKIPPED_OCI=$((SKIPPED_OCI + 1))
+                fi
+                continue
+              fi
               RENDERED=$((RENDERED + 1))
               echo "Rendering $dir..."
 
@@ -558,7 +570,7 @@ jobs:
             done
           done
 
-          echo "Rendered $RENDERED chart(s)."
+          echo "Rendered $RENDERED chart(s), skipped $SKIPPED_OCI OCI-referenced bundle(s)."
           if [ "$STRICT" = "true" ] && [ $ERRORS -gt 0 ]; then
             echo "Found $ERRORS chart(s) with invalid rendered manifests"
             exit 1
