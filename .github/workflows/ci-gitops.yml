@@ -512,13 +512,35 @@ jobs:
           echo "Rendering Helm charts and validating with kubeconform..."
           ERRORS=0
           RENDERED=0
+          SKIPPED_REMOTE=0
 
           # Same shape as the helm lint loop above: `read -a` + nested glob so a
           # chart directory containing a space is not split into bogus entries.
           read -r -a FLEET_DIRS <<<"${FLEET_PATHS}"
           for base in "${FLEET_DIRS[@]}"; do
             for dir in "$base"/*; do
-              [ -f "$dir/Chart.yaml" ] || continue
+              # A Fleet bundle that pulls its chart from a registry — `chart:
+              # oci://…`, or `repo:` + `chart:` against a classic HTTP Helm
+              # repo — has no local Chart.yaml, so the skip below drops it
+              # silently and the job still reports success. Name the gap in the
+              # log instead of letting a bad registry path or chart version
+              # surface only at deploy time; same convention as validate-gitrepo
+              # above. Matching tolerates quoting and arbitrary whitespace after
+              # the key, since all of those spellings are valid YAML — an
+              # unquoted-only pattern would leave the summary asserting full
+              # coverage it does not have.
+              if [ ! -f "$dir/Chart.yaml" ]; then
+                if [ -f "$dir/fleet.yaml" ] &&
+                  grep -Eq "^[[:space:]]*(chart:[[:space:]]*['\"]?oci://|repo:[[:space:]]*['\"]?https?://)" "$dir/fleet.yaml"; then
+                  # First line only: the runner parses any stdout line starting
+                  # with `::` as a workflow command, and Git permits newlines in
+                  # path names, so an unguarded $dir could smuggle a second one
+                  # into this notice. Same guard as the validate-gitrepo notice.
+                  echo "::notice::${dir%%$'\n'*} references a remote chart; validate-helm-template does not render it (unsupported)"
+                  SKIPPED_REMOTE=$((SKIPPED_REMOTE + 1))
+                fi
+                continue
+              fi
               RENDERED=$((RENDERED + 1))
               echo "Rendering $dir..."
 
@@ -558,7 +580,7 @@ jobs:
             done
           done
 
-          echo "Rendered $RENDERED chart(s)."
+          echo "Rendered $RENDERED chart(s), skipped $SKIPPED_REMOTE bundle(s) with a remote chart reference."
           if [ "$STRICT" = "true" ] && [ $ERRORS -gt 0 ]; then
             echo "Found $ERRORS chart(s) with invalid rendered manifests"
             exit 1

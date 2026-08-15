@@ -113,6 +113,7 @@ test:
     scripts/tests/test-github-env-guards.sh
     scripts/tests/test-validate-python-input.sh
     scripts/tests/test-claude-review-skip-guard.sh
+    scripts/tests/test-ci-gitops-oci-skip-notice.sh
 
 # fmt → format Markdown and JSON in place
 fmt:
