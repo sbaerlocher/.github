@@ -114,6 +114,7 @@ test:
     scripts/tests/test-validate-python-input.sh
     scripts/tests/test-claude-review-skip-guard.sh
     scripts/tests/test-ci-gitops-oci-skip-notice.sh
+    scripts/tests/test-ci-gitops-fleet-key-matching.sh
 
 # fmt → format Markdown and JSON in place
 fmt:

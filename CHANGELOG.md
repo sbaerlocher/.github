@@ -22,6 +22,35 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-08-16
+
+### Details
+
+- **`ci-gitops.yml` stops warning about OCI bundles that are configured
+  correctly.** `validate-fleet` warns when a `fleet.yaml` has a `helm:` block
+  with a `chart:` but no `repo:`, unless the chart comes from an OCI registry.
+  That exception tested for the literal string `"  chart: oci://"` — exactly two
+  leading spaces, exactly one space after the colon, no quotes. A quoted chart
+  value is the same document to a YAML parser and matched none of it, so a
+  bundle whose chart value carried quotes — which is
+  what Renovate and most YAML formatters write — drew
+  `WARNING: <file> has helm chart but missing repo field` while being correctly
+  configured. False warnings in an otherwise quiet job teach readers to skip
+  past it, which costs more than the single line. The exception now uses the
+  same quoting- and whitespace-tolerant pattern the remote-chart detection in
+  `validate-helm-template` has carried since the previous entry; the two check
+  the same thing and are meant to stay in step. The sibling `chart:` /
+  `version:` / `repo:` tests in the same block moved from unanchored `"  <key>:"`
+  substrings to anchored patterns in the same pass — the old form also matched
+  the key mentioned inside a comment or a value, which pulled bundles with no
+  chart at all into the version and repo checks. Warning and error text are
+  unchanged; only which files trigger them. `scripts/tests/test-ci-gitops-fleet-key-matching.sh`
+  runs the patterns lifted from the workflow against fixtures covering each
+  valid spelling, so a future rewrite that keeps a regex but loses the tolerance
+  fails the suite.
+
+---
+
 ## 2026-08-15
 
 ### Details
