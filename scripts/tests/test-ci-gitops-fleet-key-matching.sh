@@ -71,9 +71,10 @@ extract_pattern() {
   local line="$1"
   line="${line#*grep -Eq \"}"
   line="${line%%\" \"\$file\"*}"
-  # The workflow body is a YAML block scalar, so `\"` reaches the shell as a
-  # backslash and a quote; grep treats that as a plain quote inside the bracket
-  # expression. Unescape it so the pattern here behaves as it does in the job.
+  # In the workflow the pattern sits in a double-quoted shell word, so bash
+  # quote-removes `\"` to `"` before grep ever sees it. Extracting the raw YAML
+  # text skips that step, so undo it here — otherwise the bracket expression
+  # would carry a stray backslash the job's grep never gets.
   printf '%s' "${line//\\\"/\"}"
 }
 
@@ -172,10 +173,14 @@ assert_match "$CHART_PATTERN" no "chart mentioned in a comment" \
 # --- 3. the warning itself is still reachable ---------------------------------
 
 # The fix must not remove the check it makes accurate. Without this, a rewrite
-# that deletes the warning outright would pass every assertion above.
-grep -q 'missing repo field' <<<"$BODY" ||
+# that deletes the warning outright would pass every assertion above. Anchored
+# on the `echo` rather than the bare phrase: the step comment above the greps
+# quotes the warning text, so a phrase-only match would pass on the comment.
+# shellcheck disable=SC2016 # the $file text is matched literally in the YAML
+grep -qF 'echo "WARNING: $file has helm chart but missing repo field' <<<"$BODY" ||
   fail "the missing-repo warning is gone from the fleet validation step"
-grep -q 'missing version field' <<<"$BODY" ||
+# shellcheck disable=SC2016 # the $file text is matched literally in the YAML
+grep -qF 'echo "ERROR: $file has helm chart but missing version field' <<<"$BODY" ||
   fail "the missing-version error is gone from the fleet validation step"
 
 echo "PASS: ci-gitops.yml matches fleet.yaml helm keys regardless of quoting and indentation"

@@ -297,9 +297,11 @@ jobs:
               # value, which is what Renovate and most YAML formatters write,
               # drew a bogus "missing repo field" warning. The sibling key
               # tests were unanchored substrings of `"  <key>:"`, which also
-              # matched the key mentioned inside a comment or a value. Same
-              # shape as the remote chart detection in validate-helm-template
-              # below; the two must not drift apart again.
+              # matched the key mentioned inside a comment or a value. Shares
+              # the quote/whitespace tolerance of the remote chart detection in
+              # validate-helm-template below, but anchors on `+` rather than
+              # `*`: these keys must sit inside the `helm:` block, so a
+              # top-level `chart:` is deliberately not a match.
               if grep -Eq "^[[:space:]]+chart:" "$file"; then
                 if ! grep -Eq "^[[:space:]]+version:" "$file"; then
                   echo "ERROR: $file has helm chart but missing version field"
