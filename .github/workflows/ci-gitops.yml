@@ -290,13 +290,25 @@ jobs:
             fi
 
             if grep -q "^helm:" "$file"; then
-              if grep -q "  chart:" "$file"; then
-                if ! grep -q "  version:" "$file"; then
+              # Anchored key matching, tolerant of quoting and whitespace.
+              # `chart: "oci://…"` and `chart:  oci://…` are the same document
+              # to a YAML parser, but the OCI exception used to be the literal
+              # `"  chart: oci://"` and matched neither — so a quoted chart
+              # value, which is what Renovate and most YAML formatters write,
+              # drew a bogus "missing repo field" warning. The sibling key
+              # tests were unanchored substrings of `"  <key>:"`, which also
+              # matched the key mentioned inside a comment or a value. Shares
+              # the quote/whitespace tolerance of the remote chart detection in
+              # validate-helm-template below, but anchors on `+` rather than
+              # `*`: these keys must sit inside the `helm:` block, so a
+              # top-level `chart:` is deliberately not a match.
+              if grep -Eq "^[[:space:]]+chart:" "$file"; then
+                if ! grep -Eq "^[[:space:]]+version:" "$file"; then
                   echo "ERROR: $file has helm chart but missing version field"
                   ERRORS=$((ERRORS + 1))
                 fi
-                if ! grep -q "  repo:" "$file"; then
-                  if ! grep -q "  chart: oci://" "$file"; then
+                if ! grep -Eq "^[[:space:]]+repo:" "$file"; then
+                  if ! grep -Eq "^[[:space:]]+chart:[[:space:]]*['\"]?oci://" "$file"; then
                     echo "WARNING: $file has helm chart but missing repo field (unless using OCI)"
                   fi
                 fi
