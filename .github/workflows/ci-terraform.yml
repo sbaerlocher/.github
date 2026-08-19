@@ -86,6 +86,12 @@ jobs:
     permissions:
       contents: read
       security-events: write
+    env:
+      # `terraform init` above populates .terraform/modules/ with upstream
+      # module sources. The pre-merge trivy job checked out fresh and never ran
+      # init, so it saw only this repo's files. One value rather than a literal
+      # per scan: three copies are what let one of them go missing.
+      TRIVY_SKIP_DIRS: '**/.terraform'
     # Sum of the three former budgets (15 + 10 + 10), not the largest: the
     # steps now run serially under one cap. Trivy pulls its vulnerability DB
     # over the network and is the step whose duration is not bounded by repo
@@ -173,7 +179,8 @@ jobs:
         id: tflint
         if: >-
           steps.validation.outcome != 'failure'
-          && steps.tflint-init.outcome != 'failure'
+          && steps.tflint-setup.outcome == 'success'
+          && steps.tflint-init.outcome == 'success'
           && inputs.enable-tflint
         continue-on-error: true
         working-directory: ${{ inputs.working-directory }}
@@ -199,11 +206,7 @@ jobs:
           format: 'table'
           severity: 'CRITICAL,HIGH,MEDIUM'
           exit-code: '0'
-          # `terraform init` above populates .terraform/modules/ with upstream
-          # module sources. The pre-merge trivy job checked out fresh and never
-          # ran init, so it saw only this repo's files; skip the directory to
-          # keep the scan surface what it was.
-          skip-dirs: '**/.terraform'
+          skip-dirs: ${{ env.TRIVY_SKIP_DIRS }}
 
       - name: Trivy JSON Results
         id: trivy-json
@@ -215,7 +218,7 @@ jobs:
           format: 'json'
           output: 'trivy-results.json'
           severity: 'CRITICAL,HIGH,MEDIUM'
-          skip-dirs: '**/.terraform'
+          skip-dirs: ${{ env.TRIVY_SKIP_DIRS }}
           exit-code: '0'
 
       # Best-effort reporting, deliberately outside the enforce list: a failed
@@ -241,6 +244,7 @@ jobs:
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH,MEDIUM'
+          skip-dirs: ${{ env.TRIVY_SKIP_DIRS }}
 
       - name: Upload Trivy SARIF to GitHub Security
         id: sarif-upload
@@ -255,10 +259,12 @@ jobs:
       # after it, which also means the job would end green on its own. This
       # step is what turns any recorded failure back into a red job.
       #
-      # Only the checks that failed the run before the merge are enforced:
-      # `terraform validate`, the format check and tflint. The Trivy steps ran
-      # with `exit-code: '0'` and never failed a run, so their outcome is
-      # reported by the scan output, not by this gate.
+      # Every check step is enforced, Trivy included. `exit-code: '0'` keeps
+      # findings from failing the run — that is the pre-merge behaviour — but
+      # the action still exits non-zero on an execution error (DB download,
+      # rate limiting, a bad scan-ref), and that has to reach the gate rather
+      # than disappear into `continue-on-error`. The artifact upload is the one
+      # deliberate exclusion; see its comment above.
       - name: Enforce validation results
         if: always()
         env:
