@@ -134,31 +134,9 @@ concurrency:
   cancel-in-progress: ${{ inputs.cancel-in-progress }}
 
 jobs:
-  setup:
-    name: Setup
-    runs-on: ${{ inputs.runner }}
-    outputs:
-      should-run-tests: ${{ steps.should-run.outputs.tests }}
-      should-run-security: ${{ steps.should-run.outputs.security }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-
-      - name: Determine what should run
-        id: should-run
-        run: |
-          echo "tests=true" >> "$GITHUB_OUTPUT"
-          echo "security=true" >> "$GITHUB_OUTPUT"
-
   quality-and-test:
     name: Test & Lint
     runs-on: ${{ inputs.runner }}
-    needs: setup
-    if: needs.setup.outputs.should-run-tests == 'true'
     timeout-minutes: 20
     outputs:
       coverage: ${{ steps.coverage.outputs.coverage }}
@@ -207,7 +185,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.cache-dir.outputs.dir }}
-          key: ${{ runner.os }}-${{ inputs.package-manager }}-${{ hashFiles('**/pnpm-lock.yaml', '**/package-lock.json', '**/yarn.lock', '**/bun.lockb') }}
+          key: ${{ runner.os }}-${{ inputs.package-manager }}-${{ hashFiles('**/pnpm-lock.yaml', '**/package-lock.json', '**/yarn.lock', '**/bun.lock', '**/bun.lockb') }}
           restore-keys: |
             ${{ runner.os }}-${{ inputs.package-manager }}-
 
@@ -216,9 +194,9 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .turbo
-          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'package-lock.json', 'yarn.lock', 'bun.lockb') }}-${{ github.sha }}
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'package-lock.json', 'yarn.lock', 'bun.lock', 'bun.lockb') }}-${{ github.sha }}
           restore-keys: |
-            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'package-lock.json', 'yarn.lock', 'bun.lockb') }}-
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'package-lock.json', 'yarn.lock', 'bun.lock', 'bun.lockb') }}-
             turbo-${{ runner.os }}-
 
       - name: Install dependencies
@@ -432,8 +410,16 @@ jobs:
             exit 1
           fi
 
+  # One job, not a three-leg matrix. Each leg gated every step on its own
+  # `matrix.scanner` value, so the legs shared no work — they shared a job body
+  # and paid three runner starts for it, and billing rounds every start up to a
+  # full minute. The scanners now run as sequential steps.
+  #
+  # `fail-fast: false` is preserved by `continue-on-error` on each scanner plus
+  # the enforce step at the end: one failing scanner no longer hides the others,
+  # and the job still goes red. Same pattern as security-secrets.yml.
   security-scan:
-    name: Security (${{ matrix.scanner }})
+    name: Security
     runs-on: ${{ inputs.runner }}
     # Job-level grant: SARIF upload (enable-sarif-upload) needs
     # security-events: write on push events.
@@ -441,13 +427,12 @@ jobs:
       actions: read
       contents: read
       security-events: write
-    needs: [setup, quality-and-test]
-    if: inputs.primary && inputs.enable-security-scans && needs.setup.outputs.should-run-security == 'true' && (needs.quality-and-test.result == 'success' || needs.quality-and-test.result == 'skipped')
-    timeout-minutes: 15
-    strategy:
-      matrix:
-        scanner: [dependency-audit, trivy-fs, trivy-deps]
-      fail-fast: false
+    needs: [quality-and-test]
+    if: >-
+      inputs.primary && inputs.enable-security-scans
+      && (needs.quality-and-test.result == 'success'
+          || needs.quality-and-test.result == 'skipped')
+    timeout-minutes: 25
 
     steps:
       - name: Checkout code
@@ -456,19 +441,27 @@ jobs:
           persist-credentials: false
 
       - name: Setup Node.js
-        if: matrix.scanner == 'dependency-audit'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ inputs.node-version }}
           node-version-file: ${{ inputs.node-version-file }}
 
       - name: Setup pnpm
-        if: matrix.scanner == 'dependency-audit' && inputs.package-manager == 'pnpm'
+        if: inputs.package-manager == 'pnpm'
         uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
+      - name: Setup Bun
+        if: inputs.package-manager == 'bun'
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      # Audit-only setup. In the matrix these carried
+      # `if: matrix.scanner == 'dependency-audit'`, so the Trivy legs never ran
+      # them; folded into one job they run first, and a hard failure here would
+      # skip the Trivy scans entirely. `continue-on-error` keeps that coverage
+      # independent — the enforce step still turns a failure red.
       - name: Get cache directory
-        if: matrix.scanner == 'dependency-audit'
         id: cache-dir
+        continue-on-error: true
         env:
           PACKAGE_MANAGER: ${{ inputs.package-manager }}
         run: |
@@ -482,19 +475,24 @@ jobs:
             npm)
               echo "dir=$(npm config get cache)" >> "$GITHUB_OUTPUT"
               ;;
+            bun)
+              echo "dir=$HOME/.bun/install/cache" >> "$GITHUB_OUTPUT"
+              ;;
           esac
 
       - name: Cache dependencies
-        if: matrix.scanner == 'dependency-audit'
+        id: audit-cache
+        continue-on-error: true
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ steps.cache-dir.outputs.dir }}
-          key: ${{ runner.os }}-${{ inputs.package-manager }}-${{ hashFiles('**/pnpm-lock.yaml', '**/package-lock.json', '**/yarn.lock') }}
+          key: ${{ runner.os }}-${{ inputs.package-manager }}-${{ hashFiles('**/pnpm-lock.yaml', '**/package-lock.json', '**/yarn.lock', '**/bun.lock', '**/bun.lockb') }}
           restore-keys: |
             ${{ runner.os }}-${{ inputs.package-manager }}-
 
       - name: Install dependencies for audit
-        if: matrix.scanner == 'dependency-audit'
+        id: audit-install
+        continue-on-error: true
         working-directory: ${{ inputs.working-directory }}
         env:
           PACKAGE_MANAGER: ${{ inputs.package-manager }}
@@ -509,10 +507,14 @@ jobs:
             npm)
               npm ci
               ;;
+            bun)
+              bun install --frozen-lockfile
+              ;;
           esac
 
       - name: Run dependency audit
-        if: matrix.scanner == 'dependency-audit'
+        id: dependency-audit
+        continue-on-error: true
         working-directory: ${{ inputs.working-directory }}
         env:
           PACKAGE_MANAGER: ${{ inputs.package-manager }}
@@ -529,10 +531,20 @@ jobs:
             npm)
               npm audit --audit-level="$AUDIT_LEVEL" || echo "::warning::Vulnerabilities found"
               ;;
+            bun)
+              bun audit --audit-level="$AUDIT_LEVEL" || echo "::warning::Vulnerabilities found"
+              ;;
+            *)
+              # Reporting success for a scan that never ran is worse than
+              # failing: the caller reads green and ships.
+              echo "::error::unsupported package-manager for the dependency audit: $PACKAGE_MANAGER"
+              exit 1
+              ;;
           esac
 
       - name: Run Trivy Filesystem Scanner
-        if: matrix.scanner == 'trivy-fs'
+        id: trivy-fs
+        continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: 'fs'
@@ -545,7 +557,8 @@ jobs:
           ignore-unfixed: true
 
       - name: Run Trivy Dependency Scanner
-        if: matrix.scanner == 'trivy-deps'
+        id: trivy-deps
+        continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: 'fs'
@@ -556,12 +569,59 @@ jobs:
           exit-code: '0'
 
       - name: Upload SARIF file
-        if: inputs.enable-sarif-upload && matrix.scanner == 'trivy-fs'
+        if: inputs.enable-sarif-upload && steps.trivy-fs.outcome == 'success'
         uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
         with:
           sarif_file: trivy-fs.sarif
           category: trivy-fs
         continue-on-error: true
+
+      # `continue-on-error` above keeps one failing scanner from hiding the
+      # others, which also means the job would end green on its own — this step
+      # turns any recorded failure back into a red job. It is what the matrix's
+      # `fail-fast: false` used to give for free.
+      - name: Enforce security scan results
+        if: always()
+        env:
+          CACHE_DIR_RESULT: ${{ steps.cache-dir.outcome || 'skipped' }}
+          AUDIT_INSTALL_RESULT: ${{ steps.audit-install.outcome || 'skipped' }}
+          DEPENDENCY_AUDIT_RESULT: ${{ steps.dependency-audit.outcome || 'skipped' }}
+          TRIVY_FS_RESULT: ${{ steps.trivy-fs.outcome || 'skipped' }}
+          TRIVY_DEPS_RESULT: ${{ steps.trivy-deps.outcome || 'skipped' }}
+        run: |
+          set -euo pipefail
+          FAILED=0
+          RAN=0
+          for pair in \
+            "Get cache directory:${CACHE_DIR_RESULT}" \
+            "Install dependencies for audit:${AUDIT_INSTALL_RESULT}" \
+            "Dependency audit:${DEPENDENCY_AUDIT_RESULT}" \
+            "Trivy filesystem scan:${TRIVY_FS_RESULT}" \
+            "Trivy dependency scan:${TRIVY_DEPS_RESULT}"; do
+            name="${pair%:*}"
+            result="${pair##*:}"
+            if [ "$result" = "failure" ]; then
+              echo "::error::${name} failed"
+              FAILED=$((FAILED + 1))
+            elif [ "$result" = "success" ]; then
+              RAN=$((RAN + 1))
+            fi
+          done
+
+          if [ "$FAILED" -gt 0 ]; then
+            echo "${FAILED} security scan(s) failed"
+            exit 1
+          fi
+
+          # Every outcome reads `skipped` when an earlier hard failure aborted
+          # the job, so a bare success line here would assert a result nothing
+          # produced.
+          if [ "$RAN" -eq 0 ]; then
+            echo "::warning::no security scan ran"
+            exit 0
+          fi
+
+          echo "${RAN} security scan(s) passed"
 
   dependency-review:
     name: Review Dependencies
