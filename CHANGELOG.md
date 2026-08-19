@@ -100,6 +100,46 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### Details
 
+- **`security-containers.yml` can fail.** All six scan steps carried
+  `continue-on-error: true`, three of them without an `id`, and the job had no
+  enforce step — so no finding and no execution error could turn it red. A
+  container scanner that never fails is not a gate. The three id-less steps
+  (`Run Trivy SARIF scan`, `Upload Trivy SARIF`, `Run Trivy JSON scan`) now have
+  ids, and a closing `Enforce container scan results` step reads all six
+  outcomes. Execution errors — a failed DB download, rate limiting, an
+  unresolvable `image-ref` — always fail the job: a scanner that could not run
+  is not a passed scan. Findings fail only when the new `fail-on-findings`
+  input is `true`; it is `type: boolean`, `required: false`, `default: false`,
+  matching `security-config.yml`, so no existing caller changes behaviour. The
+  finding check is routed through the scanners themselves (Trivy's `exit-code`
+  and Grype's `fail-build` are keyed off the input) rather than re-derived by
+  parsing `trivy-image.json`, keeping one definition of what counts as a
+  finding. The two artifact uploads stay outside the gate, argued in place: a
+  failed upload should not fail a run whose scans all passed.
+
+- **Every job declares `timeout-minutes`.** Eighteen jobs across eleven
+  workflows had none, so a hung step held a runner for GitHub's six-hour
+  default before the run was marked failed. Values follow the neighbouring
+  jobs: 20 for CI and test jobs, 30 for scans and CodeQL, 15 for releases, 10
+  for dependency review, 5 for summary and comment jobs. Additive — no
+  `workflow_call` input, output or job name changed. Jobs that only call a
+  reusable workflow are untouched: GitHub rejects `timeout-minutes` on a
+  `workflow_call` job at parse time, and the ceiling belongs in the called
+  workflow's own jobs.
+
+- **Two guards make both classes structural.**
+  `scripts/tests/test-workflow-timeouts.sh` asserts every job declares a
+  timeout, deriving the reusable-caller exemption from the job body rather than
+  a name list. `scripts/tests/test-continue-on-error-enforced.sh` asserts every
+  `continue-on-error: true` step has an `id` that a later step in the same job
+  reads back — the silent-green shape that made `security-containers.yml`
+  unable to fail. It accepts both consumer shapes: an `always()` gate, and the
+  plain assertion used by the deliberate expected-failure smoke jobs in
+  `test-actions-dde.yml`. Fifteen pre-existing violations in eight other
+  workflows are listed by name as grandfathered, each with the reason, and the
+  list errors if an entry starts passing or stops existing — so it drains
+  rather than accumulates. Both parse the YAML rather than grepping it.
+
 - **`ci-js.yml` scans bun projects instead of reporting a clean audit.** `bun`
   is a documented `package-manager` value and `quality-and-test` handled it
   throughout, but no case statement in the audit path had a bun arm — a bun

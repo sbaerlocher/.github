@@ -115,6 +115,8 @@ test:
     scripts/tests/test-claude-review-skip-guard.sh
     scripts/tests/test-ci-gitops-oci-skip-notice.sh
     scripts/tests/test-ci-gitops-fleet-key-matching.sh
+    scripts/tests/test-workflow-timeouts.sh
+    scripts/tests/test-continue-on-error-enforced.sh
 
 # fmt → format Markdown and JSON in place
 fmt:
