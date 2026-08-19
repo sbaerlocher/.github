@@ -26,6 +26,23 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### ⚠ BREAKING
 
+- **`ci-js.yml` drops the `Setup` job and reports one security check instead of
+  three.** `Setup` wrote `tests=true` and `security=true` as literals, so both
+  `if:` gates reading them were constant, and its `fetch-depth: 0` checkout was
+  thrown away by the next job checking out again — a full billed minute per run
+  in six repos for no work. The security scanners were a three-leg matrix whose
+  every step was gated on its own `matrix.scanner` value: the legs shared no
+  work, only a job body, and paid three runner starts for it. Both are gone;
+  the scanners now run as sequential steps in one `Security` job.
+  **Migration:** a consumer whose branch protection or ruleset lists
+  `<caller-job> / Setup`, `<caller-job> / Security (dependency-audit)`,
+  `<caller-job> / Security (trivy-fs)` or `<caller-job> / Security (trivy-deps)`
+  must drop the `Setup` entry and replace the three `Security (…)` entries with
+  the single `<caller-job> / Security` before bumping the tag. None of the six
+  current consumers requires any of these names today, so no ruleset needs
+  changing right now. No input or output changed: all 24 `workflow_call` inputs
+  and the `coverage` output keep their names, types and defaults.
+
 - **`ci-gitops.yml` reports one status check instead of nine.** The eight
   validation jobs plus the summary job ran 2-13 seconds each, but Actions bills
   every job rounded up to a full minute — a run charged nine minutes for about
@@ -47,6 +64,13 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   than jobs. The step summary keeps its per-validation table.
 
 ### Details
+
+- **A failing scanner no longer hides the ones after it.** `fail-fast: false`
+  used to give that for free across the matrix legs. Each scanner now carries
+  `continue-on-error` and an enforce step re-raises any recorded failure, so the
+  job still goes red — the same pattern `security-secrets.yml` and
+  `ci-gitops.yml` use. The SARIF upload is additionally gated on the Trivy
+  filesystem scan having run.
 
 - **A failed `require-gitrepo-file` now reaches the summary and the gate.**
   Folding the jobs into steps moved the result plumbing from `needs.*.result`
