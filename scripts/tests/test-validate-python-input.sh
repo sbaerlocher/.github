@@ -11,18 +11,19 @@
 #      defaults to `false` — unlike every other `enable-*` here — so existing
 #      callers do not get a job they never asked for and a repo without Python
 #      tests does not turn red on upgrade.
-#   2. The job exists and is gated on that input, with a credential-less
-#      checkout. The `inputs.*`-in-a-`run:`-body hole is *not* re-checked here:
-#      `ci-gitops.yml` is in the MIGRATED list of
+#   2. The pytest step exists and is gated on that input, in a job with a
+#      credential-less checkout. The `inputs.*`-in-a-`run:`-body hole is *not*
+#      re-checked here: `ci-gitops.yml` is in the MIGRATED list of
 #      test-workflow-input-injection.sh, which covers every job in the file
-#      rather than this one, so a job added here later stays guarded.
-#   3. `summary.needs` lists the job. `summary` runs with `if: always()` and is
-#      what the branch protection reads; a job missing from `needs` still runs,
-#      but its red never reaches the gate — green PR, failing tests.
+#      rather than this one, so a step added here later stays guarded.
+#   3. The enforce step reads the pytest outcome. The validations run as steps
+#      with `continue-on-error`, so a red pytest ends the job green unless the
+#      final `always()` step re-raises it; an outcome missing there still runs
+#      the tests, but their red never reaches the gate — green PR, failing tests.
 #
 # Assertions run against the parsed YAML, not the raw text: a `grep` for
-# `validate-python` is satisfied by a mention in a comment, which would let this
-# test pass over a workflow that lost the job.
+# `python` is satisfied by a mention in a comment, which would let this test
+# pass over a workflow that lost the step.
 #
 # Run: scripts/tests/test-validate-python-input.sh
 set -euo pipefail
@@ -101,32 +102,57 @@ for name in ("python-test-paths", "python-test-requirements"):
     if WARNING not in (spec.get("description") or ""):
         errors.append(f"input `{name}`: description must warn {WARNING!r}")
 
-# 2 — the job.
-job = jobs.get("validate-python")
-if job is None:
-    errors.append("job `validate-python` is missing")
+# 2 — the pytest step. The validations share one job (billing rounds every job
+# up to a full minute, so eight short jobs cost eight minutes), which makes the
+# step — not a job — the unit to assert.
+steps = [s for job in jobs.values() for s in (job.get("steps") or [])]
+pytest_step = next((s for s in steps if s.get("id") == "python"), None)
+if pytest_step is None:
+    errors.append("step `python` (pytest) is missing")
 else:
-    if "inputs.enable-python-tests" not in str(job.get("if", "")):
-        errors.append("job `validate-python`: `if:` must gate on inputs.enable-python-tests")
+    if "inputs.enable-python-tests" not in str(pytest_step.get("if", "")):
+        errors.append("step `python`: `if:` must gate on inputs.enable-python-tests")
+    # Without this the step cannot fail the job on its own, and the enforce
+    # step checked below is what turns its recorded failure back into red.
+    if pytest_step.get("continue-on-error") is not True:
+        errors.append("step `python`: must set `continue-on-error: true`")
 
-    steps = job.get("steps") or []
+owner = next(
+    (job for job in jobs.values()
+     if any(s.get("id") == "python" for s in (job.get("steps") or []))),
+    None,
+)
+if owner is not None:
     checkout = next(
-        (s for s in steps if str(s.get("uses", "")).startswith("actions/checkout@")),
+        (s for s in (owner.get("steps") or [])
+         if str(s.get("uses", "")).startswith("actions/checkout@")),
         None,
     )
     if checkout is None:
-        errors.append("job `validate-python`: no actions/checkout step")
+        errors.append("the job running pytest has no actions/checkout step")
     elif (checkout.get("with") or {}).get("persist-credentials") is not False:
-        errors.append("job `validate-python`: checkout needs `persist-credentials: false`")
+        errors.append("the pytest job: checkout needs `persist-credentials: false`")
 
-# 3 — the gate. `needs` accepts a string or a list; both are checked so a
-# single-entry rewrite cannot slip past.
-summary = jobs.get("summary") or {}
-needs = summary.get("needs") or []
-if isinstance(needs, str):
-    needs = [needs]
-if "validate-python" not in needs:
-    errors.append("job `summary`: `needs` must include validate-python")
+# 3 — the gate. `continue-on-error` above means the job ends green on its own,
+# so the final always()-step has to read the pytest outcome and re-raise it.
+enforce = next((s for s in steps if s.get("name") == "Enforce validation results"), None)
+if enforce is None:
+    errors.append("step `Enforce validation results` is missing")
+else:
+    if "always()" not in str(enforce.get("if", "")):
+        errors.append("step `Enforce validation results`: must run with `if: always()`")
+    if "steps.python.outcome" not in str(enforce.get("env") or {}):
+        errors.append(
+            "step `Enforce validation results`: env must read steps.python.outcome"
+        )
+    # The env: entry alone is not the gate — the value has to be consumed by the
+    # loop in the body. Deleting the `Validate Python Tests:${PYTHON_RESULT}`
+    # line leaves PYTHON_RESULT defined-but-unused, which is exactly the
+    # "green PR, failing tests" hole this assertion exists to close.
+    if "PYTHON_RESULT" not in str(enforce.get("run") or ""):
+        errors.append(
+            "step `Enforce validation results`: run: must check PYTHON_RESULT"
+        )
 
 for error in errors:
     print(error)
@@ -138,4 +164,4 @@ if [ -n "$ERRORS" ]; then
   fail "ci-gitops.yml: validate-python is not wired up correctly"
 fi
 
-echo "PASS: ci-gitops.yml wires validate-python (inputs, job, summary gate)"
+echo "PASS: ci-gitops.yml wires validate-python (inputs, step, enforce gate)"

@@ -3,8 +3,9 @@ name: 'Install kubeconform'
 description: |
   Download and install the kubeconform binary onto PATH, verifying the
   release tarball against the upstream CHECKSUMS file (fail-closed). Single
-  source of truth for kubeconform installation across the ci-gitops.yml jobs
-  (validate-kubernetes and validate-helm-template).
+  source of truth for kubeconform installation for the ci-gitops.yml
+  validation job, which uses it for both the Kubernetes manifest check and
+  the rendered-Helm check.
 author: 'sbaerlocher'
 
 inputs:

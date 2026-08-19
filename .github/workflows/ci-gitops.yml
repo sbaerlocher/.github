@@ -191,34 +191,110 @@ permissions:
   contents: read
 
 jobs:
-  validate-yaml:
-    name: Validate YAML Syntax
-    if: inputs.enable-yaml-lint
+  # One job, not eight. The validations here run 2-13s each; billing rounds
+  # every job up to a full minute, so the previous fan-out charged 8 minutes
+  # for ~1 minute of work. Steps share the checkout and the tool setup, and
+  # each `enable-*` input moved from a job-level `if` to its step's `if` —
+  # same semantics, an eighth of the billed minutes.
+  #
+  # Independence is preserved by `continue-on-error` on every validation step,
+  # so one failing validation no longer hides the ones after it; the enforce
+  # step at the end turns any recorded failure back into a red job. The YAML
+  # step keeps its gate role: the fan-out made the other seven jobs conditional
+  # on it, so they test its outcome rather than `success()` — which
+  # `continue-on-error` would leave true even after it failed.
+  validate:
+    name: Continuous Integration
     runs-on: ${{ inputs.runner }}
-    timeout-minutes: 5
+    # The fan-out gave each job its own budget (55 minutes in total, ~10 wall
+    # clock). Running serially, one cap covers every validation, so it is set to
+    # that aggregate rather than to the observed runtime: `helm dependency build`
+    # pulls subcharts over the network and is the one step here whose duration is
+    # not bounded by repo size. A tighter cap would turn a slow registry into a
+    # job timeout, which also kills the always() summary and enforce steps — and
+    # those are what say which validation was in flight.
+    timeout-minutes: 55
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      # Python serves both yamllint and pytest, matching the shared
+      # `python-version` input. Installed when either consumer is enabled.
       - name: Set up Python
+        if: inputs.enable-yaml-lint || inputs.enable-python-tests
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ inputs.python-version }}
 
+      - name: Derive requirements cache key
+        id: reqs
+        if: inputs.enable-yaml-lint || inputs.enable-python-tests
+        env:
+          REQUIREMENTS: ${{ inputs.python-test-requirements }}
+        run: |
+          set -euo pipefail
+          # The value goes into a cache key, which rejects commas — and a pip
+          # range (`pytest>=8.0,<9.0`) has one. Hash it: the key still changes
+          # when the requirements do, without constraining what a caller passes,
+          # and the length stays bounded.
+          printf 'hash=%s\n' \
+            "$(printf '%s' "$REQUIREMENTS" | sha256sum | cut -c1-16)" \
+            >>"$GITHUB_OUTPUT"
+
       - name: Cache pip dependencies
+        if: inputs.enable-yaml-lint || inputs.enable-python-tests
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-yamllint
+          # The requirements are part of the key: the target repos have no
+          # requirements file, so a hashFiles()-only key would collapse to one
+          # constant for every caller — and cache entries are immutable, so the
+          # first run's entry would be pinned forever while two callers with
+          # different requirements shared it. hashFiles() resolves against the
+          # caller's checkout, which does not contain this file, so hashing the
+          # input in the step above is what makes the key vary at all.
+          key: >-
+            ${{ runner.os }}-pip-gitops-${{
+              hashFiles('**/requirements*.txt', '**/pyproject.toml')
+            }}-${{ steps.reqs.outputs.hash }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
+      - name: Set up Helm
+        if: inputs.enable-helm-lint || inputs.enable-helm-template-validation
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v${{ inputs.helm-version }}
+
+      - name: Cache Helm
+        if: inputs.enable-helm-lint || inputs.enable-helm-template-validation
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/helm
+          key: ${{ runner.os }}-helm-${{ hashFiles('**/Chart.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-helm-
+
+      - name: Install kubeconform
+        if: inputs.enable-k8s-validation || inputs.enable-helm-template-validation
+        uses: sbaerlocher/.github/.github/actions/install-kubeconform@2026-08-18
+        with:
+          version: ${{ inputs.kubeconform-version }}
+
       - name: Install yamllint
+        if: inputs.enable-yaml-lint
         run: pip install yamllint
 
+      # The YAML gate. Not `always()`: the fan-out ran the other seven jobs
+      # only when this one passed or was skipped, and that ordering is the one
+      # behaviour worth keeping — a syntactically broken tree makes every
+      # downstream parser report noise instead of its own finding.
       - name: Validate YAML files
+        id: yaml
+        if: inputs.enable-yaml-lint
+        continue-on-error: true
         env:
           STRICT: ${{ inputs.yaml-lint-strict }}
           # Unquoted at the call sites below so `-c <file>` splits into two
@@ -240,24 +316,10 @@ jobs:
               | xargs -0 yamllint ${YAMLLINT_CONFIG_ARG} -f parsable || true
           fi
 
-  validate-fleet-configs:
-    name: Validate Fleet Configurations
-    # Gate behind validate-yaml. The gate is conditional (enable-yaml-lint), so
-    # the always()/!failure()/!cancelled() guard runs this job when the gate
-    # succeeds OR is skipped, and blocks only on a gate failure.
-    needs: [validate-yaml]
-    if: >-
-      always() && !failure() && !cancelled()
-      && inputs.enable-fleet-validation
-    runs-on: ${{ inputs.runner }}
-    timeout-minutes: 5
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Check fleet.yaml files exist
+      - name: Validate Fleet Configurations
+        id: fleet
+        if: steps.yaml.outcome != 'failure' && inputs.enable-fleet-validation
+        continue-on-error: true
         env:
           FLEET_PATHS: ${{ inputs.fleet-paths }}
         run: |
@@ -272,10 +334,6 @@ jobs:
             exit 1
           fi
 
-      - name: Validate fleet.yaml structure
-        env:
-          FLEET_PATHS: ${{ inputs.fleet-paths }}
-        run: |
           echo "Validating fleet.yaml files..."
           ERRORS=0
 
@@ -299,7 +357,7 @@ jobs:
               # tests were unanchored substrings of `"  <key>:"`, which also
               # matched the key mentioned inside a comment or a value. Shares
               # the quote/whitespace tolerance of the remote chart detection in
-              # validate-helm-template below, but anchors on `+` rather than
+              # the rendered-Helm step below, but anchors on `+` rather than
               # `*`: these keys must sit inside the `helm:` block, so a
               # top-level `chart:` is deliberately not a match.
               if grep -Eq "^[[:space:]]+chart:" "$file"; then
@@ -329,22 +387,12 @@ jobs:
 
           echo "All fleet.yaml files validated successfully!"
 
-  validate-gitrepo:
-    name: Validate GitRepo Configuration
-    needs: [validate-yaml]
-    if: >-
-      always() && !failure() && !cancelled()
-      && inputs.enable-gitrepo-validation
-    runs-on: ${{ inputs.runner }}
-    timeout-minutes: 5
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
       - name: Require GitRepo configuration
-        if: inputs.require-gitrepo-file && hashFiles(inputs.gitrepo-file) == ''
+        id: gitrepo-require
+        if: >-
+          steps.yaml.outcome != 'failure' && inputs.enable-gitrepo-validation
+          && inputs.require-gitrepo-file && hashFiles(inputs.gitrepo-file) == ''
+        continue-on-error: true
         env:
           GITREPO_FILE: ${{ inputs.gitrepo-file }}
         run: |
@@ -354,7 +402,8 @@ jobs:
 
       - name: Report missing GitRepo configuration
         if: >-
-          !inputs.require-gitrepo-file
+          steps.yaml.outcome != 'failure' && inputs.enable-gitrepo-validation
+          && !inputs.require-gitrepo-file
           && hashFiles(inputs.gitrepo-file) == ''
         env:
           GITREPO_FILE: ${{ inputs.gitrepo-file }}
@@ -365,7 +414,11 @@ jobs:
           echo "::notice::${GITREPO_FILE%%$'\n'*} not found - skipping GitRepo validation"
 
       - name: Validate GitRepo paths
-        if: hashFiles(inputs.gitrepo-file) != ''
+        id: gitrepo
+        if: >-
+          steps.yaml.outcome != 'failure' && inputs.enable-gitrepo-validation
+          && hashFiles(inputs.gitrepo-file) != ''
+        continue-on-error: true
         env:
           GITREPO_FILE: ${{ inputs.gitrepo-file }}
         run: |
@@ -432,34 +485,10 @@ jobs:
 
           echo "GitRepo configuration validated successfully!"
 
-  validate-helm:
-    name: Validate Helm Charts
-    needs: [validate-yaml]
-    if: >-
-      always() && !failure() && !cancelled()
-      && inputs.enable-helm-lint
-    runs-on: ${{ inputs.runner }}
-    timeout-minutes: 10
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Helm
-        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
-        with:
-          version: v${{ inputs.helm-version }}
-
-      - name: Cache Helm
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/helm
-          key: ${{ runner.os }}-helm-${{ hashFiles('**/Chart.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-helm-
-
       - name: Lint Helm Charts
+        id: helm
+        if: steps.yaml.outcome != 'failure' && inputs.enable-helm-lint
+        continue-on-error: true
         env:
           FLEET_PATHS: ${{ inputs.fleet-paths }}
         run: |
@@ -491,31 +520,10 @@ jobs:
 
           echo "All Helm charts validated successfully!"
 
-  validate-helm-template:
-    name: Validate Rendered Helm Output
-    needs: [validate-yaml]
-    if: >-
-      always() && !failure() && !cancelled()
-      && inputs.enable-helm-template-validation
-    runs-on: ${{ inputs.runner }}
-    timeout-minutes: 10
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Helm
-        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
-        with:
-          version: v${{ inputs.helm-version }}
-
-      - name: Install kubeconform
-        uses: sbaerlocher/.github/.github/actions/install-kubeconform@2026-08-18
-        with:
-          version: ${{ inputs.kubeconform-version }}
-
       - name: Render charts and validate with kubeconform
+        id: helm-template
+        if: steps.yaml.outcome != 'failure' && inputs.enable-helm-template-validation
+        continue-on-error: true
         env:
           FLEET_PATHS: ${{ inputs.fleet-paths }}
           STRICT: ${{ inputs.k8s-validation-strict }}
@@ -534,11 +542,11 @@ jobs:
               # A Fleet bundle that pulls its chart from a registry — `chart:
               # oci://…`, or `repo:` + `chart:` against a classic HTTP Helm
               # repo — has no local Chart.yaml, so the skip below drops it
-              # silently and the job still reports success. Name the gap in the
+              # silently and the step still reports success. Name the gap in the
               # log instead of letting a bad registry path or chart version
-              # surface only at deploy time; same convention as validate-gitrepo
-              # above. Matching tolerates quoting and arbitrary whitespace after
-              # the key, since all of those spellings are valid YAML — an
+              # surface only at deploy time; same convention as the GitRepo
+              # steps above. Matching tolerates quoting and arbitrary whitespace
+              # after the key, since all of those spellings are valid YAML — an
               # unquoted-only pattern would leave the summary asserting full
               # coverage it does not have.
               if [ ! -f "$dir/Chart.yaml" ]; then
@@ -547,8 +555,8 @@ jobs:
                   # First line only: the runner parses any stdout line starting
                   # with `::` as a workflow command, and Git permits newlines in
                   # path names, so an unguarded $dir could smuggle a second one
-                  # into this notice. Same guard as the validate-gitrepo notice.
-                  echo "::notice::${dir%%$'\n'*} references a remote chart; validate-helm-template does not render it (unsupported)"
+                  # into this notice. Same guard as the GitRepo notice.
+                  echo "::notice::${dir%%$'\n'*} references a remote chart; the rendered-Helm validation does not render it (unsupported)"
                   SKIPPED_REMOTE=$((SKIPPED_REMOTE + 1))
                 fi
                 continue
@@ -601,26 +609,10 @@ jobs:
             echo "::warning::$ERRORS chart(s) had invalid rendered manifests (non-strict mode)"
           fi
 
-  validate-kubernetes:
-    name: Validate Kubernetes Manifests
-    needs: [validate-yaml]
-    if: >-
-      always() && !failure() && !cancelled()
-      && inputs.enable-k8s-validation
-    runs-on: ${{ inputs.runner }}
-    timeout-minutes: 10
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Install kubeconform
-        uses: sbaerlocher/.github/.github/actions/install-kubeconform@2026-08-18
-        with:
-          version: ${{ inputs.kubeconform-version }}
-
       - name: Validate Kubernetes manifests
+        id: kubernetes
+        if: steps.yaml.outcome != 'failure' && inputs.enable-k8s-validation
+        continue-on-error: true
         env:
           FLEET_PATHS: ${{ inputs.fleet-paths }}
           STRICT: ${{ inputs.k8s-validation-strict }}
@@ -660,21 +652,10 @@ jobs:
             kubeconform -summary -output json -ignore-missing-schemas "${manifests[@]}" || true
           fi
 
-  check-documentation:
-    name: Check Documentation
-    needs: [validate-yaml]
-    if: >-
-      always() && !failure() && !cancelled()
-      && inputs.enable-docs-check
-    runs-on: ${{ inputs.runner }}
-    timeout-minutes: 5
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
       - name: Check required documentation
+        id: documentation
+        if: steps.yaml.outcome != 'failure' && inputs.enable-docs-check
+        continue-on-error: true
         run: |
           ERRORS=0
 
@@ -695,59 +676,10 @@ jobs:
 
           echo "All required documentation files present!"
 
-  validate-python:
-    name: Validate Python Tests
-    # Gate behind validate-yaml, like the other post-YAML jobs: the gate is
-    # conditional, so always()/!failure()/!cancelled() runs this job when the
-    # gate succeeds OR is skipped, and blocks only on a gate failure.
-    needs: [validate-yaml]
-    if: >-
-      always() && !failure() && !cancelled()
-      && inputs.enable-python-tests
-    runs-on: ${{ inputs.runner }}
-    timeout-minutes: 5
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: ${{ inputs.python-version }}
-
-      - name: Derive requirements cache key
-        id: reqs
-        env:
-          REQUIREMENTS: ${{ inputs.python-test-requirements }}
-        run: |
-          set -euo pipefail
-          # The value goes into a cache key, which rejects commas — and a pip
-          # range (`pytest>=8.0,<9.0`) has one. Hash it: the key still changes
-          # when the requirements do, without constraining what a caller passes,
-          # and the length stays bounded.
-          printf 'hash=%s\n' \
-            "$(printf '%s' "$REQUIREMENTS" | sha256sum | cut -c1-16)" \
-            >>"$GITHUB_OUTPUT"
-
-      - name: Cache pip dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/pip
-          # The requirements are part of the key: the target repos have no
-          # requirements file, so a hashFiles()-only key would collapse to one
-          # constant for every caller — and cache entries are immutable, so the
-          # first run's entry would be pinned forever while two callers with
-          # different requirements shared it.
-          key: >-
-            ${{ runner.os }}-pip-pytest-${{
-              hashFiles('**/requirements*.txt', '**/pyproject.toml')
-            }}-${{ steps.reqs.outputs.hash }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
       - name: Install test requirements
+        id: python-requirements
+        if: steps.yaml.outcome != 'failure' && inputs.enable-python-tests
+        continue-on-error: true
         env:
           # Unquoted at the call site below so the separate requirements split
           # into argv words; see the input description.
@@ -758,6 +690,12 @@ jobs:
           pip install ${REQUIREMENTS}
 
       - name: Run pytest
+        id: python
+        if: >-
+          steps.yaml.outcome != 'failure'
+          && steps.python-requirements.outcome != 'failure'
+          && inputs.enable-python-tests
+        continue-on-error: true
         env:
           # Same word-splitting contract as above.
           TEST_PATHS: ${{ inputs.python-test-paths }}
@@ -806,44 +744,37 @@ jobs:
           fi
           exit "$status"
 
-  summary:
-    name: Validation Summary
-    runs-on: ${{ inputs.runner }}
-    timeout-minutes: 5
-    needs:
-      [
-        validate-yaml,
-        validate-fleet-configs,
-        validate-gitrepo,
-        validate-helm,
-        validate-helm-template,
-        validate-kubernetes,
-        check-documentation,
-        validate-python,
-      ]
-    if: always()
-    steps:
-      - name: Summary
+      # Replaces the former `summary` job. Step outcomes stand in for
+      # `needs.<job>.result` and carry the same three values (`success`,
+      # `failure`, `skipped`), so the table reads as before.
+      #
+      # Every value arrives via `env:` and both heredoc delimiters are quoted,
+      # so nothing in the template bodies is expanded by the shell. The
+      # dynamic lines are emitted with `printf` between the heredocs.
+      #
+      # Results are printed verbatim. `skipped` has two causes here and the
+      # table does not distinguish them: the step's `enable-*` input is false,
+      # or the YAML gate failed — every validation step is gated on that
+      # step's outcome, so a gate failure skips all of them. Read the
+      # `Validate YAML Syntax` row before the rest.
+      - name: Validation Summary
+        if: always()
         env:
           REPOSITORY: ${{ github.repository }}
           REF_NAME: ${{ github.ref_name }}
-          YAML_RESULT: ${{ needs.validate-yaml.result }}
-          FLEET_RESULT: ${{ needs.validate-fleet-configs.result }}
-          GITREPO_RESULT: ${{ needs.validate-gitrepo.result }}
-          HELM_RESULT: ${{ needs.validate-helm.result }}
-          HELM_TEMPLATE_RESULT: ${{ needs.validate-helm-template.result }}
-          KUBERNETES_RESULT: ${{ needs.validate-kubernetes.result }}
-          DOCUMENTATION_RESULT: ${{ needs.check-documentation.result }}
-          PYTHON_RESULT: ${{ needs.validate-python.result }}
-        # Every value arrives via `env:` and both heredoc delimiters are quoted,
-        # so nothing in the template bodies is expanded by the shell. The
-        # dynamic lines are emitted with `printf` between the heredocs.
-        #
-        # Results are printed verbatim. `skipped` has two causes here and the
-        # table does not distinguish them: the job's `enable-*` input is false,
-        # or `validate-yaml` failed — the seven downstream jobs are gated on
-        # `always() && !failure() && !cancelled()`, so a gate failure skips all
-        # of them. Read the `Validate YAML Syntax` row before the rest.
+          YAML_RESULT: ${{ steps.yaml.outcome || 'skipped' }}
+          FLEET_RESULT: ${{ steps.fleet.outcome || 'skipped' }}
+          # `||` returns the first truthy operand and a skipped step's outcome is
+          # the non-empty string 'skipped', so a plain chain would always take
+          # `gitrepo` and report a failed `require-gitrepo-file` as skipped.
+          GITREPO_RESULT: >-
+            ${{ steps.gitrepo-require.outcome == 'failure' && 'failure'
+                || steps.gitrepo.outcome || 'skipped' }}
+          HELM_RESULT: ${{ steps.helm.outcome || 'skipped' }}
+          HELM_TEMPLATE_RESULT: ${{ steps.helm-template.outcome || 'skipped' }}
+          KUBERNETES_RESULT: ${{ steps.kubernetes.outcome || 'skipped' }}
+          DOCUMENTATION_RESULT: ${{ steps.documentation.outcome || 'skipped' }}
+          PYTHON_RESULT: ${{ steps.python.outcome || 'skipped' }}
         run: |
           TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
           {
@@ -866,3 +797,48 @@ jobs:
             printf '| Check Documentation | %s |\n' "$DOCUMENTATION_RESULT"
             printf '| Validate Python Tests | %s |\n' "$PYTHON_RESULT"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # `continue-on-error` above keeps a failing validation from masking the
+      # ones after it, which also means the job would end green on its own.
+      # This step is what turns any recorded failure back into a red job.
+      - name: Enforce validation results
+        if: always()
+        env:
+          YAML_RESULT: ${{ steps.yaml.outcome || 'skipped' }}
+          FLEET_RESULT: ${{ steps.fleet.outcome || 'skipped' }}
+          GITREPO_REQUIRE_RESULT: ${{ steps.gitrepo-require.outcome || 'skipped' }}
+          GITREPO_RESULT: ${{ steps.gitrepo.outcome || 'skipped' }}
+          HELM_RESULT: ${{ steps.helm.outcome || 'skipped' }}
+          HELM_TEMPLATE_RESULT: ${{ steps.helm-template.outcome || 'skipped' }}
+          KUBERNETES_RESULT: ${{ steps.kubernetes.outcome || 'skipped' }}
+          DOCUMENTATION_RESULT: ${{ steps.documentation.outcome || 'skipped' }}
+          PYTHON_REQUIREMENTS_RESULT: ${{ steps.python-requirements.outcome || 'skipped' }}
+          PYTHON_RESULT: ${{ steps.python.outcome || 'skipped' }}
+        run: |
+          set -euo pipefail
+          FAILED=0
+          for pair in \
+            "Validate YAML Syntax:${YAML_RESULT}" \
+            "Validate Fleet Configurations:${FLEET_RESULT}" \
+            "Require GitRepo configuration:${GITREPO_REQUIRE_RESULT}" \
+            "Validate GitRepo Configuration:${GITREPO_RESULT}" \
+            "Validate Helm Charts:${HELM_RESULT}" \
+            "Validate Rendered Helm Output:${HELM_TEMPLATE_RESULT}" \
+            "Validate Kubernetes Manifests:${KUBERNETES_RESULT}" \
+            "Check Documentation:${DOCUMENTATION_RESULT}" \
+            "Install test requirements:${PYTHON_REQUIREMENTS_RESULT}" \
+            "Validate Python Tests:${PYTHON_RESULT}"; do
+            name="${pair%:*}"
+            result="${pair##*:}"
+            if [ "$result" = "failure" ]; then
+              echo "::error::${name} failed"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+
+          if [ "$FAILED" -gt 0 ]; then
+            echo "${FAILED} validation(s) failed"
+            exit 1
+          fi
+
+          echo "All enabled validations passed"
