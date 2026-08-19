@@ -109,9 +109,10 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   steps of the single `Validate` job, sharing one checkout, one `setup-python`
   and one `pip install` that appends `ansible-lint` and `yamllint` only when the
   caller enabled them. Each former job is a step with `continue-on-error`, so a
-  failing syntax check no longer hides the lint findings after it, and a closing
-  `Enforce validation results` step turns any recorded failure back into a red
-  job.
+  failing syntax check no longer hides the lint findings after it — the linters
+  install separately from Ansible, so a resolver conflict there cannot take the
+  syntax check down either — and a closing `Enforce validation results` step
+  turns any recorded failure back into a red job.
   **Migration:** the job keeps the name `Validate`, so
   `<caller-job> / Validate` is unaffected. A consumer whose branch protection or
   ruleset lists `<caller-job> / Lint` or `<caller-job> / YAML Lint` must remove
