@@ -78,6 +78,14 @@ jobs:
   validation:
     name: Validate
     runs-on: ${{ inputs.runner }}
+    # `upload-sarif` needs security-events: write and a called workflow cannot
+    # obtain a permission it does not declare — without this the step 403s for
+    # any caller setting enable-sarif-upload. Job-level so the grant covers the
+    # SARIF step only. Still capped by the caller: a consumer whose trigger
+    # workflow withholds it will keep 403ing.
+    permissions:
+      contents: read
+      security-events: write
     # Sum of the three former budgets (15 + 10 + 10), not the largest: the
     # steps now run serially under one cap. Trivy pulls its vulnerability DB
     # over the network and is the step whose duration is not bounded by repo
@@ -143,7 +151,9 @@ jobs:
       # step-level `if`, and its `needs: validation` fail-fast is the outcome
       # test — same semantics, no second runner.
       - name: Setup TFLint
+        id: tflint-setup
         if: steps.validation.outcome != 'failure' && inputs.enable-tflint
+        continue-on-error: true
         uses: terraform-linters/setup-tflint@6e1e0642c0289bd619021bf6b34e3c08ed1e005a # v6.3.0
         with:
           # renovate: datasource=github-releases depName=terraform-linters/tflint
@@ -151,7 +161,10 @@ jobs:
 
       - name: TFLint Init
         id: tflint-init
-        if: steps.validation.outcome != 'failure' && inputs.enable-tflint
+        if: >-
+          steps.validation.outcome != 'failure'
+          && steps.tflint-setup.outcome != 'failure'
+          && inputs.enable-tflint
         continue-on-error: true
         working-directory: ${{ inputs.working-directory }}
         run: tflint --init
@@ -177,6 +190,7 @@ jobs:
       # parse is worth scanning even when `terraform validate` is unhappy, and
       # the artifact upload below is what consumers read.
       - name: Run Trivy Scanner
+        id: trivy-table
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         continue-on-error: true
         with:
@@ -185,8 +199,14 @@ jobs:
           format: 'table'
           severity: 'CRITICAL,HIGH,MEDIUM'
           exit-code: '0'
+          # `terraform init` above populates .terraform/modules/ with upstream
+          # module sources. The pre-merge trivy job checked out fresh and never
+          # ran init, so it saw only this repo's files; skip the directory to
+          # keep the scan surface what it was.
+          skip-dirs: '**/.terraform'
 
       - name: Trivy JSON Results
+        id: trivy-json
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         continue-on-error: true
         with:
@@ -195,11 +215,15 @@ jobs:
           format: 'json'
           output: 'trivy-results.json'
           severity: 'CRITICAL,HIGH,MEDIUM'
+          skip-dirs: '**/.terraform'
           exit-code: '0'
 
+      # Best-effort reporting, deliberately outside the enforce list: a failed
+      # artifact upload should not fail a run whose scans all passed. Gated on
+      # the scan that writes the file so it cannot fail on a missing path.
       - name: Upload Trivy Results (Artifact)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always()
+        if: always() && steps.trivy-json.outcome == 'success'
         continue-on-error: true
         with:
           name: trivy-results
@@ -207,6 +231,7 @@ jobs:
           retention-days: 30
 
       - name: Trivy SARIF Results
+        id: trivy-sarif
         if: ${{ inputs.enable-sarif-upload }}
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         continue-on-error: true
@@ -218,7 +243,8 @@ jobs:
           severity: 'CRITICAL,HIGH,MEDIUM'
 
       - name: Upload Trivy SARIF to GitHub Security
-        if: ${{ inputs.enable-sarif-upload }}
+        id: sarif-upload
+        if: ${{ inputs.enable-sarif-upload && steps.trivy-sarif.outcome == 'success' }}
         uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
         continue-on-error: true
         with:
@@ -239,7 +265,12 @@ jobs:
           VALIDATION_RESULT: ${{ steps.validation.outcome || 'skipped' }}
           FMT_RESULT: ${{ steps.fmt.outcome || 'skipped' }}
           TFLINT_INIT_RESULT: ${{ steps.tflint-init.outcome || 'skipped' }}
+          TFLINT_SETUP_RESULT: ${{ steps.tflint-setup.outcome || 'skipped' }}
           TFLINT_RESULT: ${{ steps.tflint.outcome || 'skipped' }}
+          TRIVY_TABLE_RESULT: ${{ steps.trivy-table.outcome || 'skipped' }}
+          TRIVY_JSON_RESULT: ${{ steps.trivy-json.outcome || 'skipped' }}
+          TRIVY_SARIF_RESULT: ${{ steps.trivy-sarif.outcome || 'skipped' }}
+          SARIF_UPLOAD_RESULT: ${{ steps.sarif-upload.outcome || 'skipped' }}
         run: |
           set -euo pipefail
           FAILED=0
@@ -247,7 +278,12 @@ jobs:
             "Terraform Validation:${VALIDATION_RESULT}" \
             "Terraform Format Check:${FMT_RESULT}" \
             "TFLint Init:${TFLINT_INIT_RESULT}" \
-            "TFLint Run:${TFLINT_RESULT}"; do
+            "Setup TFLint:${TFLINT_SETUP_RESULT}" \
+            "TFLint Run:${TFLINT_RESULT}" \
+            "Trivy scan:${TRIVY_TABLE_RESULT}" \
+            "Trivy JSON scan:${TRIVY_JSON_RESULT}" \
+            "Trivy SARIF scan:${TRIVY_SARIF_RESULT}" \
+            "SARIF upload:${SARIF_UPLOAD_RESULT}"; do
             name="${pair%:*}"
             result="${pair##*:}"
             if [ "$result" = "failure" ]; then

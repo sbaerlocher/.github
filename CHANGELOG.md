@@ -83,6 +83,21 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   gating steps rather than jobs. The dead `validation_result` job output is
   gone; it was never exposed as a `workflow_call` output and nothing read it.
 
+- **`ci-terraform.yml` declares `security-events: write` for the SARIF upload.**
+  The workflow granted only `contents: read`, and a called workflow cannot
+  obtain a permission it does not declare — so `enable-sarif-upload: true`
+  returned 403 for every caller. Latent until now (the input defaults to
+  `false` and no caller enables it), but folding the jobs put the step behind
+  `continue-on-error`, which would have made the misconfiguration permanently
+  silent. The grant sits on the job, and is still capped by the caller.
+
+- **Trivy execution errors reach the gate.** `exit-code: '0'` suppresses a
+  non-zero exit for findings only; the action still errors on a DB download
+  failure, rate limiting or a bad `scan-ref`. Those steps now carry ids that
+  the enforce step reads, and the scans skip `.terraform` so `terraform init`
+  populating the module tree does not widen the scan surface beyond what the
+  separate job saw.
+
 ### Details
 
 - **`ci-js.yml` scans bun projects instead of reporting a clean audit.** `bun`
