@@ -63,6 +63,26 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   per-validation `enable-*` switches work as before, now gating steps rather
   than jobs. The step summary keeps its per-validation table.
 
+- **`ci-terraform.yml` reports one status check instead of three.** `validation`,
+  `lint` and `trivy` each took their own runner for work that finishes in well
+  under a minute, and Actions bills every job rounded up to a full minute. The
+  `needs: validation` on `lint` and `trivy` was fail-fast only, never an
+  ordering requirement, so nothing depended on the fan-out. All three are now
+  steps of the single `Validate` job, sharing one checkout and one Terraform
+  setup instead of three. Each former job is a step with `continue-on-error`, so
+  a failing `terraform validate` no longer hides the tflint and Trivy findings
+  after it, and a closing `Enforce validation results` step turns any recorded
+  failure back into a red job.
+  **Migration:** the job keeps the name `Validate`, so
+  `<caller-job> / Validate` is unaffected. A consumer whose branch protection or
+  ruleset lists `<caller-job> / Vulnerability Scanning` must remove that check
+  before bumping the tag — the job no longer exists and leaving the name in
+  place strands PRs on "Expected — Waiting for status to be reported". No input
+  changed: all seven `workflow_call` inputs keep their names, types and
+  defaults, and `enable-tflint` / `enable-sarif-upload` work as before, now
+  gating steps rather than jobs. The dead `validation_result` job output is
+  gone; it was never exposed as a `workflow_call` output and nothing read it.
+
 ### Details
 
 - **`ci-js.yml` scans bun projects instead of reporting a clean audit.** `bun`
