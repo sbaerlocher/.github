@@ -32,6 +32,11 @@ on:
         type: string
         default: 'HIGH,CRITICAL'
         description: 'Severity levels to report (UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL)'
+      fail-on-findings:
+        type: boolean
+        required: false
+        default: false
+        description: 'Fail workflow on security findings'
       scan-timeout:
         type: number
         default: 15
@@ -95,9 +100,15 @@ jobs:
           image-ref: ${{ inputs.image-ref }}
           format: 'table'
           severity: ${{ inputs.severity-level }}
-          exit-code: '0'
+          # Coupled to the input, matching security-config.yml. The alternative
+          # — parsing trivy-image.json in the enforce step — needs jq, a schema
+          # assumption and a "file missing" branch that is itself indistinguish-
+          # able from "the scanner never ran". Letting the scanner decide keeps
+          # one source of truth for what counts as a finding at this severity.
+          exit-code: ${{ inputs.fail-on-findings && '1' || '0' }}
 
       - name: Run Trivy SARIF scan
+        id: trivy-sarif
         if: inputs.enable-trivy-scan && inputs.enable-sarif-upload
         continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -108,6 +119,7 @@ jobs:
           severity: ${{ inputs.severity-level }}
 
       - name: Upload Trivy SARIF
+        id: trivy-sarif-upload
         if: inputs.enable-trivy-scan && inputs.enable-sarif-upload
         uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
         with:
@@ -116,6 +128,7 @@ jobs:
         continue-on-error: true
 
       - name: Run Trivy JSON scan
+        id: trivy-json
         if: always() && inputs.enable-trivy-scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -142,7 +155,9 @@ jobs:
         uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7.4.0
         with:
           image: ${{ inputs.image-ref }}
-          fail-build: false
+          # Same reasoning as trivy's exit-code above: the scanner is the one
+          # thing that knows whether a finding sits at/above the cutoff.
+          fail-build: ${{ inputs.fail-on-findings }}
           severity-cutoff: medium
 
       - name: Upload Grype Results
@@ -210,3 +225,73 @@ jobs:
             printf '| Grype | %s |\n' "$GRYPE_OUTCOME"
             printf '| Image Analysis | %s |\n' "$ANALYSIS_OUTCOME"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # continue-on-error on the six steps above only lets the later sequential
+      # steps run; it must not swallow the result. Without this step the job is
+      # green whatever happens — a scanner that could not download its DB, an
+      # unresolvable image-ref and a CRITICAL CVE all end the same way.
+      #
+      # Two failure classes, deliberately collapsed onto one rule:
+      #
+      #   Execution errors (DB download, rate limit, unresolvable image-ref)
+      #   always fail. A scanner that could not run is not a passed scan, so
+      #   this half ignores fail-on-findings.
+      #
+      #   Findings only fail when fail-on-findings is true. They are routed
+      #   through the scanners themselves — trivy's `exit-code` and grype's
+      #   `fail-build` are keyed off the input — rather than re-derived here by
+      #   parsing trivy-image.json. That keeps one definition of "a finding at
+      #   this severity" instead of a second, drifting one in bash, and needs
+      #   neither jq nor a missing-file branch. The cost is that both classes
+      #   arrive as the same `outcome: failure`; that is acceptable because the
+      #   two only coincide when fail-on-findings is true, where both have to
+      #   fail anyway. With fail-on-findings false the scanners exit 0 on
+      #   findings, so any failure reaching here is an execution error by
+      #   construction.
+      #
+      # `Upload Trivy Results` / `Upload Grype Results` are deliberately absent:
+      # they are best-effort reporting, and a failed artifact upload should not
+      # fail a run whose scans all passed — the same carve-out the artifact
+      # upload in ci-terraform.yml argues. Neither sets continue-on-error, so a
+      # regression there is still visible as a red step.
+      - name: Enforce container scan results
+        if: always()
+        env:
+          FAIL_ON_FINDINGS: ${{ inputs.fail-on-findings }}
+          TRIVY_OUTCOME: ${{ steps.trivy-image.outcome }}
+          TRIVY_SARIF_OUTCOME: ${{ steps.trivy-sarif.outcome }}
+          TRIVY_SARIF_UPLOAD_OUTCOME: ${{ steps.trivy-sarif-upload.outcome }}
+          TRIVY_JSON_OUTCOME: ${{ steps.trivy-json.outcome }}
+          GRYPE_OUTCOME: ${{ steps.grype-image.outcome }}
+          ANALYSIS_OUTCOME: ${{ steps.image-analysis.outcome }}
+        run: |
+          set -euo pipefail
+          fail=0
+
+          # A step that never ran reports `skipped`, which is not a failure —
+          # only `failure` is. Each label names what a red entry means, so the
+          # log says why the job is red without opening the step above.
+          check() {
+            if [ "$2" = "failure" ]; then
+              echo "::error::$1"
+              fail=1
+            fi
+          }
+
+          if [ "$FAIL_ON_FINDINGS" = "true" ]; then
+            check "Trivy image scan failed, or found vulnerabilities at/above the severity threshold" "$TRIVY_OUTCOME"
+            check "Grype image scan failed, or found vulnerabilities at/above the severity cutoff" "$GRYPE_OUTCOME"
+          else
+            check "Trivy image scan could not run (findings are not gated: fail-on-findings is false)" "$TRIVY_OUTCOME"
+            check "Grype image scan could not run (findings are not gated: fail-on-findings is false)" "$GRYPE_OUTCOME"
+          fi
+
+          # These four never gate on findings in either mode — they produce
+          # SARIF/JSON output and image metadata, so a failure is always an
+          # execution error and fails regardless of fail-on-findings.
+          check "Trivy SARIF scan could not run" "$TRIVY_SARIF_OUTCOME"
+          check "Trivy SARIF upload to the Security tab failed" "$TRIVY_SARIF_UPLOAD_OUTCOME"
+          check "Trivy JSON scan could not run" "$TRIVY_JSON_OUTCOME"
+          check "Image layer analysis could not run" "$ANALYSIS_OUTCOME"
+
+          exit "$fail"
