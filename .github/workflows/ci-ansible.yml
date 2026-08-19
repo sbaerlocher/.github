@@ -138,8 +138,6 @@ jobs:
         id: install
         env:
           ANSIBLE_VERSION: ${{ inputs.ansible-version }}
-          ENABLE_ANSIBLE_LINT: ${{ inputs.enable-ansible-lint }}
-          ENABLE_YAMLLINT: ${{ inputs.enable-yamllint }}
         run: |
           set -euo pipefail
           echo "::group::Install Ansible $ANSIBLE_VERSION"
@@ -150,7 +148,7 @@ jobs:
       # Separate from the Ansible install above, and not fatal: the linters
       # resolve against ansible-core, and a version conflict there (ansible 8.x
       # pins core 2.15 while current ansible-lint wants >= 2.16) must not take
-      # the syntax check down with it. Its outcome gates only the lint steps.
+      # the syntax check down with it. Both lint steps gate on its outcome.
       - name: Install Linters
         id: linters
         if: >-
@@ -179,6 +177,38 @@ jobs:
           fi
           echo "::endgroup::"
 
+      - name: Run yamllint
+        id: yamllint
+        if: >-
+          inputs.enable-yamllint
+          && steps.linters.outcome == 'success'
+        continue-on-error: true
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          STRICT: ${{ inputs.yamllint-strict }}
+        run: |
+          set -euo pipefail
+          echo "::group::Run yamllint"
+          # $PWD is the step's working-directory, set above
+          echo "Linting YAML files in $PWD..."
+          if [ "$STRICT" = "true" ]; then
+            yamllint -f parsable .
+          else
+            # Non-strict: see the ansible-lint step above for why the exit
+            # status is surfaced rather than swallowed by a bare `|| true`.
+            yamllint -f parsable . || STATUS=$?
+            if [ "${STATUS:-0}" -ne 0 ]; then
+              echo "::warning::yamllint reported issues (exit ${STATUS}); \
+          tolerated because yamllint-strict is false"
+            fi
+          fi
+          echo "::endgroup::"
+
+      # `continue-on-error` above keeps a failing check from masking the ones
+      # after it, which also means the job would end green on its own. This step
+      # is what turns any recorded failure back into a red job. Every step
+      # carrying `continue-on-error` appears here — one that does not would be a
+      # silent-green hole.
       - name: Install Ansible Collections
         id: collections
         if: steps.install.outcome == 'success'
@@ -191,12 +221,7 @@ jobs:
           echo "::group::Install Ansible Collections"
           if [ -f "$REQUIREMENTS_FILE" ]; then
             echo "Installing collections from $REQUIREMENTS_FILE..."
-            # `-p` rather than the ansible.cfg default: a workspace-relative
-            # `collections_path` would drop third-party YAML into the tree that
-            # `Run yamllint` walks below, and this is the path the cache step
-            # already declares.
-            ansible-galaxy collection install -r "$REQUIREMENTS_FILE" \
-              -p ~/.ansible/collections
+            ansible-galaxy collection install -r "$REQUIREMENTS_FILE"
           else
             echo "::warning::No requirements file found at $REQUIREMENTS_FILE"
           fi
@@ -263,38 +288,6 @@ jobs:
       # step-level, `needs: validation` becomes the syntax outcome test. It does
       # not depend on the collection install — yamllint parses files, it does
       # not resolve Ansible content — so that one is not in its gate.
-      - name: Run yamllint
-        id: yamllint
-        if: >-
-          inputs.enable-yamllint
-          && steps.install.outcome == 'success'
-        continue-on-error: true
-        working-directory: ${{ inputs.working-directory }}
-        env:
-          STRICT: ${{ inputs.yamllint-strict }}
-        run: |
-          set -euo pipefail
-          echo "::group::Run yamllint"
-          # $PWD is the step's working-directory, set above
-          echo "Linting YAML files in $PWD..."
-          if [ "$STRICT" = "true" ]; then
-            yamllint -f parsable .
-          else
-            # Non-strict: see the ansible-lint step above for why the exit
-            # status is surfaced rather than swallowed by a bare `|| true`.
-            yamllint -f parsable . || STATUS=$?
-            if [ "${STATUS:-0}" -ne 0 ]; then
-              echo "::warning::yamllint reported issues (exit ${STATUS}); \
-          tolerated because yamllint-strict is false"
-            fi
-          fi
-          echo "::endgroup::"
-
-      # `continue-on-error` above keeps a failing check from masking the ones
-      # after it, which also means the job would end green on its own. This step
-      # is what turns any recorded failure back into a red job. Every step
-      # carrying `continue-on-error` appears here — one that does not would be a
-      # silent-green hole.
       - name: Enforce validation results
         if: always()
         env:
