@@ -97,6 +97,36 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   the enforce step reads, and the scans skip `.terraform` so `terraform init`
   populating the module tree does not widen the scan surface beyond what the
   separate job saw.
+- **`ci-ansible.yml` reports one status check instead of three.** `validation`,
+  `lint` and `yamllint` each took their own runner, and Actions bills every job
+  rounded up to a full minute. Measured across 327 runs in
+  `sbaerlocher/infrastructure` for July and August 2026, the three jobs took 63,
+  41 and 5 seconds — three billed minutes for under two minutes of work. The
+  round-up is the smaller half: `validation` and `lint` each ran their own
+  `pip install ansible`, downloading the same distribution twice per run. The
+  `needs: validation` on `lint` and `yamllint` was fail-fast only, never an
+  ordering requirement, so nothing depended on the fan-out. All three are now
+  steps of the single `Validate` job, sharing one checkout, one `setup-python`
+  and one `pip install` that appends `ansible-lint` and `yamllint` only when the
+  caller enabled them. Each former job is a step with `continue-on-error`, so a
+  failing syntax check no longer hides the lint findings after it, and a closing
+  `Enforce validation results` step turns any recorded failure back into a red
+  job.
+  **Migration:** the job keeps the name `Validate`, so
+  `<caller-job> / Validate` is unaffected. A consumer whose branch protection or
+  ruleset lists `<caller-job> / Lint` or `<caller-job> / YAML Lint` must remove
+  those checks before bumping the tag — the jobs no longer exist and leaving the
+  names in place strands PRs on "Expected — Waiting for status to be reported".
+  `sbaerlocher/infrastructure` requires `Validate Ansible Configuration / Lint`
+  today and must drop it. No input changed: all 12 `workflow_call` inputs keep
+  their names, types and defaults, and `enable-ansible-lint` / `enable-yamllint`
+  work as before, now gating steps rather than jobs.
+
+- **Non-strict lint results are no longer silent.** `ansible-lint` and
+  `yamllint` ran under a bare `|| true` when their `*-strict` input was `false`,
+  which discarded the exit status along with the failure. Both now capture it
+  and emit a `::warning::` naming the exit code and the input that tolerated it,
+  so a green run still says the lint was unhappy.
 
 ### Details
 
