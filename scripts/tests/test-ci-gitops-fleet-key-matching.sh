@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# `validate-fleet` warns when a fleet.yaml carries a `helm:` block with a
+# The fleet validation warns when a fleet.yaml carries a `helm:` block with a
 # `chart:` but no `repo:` — unless the chart comes from an OCI registry. That
 # OCI exception used to test for the literal string `"  chart: oci://"`: exactly
 # two leading spaces, exactly one space after the colon, no quotes. Renovate and
@@ -42,8 +42,8 @@ fail() {
 # Anchored on the step name, then on its `run: |`, so the `env:` block between
 # them cannot satisfy an assertion meant for the shell body — same anchoring as
 # test-ci-gitops-oci-skip-notice.sh.
-STEP_LINE="$(grep -n '^      - name: Validate fleet.yaml structure$' "$WORKFLOW" | cut -d: -f1 || true)"
-[ -n "$STEP_LINE" ] || fail "no 'Validate fleet.yaml structure' step found"
+STEP_LINE="$(grep -n '^      - name: Validate Fleet Configurations$' "$WORKFLOW" | cut -d: -f1 || true)"
+[ -n "$STEP_LINE" ] || fail "no 'Validate Fleet Configurations' step found"
 [ "$(grep -c . <<<"$STEP_LINE")" -eq 1 ] || fail "expected exactly one fleet validation step"
 
 RUN_OFFSET="$(sed -n "${STEP_LINE},\$p" "$WORKFLOW" | grep -n '^        run: |$' | head -1 | cut -d: -f1 || true)"
