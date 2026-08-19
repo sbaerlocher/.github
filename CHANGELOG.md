@@ -65,6 +65,15 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### Details
 
+- **`ci-js.yml` scans bun projects instead of reporting a clean audit.** `bun`
+  is a documented `package-manager` value and `quality-and-test` handled it
+  throughout, but no case statement in the audit path had a bun arm — a bun
+  caller installed nothing, audited nothing, and the scanner reported success.
+  An unknown value now fails loudly rather than passing a scan that never ran.
+  The security-scan cache key also dropped `bun.lockb`, so for a bun caller
+  `hashFiles()` collapsed to the empty string and the key became a constant
+  that immutable cache entries pinned to the first run.
+
 - **A failing scanner no longer hides the ones after it.** `fail-fast: false`
   used to give that for free across the matrix legs. Each scanner now carries
   `continue-on-error` and an enforce step re-raises any recorded failure, so the
