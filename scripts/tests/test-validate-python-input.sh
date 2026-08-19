@@ -145,6 +145,14 @@ else:
         errors.append(
             "step `Enforce validation results`: env must read steps.python.outcome"
         )
+    # The env: entry alone is not the gate — the value has to be consumed by the
+    # loop in the body. Deleting the `Validate Python Tests:${PYTHON_RESULT}`
+    # line leaves PYTHON_RESULT defined-but-unused, which is exactly the
+    # "green PR, failing tests" hole this assertion exists to close.
+    if "PYTHON_RESULT" not in str(enforce.get("run") or ""):
+        errors.append(
+            "step `Enforce validation results`: run: must check PYTHON_RESULT"
+        )
 
 for error in errors:
     print(error)

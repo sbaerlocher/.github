@@ -22,6 +22,48 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-08-19
+
+### ⚠ BREAKING
+
+- **`ci-gitops.yml` reports one status check instead of nine.** The eight
+  validation jobs plus the summary job ran 2-13 seconds each, but Actions bills
+  every job rounded up to a full minute — a run charged nine minutes for about
+  one minute of work. They are now steps of a single `Continuous Integration`
+  job sharing one checkout and one tool setup. Measured across the consumers
+  for July and August 2026, the fan-out cost 5,883 billable minutes on private
+  repos that the merged job does not.
+  **Migration:** a consumer whose branch protection or ruleset lists the
+  per-job checks (`<caller-job> / Validate YAML Syntax`,
+  `… / Validate Fleet Configurations`, `… / Validate GitRepo Configuration`,
+  `… / Validate Helm Charts`, `… / Validate Rendered Helm Output`,
+  `… / Validate Kubernetes Manifests`, `… / Check Documentation`,
+  `… / Validate Python Tests`, `… / Validation Summary`) must replace all of
+  them with the single `<caller-job> / Continuous Integration` check before
+  bumping the tag. Leaving the old names in place strands PRs on
+  "Expected — Waiting for status to be reported". No input changed: all 22
+  `workflow_call` inputs keep their names, types and defaults, and the
+  per-validation `enable-*` switches work as before, now gating steps rather
+  than jobs. The step summary keeps its per-validation table.
+
+### Details
+
+- **A failed `require-gitrepo-file` now reaches the summary and the gate.**
+  Folding the jobs into steps moved the result plumbing from `needs.*.result`
+  to `steps.*.outcome`, where a skipped step reports the truthy string
+  `skipped` — so an `a || b` chain never reached its second operand and a
+  failed require step printed as `skipped` while the job went red. The row now
+  tests that outcome explicitly, and the enforce step reads it at all.
+
+- **A failed `pip install` no longer ends with the log claiming success.**
+  `Install test requirements` had neither an `id:` nor `continue-on-error:`,
+  so it aborted the job while the always()-steps printed
+  `Validate Python Tests | skipped` and `All enabled validations passed`. It
+  now carries both and reaches the enforce list, and `Run pytest` no longer
+  runs against a half-installed environment.
+
+---
+
 ## 2026-08-16
 
 ### Details
