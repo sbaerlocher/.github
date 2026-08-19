@@ -557,6 +557,7 @@ jobs:
   release-summary:
     name: Create Summary
     runs-on: ${{ inputs.runner }}
+    timeout-minutes: 5
     needs: [pre-release-checks, publish, github-release]
     if: always() && !cancelled()
     steps:

@@ -128,6 +128,7 @@ jobs:
   docker-build:
     name: Build & Push
     runs-on: ${{ inputs.runner }}
+    timeout-minutes: 15
     outputs:
       image-digest: ${{ steps.build.outputs.digest }}
       image-tags: ${{ steps.meta.outputs.tags }}

@@ -25,6 +25,7 @@ jobs:
   smoke-setup-dde:
     name: setup-dde on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -72,6 +73,7 @@ jobs:
   smoke-project-missing-dir:
     name: project fails fast on missing working-directory
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -104,6 +106,7 @@ jobs:
   smoke-project-missing-config:
     name: project fails fast without .dde/config.yml
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -139,6 +142,7 @@ jobs:
   smoke-project-empty-command:
     name: project fails fast on empty command
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
