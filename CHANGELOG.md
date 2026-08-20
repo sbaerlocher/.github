@@ -26,6 +26,30 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### Details
 
+- **This repo's own `sbaerlocher/.github` pins track the current date tag.**
+  `merge.yml` moves a `YYYY-MM-DD` tag on every push to `main`, so under the
+  preset's `minimumReleaseAge: 1 day` the newest tag never passes the age gate;
+  Renovate falls back to the newest tag that does, leaving the five
+  self-reference pins (`actions/project/action.yml` -> `setup-dde`, plus
+  `e2e-dde.yml`, `ci-gitops.yml`, `security-sbom.yml`, `release-npm.yml`) at
+  least a day behind, and further behind on any day whose tag is cut late or
+  not at all. Because `actions/project` resolves `setup-dde` through that pin,
+  the lag reached consumers too. A repo-level rule now waives the age gate and
+  the schedule for `sbaerlocher/.github`, and gives it its own `groupName` —
+  `schedule` is evaluated per branch, so without a dedicated branch the pins
+  would inherit the shared `GitHub Actions` group's `before 6am` window.
+  Consumer repos are unaffected: they extend the named presets, not this
+  repo's root config, and keep the 1-day soak.
+- **The `pinDigests` rule is scoped to the file its manager actually reads.**
+  The rule matched `.github/workflows/**`, which also caught the inherited
+  `# renovate:` comment manager from `renovate-base` — whose `matchStrings`
+  capture `currentValue` but no `currentDigest`. Renovate resolved a digest for
+  `KUBESEC_IMAGE_VERSION` in `security-config.yml`, found nowhere to write it,
+  and failed the branch with `Digest is not updated`, so the pin PR never
+  opened. Every custom manager reports as `custom.regex`, so `matchManagers`
+  cannot single one out; the glob is now `.github/workflows/ci-go.yml`, the
+  only file carrying a `# renovate-expression:` marker, and that marker site
+  points back at the rule so the coupling is visible from both ends.
 - **`renovate-kubernetes` enables the `helmv3` manager.** `enabledManagers`
   listed `kubernetes`, `helm-values`, `helmfile`, `kustomize`, `custom.regex`
   and `github-actions` — not `helmv3`. Chart dependencies declared in a

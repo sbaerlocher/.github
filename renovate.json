@@ -44,6 +44,13 @@
       "matchDatasources": ["docker"],
       "matchFileNames": [".github/workflows/ci-go.yml"],
       "pinDigests": true
+    },
+    {
+      "description": "Self-reference: this repo pins its own composite actions by date tag (e.g. `actions/project/action.yml` -> `actions/setup-dde@<DATE-TAG>`). `merge.yml` moves a `YYYY-MM-DD` tag on every push to main, so under the preset's `minimumReleaseAge: 1 day` the newest tag is always too young to pass. Renovate then falls back to the newest tag that does pass, which means the pin trails the current tag by at least a day, and by more whenever a day's tag is cut late in the UTC day or no push happens at all. That lag rides into consumers, because `actions/project` resolves `actions/setup-dde` through this pin. Waiving the age gate lets the pin track the current tag. `groupName` is required alongside it: the preset groups these deps into the shared `GitHub Actions` branch, and `schedule` is evaluated per branch, so without its own branch the self-reference would inherit that group's `before 6am` window instead of this rule's. Consumers keep the preset's 1-day soak, which is the point there: a fresh tag should sit before it rolls out widely.",
+      "matchDepNames": ["sbaerlocher/.github"],
+      "minimumReleaseAge": null,
+      "schedule": ["at any time"],
+      "groupName": "sbaerlocher-github-self-reference"
     }
   ]
 }
