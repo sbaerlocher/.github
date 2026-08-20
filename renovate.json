@@ -39,10 +39,10 @@
   ],
   "packageRules": [
     {
-      "description": "The shared preset turns off digest pinning for custom.regex docker deps, since those managers usually capture a version only. The workflow-expression manager scoped by matchFileNames below captures currentDigest too, so pinning is re-enabled for it. The justfile managers are deliberately not covered and stay on the preset's pinDigests: false. Repo-level rules are merged after preset ones, so this wins.",
+      "description": "The shared preset turns off digest pinning for custom.regex docker deps, since those managers usually capture a version only. The workflow-expression manager captures currentDigest too, so pinning is re-enabled for it. Every custom.regex manager reports as `custom.regex`, so matchManagers cannot single one out; matchFileNames is the only selector, and it must name the files the expression manager actually reads. A broader `.github/workflows/**` glob also caught the inherited `# renovate:` comment manager (e.g. KUBESEC_IMAGE_VERSION in security-config.yml), whose matchStrings have no currentDigest group, producing `Digest is not updated` and a failed branch. Repo-level rules are merged after preset ones, so this wins.",
       "matchManagers": ["custom.regex"],
       "matchDatasources": ["docker"],
-      "matchFileNames": [".github/workflows/**"],
+      "matchFileNames": [".github/workflows/ci-go.yml"],
       "pinDigests": true
     }
   ]
