@@ -257,11 +257,15 @@ jobs:
       # lint findings are worth having even when the syntax check failed, which
       # is what `continue-on-error` on every check step buys. Same checks, no
       # second runner and no second `pip install ansible`. The collection
-      # install is a real dependency, so that one is tested for success.
+      # install is a real dependency, so that one is tested for success, as is
+      # the linter install — without that gate a failed `pip install
+      # ansible-lint` would be reported twice, once as itself and once as the
+      # `command not found` it causes here.
       - name: Run ansible-lint
         id: ansible-lint
         if: >-
           inputs.enable-ansible-lint
+          && steps.linters.outcome == 'success'
           && steps.collections.outcome == 'success'
         continue-on-error: true
         working-directory: ${{ inputs.working-directory }}
