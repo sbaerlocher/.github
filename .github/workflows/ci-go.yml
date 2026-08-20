@@ -182,7 +182,10 @@ jobs:
     # Renovate's built-in github-actions manager does read service images, but
     # skips any value containing `$` ("contains-variable"), so the marker below
     # hands this one to the custom manager in the root `renovate.json`, which
-    # captures tag and digest and keeps the pin updated.
+    # captures tag and digest and keeps the pin updated. That manager's
+    # `pinDigests` rule is scoped by `matchFileNames` to this file — a
+    # `renovate-expression` marker in another workflow needs that file added
+    # there, or its digest silently never gets pinned.
     services:
       postgres:
         # renovate-expression: datasource=docker depName=postgres versioning=docker
