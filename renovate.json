@@ -44,6 +44,12 @@
       "matchDatasources": ["docker"],
       "matchFileNames": [".github/workflows/ci-go.yml"],
       "pinDigests": true
+    },
+    {
+      "description": "Self-reference: this repo pins its own composite actions by date tag (e.g. `actions/project/action.yml` -> `actions/setup-dde@<DATE-TAG>`). `merge.yml` cuts a new `YYYY-MM-DD` tag on every push to main, so the preset's `minimumReleaseAge: 1 day` never matures here: by the time today's tag is a day old, tomorrow's already exists and the update restarts as pending. That leaves the inner pins permanently stale and drags the staleness into every consumer repo. Waiving the age gate and the schedule for the self-reference only lets those pins track the tag immediately. Consumers keep the preset's 1-day soak, which is the point there: a fresh tag should sit before it rolls out widely.",
+      "matchDepNames": ["sbaerlocher/.github"],
+      "minimumReleaseAge": null,
+      "schedule": ["at any time"]
     }
   ]
 }
