@@ -22,6 +22,27 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-08-20
+
+### Details
+
+- **`renovate-kubernetes` enables the `helmv3` manager.** `enabledManagers`
+  listed `kubernetes`, `helm-values`, `helmfile`, `kustomize`, `custom.regex`
+  and `github-actions` — not `helmv3`. Chart dependencies declared in a
+  `Chart.yaml` are read by that manager alone, so a consumer running a Fleet
+  bundle as a chart wrapper — the version pinned in
+  `Chart.yaml` under `dependencies[].version`, with no `helm.chart` /
+  `helm.version` in its `fleet.yaml` — got no updates at all: neither Fleet
+  regex manager matched either, so Renovate never saw the chart version and
+  opened no PR. The preset's own description already named `helmv3` as the
+  responsible manager; only the value was missing. `helmv3` is also added to
+  the three `matchManagers` rules (Helm grouping, critical platform charts,
+  and their major/minor manual-merge rule) so `Chart.yaml` dependencies
+  inherit the same grouping, `minimumReleaseAge` and automerge policy as
+  `helm-values`.
+
+---
+
 ## 2026-08-19
 
 ### ⚠ BREAKING
