@@ -78,10 +78,36 @@ concurrency:
   cancel-in-progress: ${{ inputs.cancel-in-progress }}
 
 jobs:
+  # One job, not three. `validation`, `lint` and `yamllint` each took their own
+  # runner, and Actions bills every job rounded up to a full minute — three
+  # billed minutes for work measured at 63s, 41s and 5s across 327 runs in
+  # `sbaerlocher/infrastructure` (July and August 2026). Worse than the
+  # round-up: `validation` and `lint` each ran their own `pip install ansible`,
+  # so the same multi-hundred-megabyte download happened twice per run. Merged,
+  # it happens once.
+  #
+  # `needs: validation` on the other two was fail-fast only (see the comments
+  # this replaces), never an ordering requirement, so nothing depended on the
+  # fan-out.
+  #
+  # The job keeps the name `Validate`: consumers list `<caller-job> / Validate`
+  # in their rulesets. `Lint` and `YAML Lint` disappear as checks — see
+  # CHANGELOG.md for the migration.
+  #
+  # Independence is preserved by `continue-on-error` on every check step: a
+  # failing syntax check no longer hides the lint findings after it, and the
+  # linters install separately from Ansible so a resolver conflict there cannot
+  # take the syntax check down. The enforce step at the end turns any recorded
+  # failure back into a red job.
   validation:
     name: Validate
     runs-on: ${{ inputs.runner }}
-    timeout-minutes: 15
+    # The steps now run serially under one cap, so the largest of the three
+    # former budgets (15) is not enough. 30 covers the serial chain with room
+    # for the always() enforce step, the one that says which check was in
+    # flight, without holding a self-hosted runner for the full 40 the three
+    # former caps summed to.
+    timeout-minutes: 30
 
     steps:
       - name: Repository Checkout
@@ -105,7 +131,14 @@ jobs:
           restore-keys: |
             ansible-collections-${{ runner.os }}-
 
+      # One `pip install ansible` for the whole job. `validation` and `lint`
+      # each installed the same distribution on their own runner, downloading
+      # it twice per run; merged, it happens once. Deliberately not
+      # `continue-on-error`: every check below needs this toolchain, so its
+      # failure is fatal rather than one outcome among several. The linters
+      # install separately in the next step.
       - name: Install Ansible
+        id: install
         env:
           ANSIBLE_VERSION: ${{ inputs.ansible-version }}
         run: |
@@ -115,7 +148,78 @@ jobs:
           ansible --version
           echo "::endgroup::"
 
+      # Separate from the Ansible install above, and not fatal: the linters
+      # resolve against ansible-core, and a version conflict there (ansible 8.x
+      # pins core 2.15 while current ansible-lint wants >= 2.16) must not take
+      # the syntax check down with it. Both lint steps gate on its outcome.
+      - name: Install Linters
+        id: linters
+        if: >-
+          steps.install.outcome == 'success'
+          && (inputs.enable-ansible-lint || inputs.enable-yamllint)
+        continue-on-error: true
+        env:
+          ENABLE_ANSIBLE_LINT: ${{ inputs.enable-ansible-lint }}
+          ENABLE_YAMLLINT: ${{ inputs.enable-yamllint }}
+        run: |
+          set -euo pipefail
+          echo "::group::Install Linters"
+          PACKAGES=()
+          if [ "$ENABLE_ANSIBLE_LINT" = "true" ]; then
+            PACKAGES+=(ansible-lint)
+          fi
+          if [ "$ENABLE_YAMLLINT" = "true" ]; then
+            PACKAGES+=(yamllint)
+          fi
+          pip install "${PACKAGES[@]}"
+          if [ "$ENABLE_ANSIBLE_LINT" = "true" ]; then
+            ansible-lint --version
+          fi
+          if [ "$ENABLE_YAMLLINT" = "true" ]; then
+            yamllint --version
+          fi
+          echo "::endgroup::"
+
+      # Former `yamllint` job: job-level `if` becomes a step-level `if`, and its
+      # `needs: validation` fail-fast is dropped along with the one on
+      # ansible-lint. It runs before the collection install because it does not
+      # depend on it — see the note on that step.
+      - name: Run yamllint
+        id: yamllint
+        if: >-
+          inputs.enable-yamllint
+          && steps.linters.outcome == 'success'
+        continue-on-error: true
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          STRICT: ${{ inputs.yamllint-strict }}
+        run: |
+          set -euo pipefail
+          echo "::group::Run yamllint"
+          # $PWD is the step's working-directory, set above
+          echo "Linting YAML files in $PWD..."
+          if [ "$STRICT" = "true" ]; then
+            yamllint -f parsable .
+          else
+            # Non-strict: see the ansible-lint step above for why the exit
+            # status is surfaced rather than swallowed by a bare `|| true`.
+            yamllint -f parsable . || STATUS=$?
+            if [ "${STATUS:-0}" -ne 0 ]; then
+              echo "::warning::yamllint reported issues (exit ${STATUS}); \
+          tolerated because yamllint-strict is false"
+            fi
+          fi
+          echo "::endgroup::"
+
+      # A real dependency for the syntax check and for ansible-lint, both of
+      # which resolve Ansible content — so both gate on its success. yamllint
+      # runs before it: yamllint parses files rather than resolving content,
+      # and keeping it ahead of `ansible-galaxy` keeps a workspace-relative
+      # `collections_path` from widening the scan surface with vendored YAML.
       - name: Install Ansible Collections
+        id: collections
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
         working-directory: ${{ inputs.working-directory }}
         env:
           REQUIREMENTS_FILE: ${{ inputs.requirements-file }}
@@ -131,6 +235,9 @@ jobs:
           echo "::endgroup::"
 
       - name: Ansible Syntax Check
+        id: syntax
+        if: steps.collections.outcome == 'success'
+        continue-on-error: true
         working-directory: ${{ inputs.working-directory }}
         env:
           # Unquoted at the call site below so a glob like `playbooks/*.yml`
@@ -145,38 +252,22 @@ jobs:
           echo "::notice::Ansible syntax check passed ✅"
           echo "::endgroup::"
 
-  lint:
-    name: Lint
-    if: ${{ inputs.enable-ansible-lint }}
-    # Gate behind validation: a failed syntax check aborts before ansible-lint
-    # spends a runner. validation is unconditional, so plain needs is enough.
-    needs: validation
-    runs-on: ${{ inputs.runner }}
-    timeout-minutes: 15
-
-    steps:
-      - name: Repository Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: ${{ inputs.python-version }}
-          # Note: cache disabled because not all projects have requirements.txt
-
-      - name: Install ansible-lint
-        env:
-          ANSIBLE_VERSION: ${{ inputs.ansible-version }}
-        run: |
-          set -euo pipefail
-          echo "::group::Install ansible-lint"
-          pip install "ansible==$ANSIBLE_VERSION" ansible-lint
-          ansible-lint --version
-          echo "::endgroup::"
-
+      # Former `lint` job. Its job-level `if: inputs.enable-ansible-lint` is now
+      # a step-level `if`, and its `needs: validation` fail-fast is dropped: the
+      # lint findings are worth having even when the syntax check failed, which
+      # is what `continue-on-error` on every check step buys. Same checks, no
+      # second runner and no second `pip install ansible`. The collection
+      # install is a real dependency, so that one is tested for success, as is
+      # the linter install — without that gate a failed `pip install
+      # ansible-lint` would be reported twice, once as itself and once as the
+      # `command not found` it causes here.
       - name: Run ansible-lint
+        id: ansible-lint
+        if: >-
+          inputs.enable-ansible-lint
+          && steps.linters.outcome == 'success'
+          && steps.collections.outcome == 'success'
+        continue-on-error: true
         working-directory: ${{ inputs.working-directory }}
         env:
           # Unquoted at the call sites below so a glob like `playbooks/*.yml`
@@ -187,52 +278,55 @@ jobs:
           set -euo pipefail
           echo "::group::Run ansible-lint"
           echo "Linting $PLAYBOOK_FILE..."
-          # shellcheck disable=SC2086 # intentional: see env comment above
           if [ "$STRICT" = "true" ]; then
+            # shellcheck disable=SC2086 # intentional: see env comment above
             ansible-lint $PLAYBOOK_FILE
           else
-            ansible-lint $PLAYBOOK_FILE || true
+            # Non-strict: findings are tolerated, but `|| true` alone would make
+            # them invisible in a green job. Record the status and surface it as
+            # a warning so the run still says the lint was unhappy.
+            # shellcheck disable=SC2086 # intentional: see env comment above
+            ansible-lint $PLAYBOOK_FILE || STATUS=$?
+            if [ "${STATUS:-0}" -ne 0 ]; then
+              echo "::warning::ansible-lint reported issues (exit ${STATUS}); \
+          tolerated because ansible-lint-strict is false"
+            fi
           fi
           echo "::endgroup::"
 
-  yamllint:
-    name: YAML Lint
-    if: ${{ inputs.enable-yamllint }}
-    # Gate behind validation so a syntax failure aborts before yamllint runs.
-    needs: validation
-    runs-on: ${{ inputs.runner }}
-    timeout-minutes: 10
-
-    steps:
-      - name: Repository Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: ${{ inputs.python-version }}
-          # Note: cache disabled because not all projects have requirements.txt
-
-      - name: Install yamllint
-        run: |
-          set -euo pipefail
-          pip install yamllint
-          yamllint --version
-
-      - name: Run yamllint
-        working-directory: ${{ inputs.working-directory }}
+      # `continue-on-error` on every check step keeps a failing check from
+      # masking the ones after it, which also means the job would end green on
+      # its own. This step is what turns any recorded failure back into a red
+      # job. Every step carrying `continue-on-error` appears here — one that
+      # does not would be a silent-green hole.
+      - name: Enforce validation results
+        if: always()
         env:
-          STRICT: ${{ inputs.yamllint-strict }}
+          LINTERS_RESULT: ${{ steps.linters.outcome || 'skipped' }}
+          COLLECTIONS_RESULT: ${{ steps.collections.outcome || 'skipped' }}
+          SYNTAX_RESULT: ${{ steps.syntax.outcome || 'skipped' }}
+          ANSIBLE_LINT_RESULT: ${{ steps.ansible-lint.outcome || 'skipped' }}
+          YAMLLINT_RESULT: ${{ steps.yamllint.outcome || 'skipped' }}
         run: |
           set -euo pipefail
-          echo "::group::Run yamllint"
-          # $PWD is the step's working-directory, set above
-          echo "Linting YAML files in $PWD..."
-          if [ "$STRICT" = "true" ]; then
-            yamllint -f parsable .
-          else
-            yamllint -f parsable . || true
+          FAILED=0
+          for pair in \
+            "Install Linters:${LINTERS_RESULT}" \
+            "Install Ansible Collections:${COLLECTIONS_RESULT}" \
+            "Ansible Syntax Check:${SYNTAX_RESULT}" \
+            "Run ansible-lint:${ANSIBLE_LINT_RESULT}" \
+            "Run yamllint:${YAMLLINT_RESULT}"; do
+            name="${pair%:*}"
+            result="${pair##*:}"
+            if [ "$result" = "failure" ]; then
+              echo "::error::${name} failed"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+
+          if [ "$FAILED" -gt 0 ]; then
+            echo "${FAILED} validation(s) failed"
+            exit 1
           fi
-          echo "::endgroup::"
+
+          echo "All enabled validations passed"
