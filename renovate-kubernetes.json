@@ -6,6 +6,7 @@
     "kubernetes",
     "helm-values",
     "helmfile",
+    "helmv3",
     "kustomize",
     "custom.regex",
     "github-actions"
@@ -24,8 +25,17 @@
   "packageRules": [
     {
       "description": "Group Helm chart updates. separateMultipleMajor: false so co-dependent chart majors share one branch/PR.",
-      "matchManagers": ["helm-values", "helmfile"],
+      "matchManagers": ["helm-values", "helmfile", "helmv3"],
       "matchDatasources": ["helm"],
+      "groupName": "Helm charts",
+      "semanticCommitScope": "helm",
+      "minimumReleaseAge": "5 days",
+      "separateMultipleMajor": false
+    },
+    {
+      "description": "helmv3 OCI chart dependencies report the docker datasource, not helm, so they miss the Helm group above. Scoped to helmv3 so helm-values image dependencies stay out of the chart group.",
+      "matchManagers": ["helmv3"],
+      "matchDatasources": ["docker"],
       "groupName": "Helm charts",
       "semanticCommitScope": "helm",
       "minimumReleaseAge": "5 days",
@@ -47,8 +57,8 @@
     },
     {
       "description": "Critical platform charts - extra stability. Release age, priority and labels apply to every update type; the automerge decision is split out below.",
-      "matchManagers": ["helm-values", "helmfile"],
-      "matchPackageNames": [
+      "matchManagers": ["helm-values", "helmfile", "helmv3"],
+      "matchDepNames": [
         "cert-manager",
         "external-secrets",
         "ingress-nginx",
@@ -65,8 +75,8 @@
     },
     {
       "description": "Critical platform charts major/minor - manual merge. These charts carry CRDs and cluster-wide controllers where a minor can already ship a CRD schema change, so minor stays manual too. Patch falls through to the base non-major automerge rule and never needs an approval.",
-      "matchManagers": ["helm-values", "helmfile"],
-      "matchPackageNames": [
+      "matchManagers": ["helm-values", "helmfile", "helmv3"],
+      "matchDepNames": [
         "cert-manager",
         "external-secrets",
         "ingress-nginx",
