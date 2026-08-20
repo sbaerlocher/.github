@@ -102,9 +102,11 @@ jobs:
   validation:
     name: Validate
     runs-on: ${{ inputs.runner }}
-    # Sum of the three former budgets (15 + 15 + 10), not the largest: the steps
-    # now run serially under one cap. A tighter cap would also kill the
-    # always() enforce step, the one that says which check was in flight.
+    # The steps now run serially under one cap, so the largest of the three
+    # former budgets (15) is not enough. 30 covers the serial chain with room
+    # for the always() enforce step, the one that says which check was in
+    # flight, without holding a self-hosted runner for the full 40 the three
+    # former caps summed to.
     timeout-minutes: 30
 
     steps:
@@ -129,11 +131,12 @@ jobs:
           restore-keys: |
             ansible-collections-${{ runner.os }}-
 
-      # One `pip install` for all three former jobs. `validation` and `lint`
-      # each installed the same ansible distribution on their own runner; the
-      # linters are appended here rather than installed again later. Both are
-      # conditional on their input so a caller that disabled a linter does not
-      # pay for its wheel.
+      # One `pip install ansible` for the whole job. `validation` and `lint`
+      # each installed the same distribution on their own runner, downloading
+      # it twice per run; merged, it happens once. Deliberately not
+      # `continue-on-error`: every check below needs this toolchain, so its
+      # failure is fatal rather than one outcome among several. The linters
+      # install separately in the next step.
       - name: Install Ansible
         id: install
         env:
@@ -177,6 +180,10 @@ jobs:
           fi
           echo "::endgroup::"
 
+      # Former `yamllint` job: job-level `if` becomes a step-level `if`, and its
+      # `needs: validation` fail-fast is dropped along with the one on
+      # ansible-lint. It runs before the collection install because it does not
+      # depend on it — see the note on that step.
       - name: Run yamllint
         id: yamllint
         if: >-
@@ -204,11 +211,11 @@ jobs:
           fi
           echo "::endgroup::"
 
-      # `continue-on-error` above keeps a failing check from masking the ones
-      # after it, which also means the job would end green on its own. This step
-      # is what turns any recorded failure back into a red job. Every step
-      # carrying `continue-on-error` appears here — one that does not would be a
-      # silent-green hole.
+      # A real dependency for the syntax check and for ansible-lint, both of
+      # which resolve Ansible content — so both gate on its success. yamllint
+      # runs before it: yamllint parses files rather than resolving content,
+      # and keeping it ahead of `ansible-galaxy` keeps a workspace-relative
+      # `collections_path` from widening the scan surface with vendored YAML.
       - name: Install Ansible Collections
         id: collections
         if: steps.install.outcome == 'success'
@@ -246,12 +253,11 @@ jobs:
           echo "::endgroup::"
 
       # Former `lint` job. Its job-level `if: inputs.enable-ansible-lint` is now
-      # a step-level `if`, and its `needs: validation` fail-fast is the syntax
-      # outcome test — same semantics, no second runner and no second
-      # `pip install ansible`. `!= 'failure'` rather than `== 'success'`: the
-      # gate is fail-fast, and a syntax check that was itself skipped must not
-      # suppress the lint. The collection install is a real dependency, so that
-      # one is tested for success.
+      # a step-level `if`, and its `needs: validation` fail-fast is dropped: the
+      # lint findings are worth having even when the syntax check failed, which
+      # is what `continue-on-error` on every check step buys. Same checks, no
+      # second runner and no second `pip install ansible`. The collection
+      # install is a real dependency, so that one is tested for success.
       - name: Run ansible-lint
         id: ansible-lint
         if: >-
@@ -284,10 +290,11 @@ jobs:
           fi
           echo "::endgroup::"
 
-      # Former `yamllint` job. Same treatment: job-level `if` becomes
-      # step-level, `needs: validation` becomes the syntax outcome test. It does
-      # not depend on the collection install — yamllint parses files, it does
-      # not resolve Ansible content — so that one is not in its gate.
+      # `continue-on-error` on every check step keeps a failing check from
+      # masking the ones after it, which also means the job would end green on
+      # its own. This step is what turns any recorded failure back into a red
+      # job. Every step carrying `continue-on-error` appears here — one that
+      # does not would be a silent-green hole.
       - name: Enforce validation results
         if: always()
         env:

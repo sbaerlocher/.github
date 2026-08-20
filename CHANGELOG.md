@@ -107,8 +107,8 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   `needs: validation` on `lint` and `yamllint` was fail-fast only, never an
   ordering requirement, so nothing depended on the fan-out. All three are now
   steps of the single `Validate` job, sharing one checkout, one `setup-python`
-  and one `pip install` that appends `ansible-lint` and `yamllint` only when the
-  caller enabled them. Each former job is a step with `continue-on-error`, so a
+  and one `pip install ansible`, with `ansible-lint` and `yamllint` installed by
+  a separate step only when the caller enabled them. Each former job is a step with `continue-on-error`, so a
   failing syntax check no longer hides the lint findings after it — the linters
   install separately from Ansible, so a resolver conflict there cannot take the
   syntax check down either — and a closing `Enforce validation results` step
