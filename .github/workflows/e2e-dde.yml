@@ -380,6 +380,7 @@ jobs:
     name: Comment PR
     needs: e2e-dde
     runs-on: ${{ inputs.runner }}
+    timeout-minutes: 5
     if: >
       always()
       && github.event_name == 'pull_request'

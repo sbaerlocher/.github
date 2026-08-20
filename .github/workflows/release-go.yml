@@ -71,6 +71,7 @@ jobs:
   goreleaser:
     name: Build & Release
     runs-on: ${{ inputs.runner }}
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code

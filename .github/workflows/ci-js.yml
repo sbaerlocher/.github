@@ -644,6 +644,7 @@ jobs:
   summary:
     name: Create Summary
     runs-on: ${{ inputs.runner }}
+    timeout-minutes: 5
     needs: [quality-and-test, security-scan, dependency-review]
     if: always() && !cancelled()
     steps:

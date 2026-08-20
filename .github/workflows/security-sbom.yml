@@ -166,6 +166,7 @@ jobs:
   sbom-report:
     name: Create Report
     runs-on: ${{ inputs.runner }}
+    timeout-minutes: 5
     needs: [generate-sbom]
     if: always() && !cancelled()
     steps:
