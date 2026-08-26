@@ -109,7 +109,7 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
         env:
           # renovate: datasource=github-releases depName=CycloneDX/cyclonedx-gomod
-          CYCLONEDX_GOMOD_VERSION: 'v1.11.0'
+          CYCLONEDX_GOMOD_VERSION: 'v1.12.0'
           ARTIFACT_TYPE: ${{ inputs.artifact-type }}
         run: |
           go install "github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@${CYCLONEDX_GOMOD_VERSION}"
