@@ -22,6 +22,30 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-08-30
+
+### Details
+
+- **`abandonmentThreshold` raised to 4 years for `gomod` in `renovate-go`.**
+  `config:best-practices` turns on abandonment detection, which flags a
+  dependency purely by release inactivity past the threshold — Renovate's
+  default is 2 years. Unlike a deprecation notice, that signal carries no
+  statement from the maintainer; it only says no tag was cut. Go's standard
+  library plus a stable module API let a small, finished library sit for years
+  while staying the correct choice, so it produces false positives there
+  routinely: `github.com/google/uuid`, `github.com/gorilla/sessions`,
+  `github.com/pquerna/otp` and `github.com/SherClockHolmes/webpush-go` all
+  appeared in consumer dependency dashboards under "Abandoned Dependencies"
+  with no migration to make. A dashboard section nobody can act on trains the
+  reader to skip the dashboard, which is where the actionable deprecation
+  warnings also live. The rule is scoped to `matchManagers: ["gomod"]` rather
+  than set globally in `renovate-base`: npm release cadence does track
+  maintenance, so the 2-year default stays meaningful for every other
+  ecosystem. Explicit `deprecated` notices from a registry are a separate
+  mechanism and stay on everywhere.
+
+---
+
 ## 2026-08-20
 
 ### Details
