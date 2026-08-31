@@ -22,6 +22,29 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-08-31
+
+### Details
+
+- **`release-go` now installs syft before running GoReleaser.** GoReleaser OSS
+  does not bundle syft; an `sboms:` block in a consumer's `.goreleaser.yaml`
+  makes it shell out to the binary, and without it on PATH the release aborts
+  with `syft: executable file not found in $PATH` _after_ the archives are
+  built — taking any dependent Docker and Helm jobs down with it.
+  `sbaerlocher/tsmetrics` had been working around this with a
+  `pre-build-commands:` input that no longer exists in this workflow, so its
+  release run failed with `startup_failure`: GitHub validates
+  reusable-workflow inputs before dispatch, so no job started and no log was
+  produced. Note the scope — **this change alone produces no SBOM.** It only
+  provides the binary; a consumer still needs an `sboms:` block in their own
+  `.goreleaser.yaml` for anything to be generated. The step is unconditional
+  rather than gated behind an input: a Go release workflow that cannot produce
+  an SBOM is the wrong default, and the trade-off is a short download from
+  anchore's release hosting on every tag push, including for consumers who
+  generate no SBOM today.
+
+---
+
 ## 2026-08-30
 
 ### Details
