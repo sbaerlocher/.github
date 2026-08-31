@@ -106,12 +106,12 @@ All files live in [.github/workflows/](./.github/workflows/).
 
 ### Release (4)
 
-| File                                                           | Output                               |
-| -------------------------------------------------------------- | ------------------------------------ |
-| [`release-docker.yml`](./.github/workflows/release-docker.yml) | Multi-arch Docker images to GHCR     |
-| [`release-go.yml`](./.github/workflows/release-go.yml)         | GoReleaser binaries + GitHub Release |
-| [`release-helm.yml`](./.github/workflows/release-helm.yml)     | Helm OCI chart publish               |
-| [`release-npm.yml`](./.github/workflows/release-npm.yml)       | NPM publish with provenance + SBOM   |
+| File                                                           | Output                                                                              |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [`release-docker.yml`](./.github/workflows/release-docker.yml) | Multi-arch Docker images to GHCR                                                    |
+| [`release-go.yml`](./.github/workflows/release-go.yml)         | GoReleaser binaries + GitHub Release (syft available; SBOMs need an `sboms:` block) |
+| [`release-helm.yml`](./.github/workflows/release-helm.yml)     | Helm OCI chart publish                                                              |
+| [`release-npm.yml`](./.github/workflows/release-npm.yml)       | NPM publish with provenance + SBOM                                                  |
 
 ### Operations (3)
 
