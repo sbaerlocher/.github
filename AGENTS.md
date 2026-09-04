@@ -124,6 +124,28 @@ uses: sbaerlocher/.github/.github/workflows/ci-js.yml@2026-04-25
   stops changing once the day is over; only the current day's tag is mutable.
 - Renovate updates date tags in consumer repos automatically via the
   custom manager defined in `renovate-base.json`.
+- **Rollout is batched to Monday.** Tags are still cut daily, but the
+  `sbaerlocher/.github` package rule in `renovate-base.json` carries
+  `schedule: ["before 6am on monday"]` plus its own `groupSlug`, so consumers
+  get one tag-bump PR per week instead of one per push to `main`. Without the
+  weekly window a busy week produced a PR per workflow change in every
+  consumer repo (26 tags in the 30 days to 2026-09-02, times 10+ consumers).
+  An urgent fix still rolls out on demand — tick the dep in the consumer's
+  Dependency Dashboard issue.
+- **`groupSlug` is what carries a schedule, not `groupName`.** Renovate derives
+  the branch name from `slugify(groupSlug ?? groupName)` and evaluates
+  `schedule` per branch, and `packageRules` merge last-wins **per key** — so a
+  later rule setting only `groupName` does not reset an earlier `groupSlug`.
+  The preset's non-major rule sets `groupSlug: all-non-major` and matches these
+  date-tag bumps (`2026-08-31` → `2026-09-04` is a `minor` under the rule's own
+  regex versioning), so a bare `groupName` override would leave the bump on
+  `renovate/all-non-major` — where the window either does nothing or defers
+  every other non-major update with it. Set `groupSlug` explicitly whenever a
+  rule needs its own `schedule`.
+- **No age gate on this dep.** The Monday window is itself the soak, so the rule
+  sets `minimumReleaseAge: null`. A 1-day gate would push any tag cut over the
+  weekend past the window and on to the next Monday — an 8-day lag instead of
+  the intended one week.
 
 ### Runner Convention
 

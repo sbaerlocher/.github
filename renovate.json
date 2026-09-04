@@ -46,11 +46,12 @@
       "pinDigests": true
     },
     {
-      "description": "Self-reference: this repo pins its own composite actions by date tag (e.g. `actions/project/action.yml` -> `actions/setup-dde@<DATE-TAG>`). `merge.yml` moves a `YYYY-MM-DD` tag on every push to main, so under the preset's `minimumReleaseAge: 1 day` the newest tag is always too young to pass. Renovate then falls back to the newest tag that does pass, which means the pin trails the current tag by at least a day, and by more whenever a day's tag is cut late in the UTC day or no push happens at all. That lag rides into consumers, because `actions/project` resolves `actions/setup-dde` through this pin. Waiving the age gate lets the pin track the current tag. `groupName` is required alongside it: the preset groups these deps into the shared `GitHub Actions` branch, and `schedule` is evaluated per branch, so without its own branch the self-reference would inherit that group's `before 6am` window instead of this rule's. Consumers keep the preset's 1-day soak, which is the point there: a fresh tag should sit before it rolls out widely.",
+      "description": "Self-reference: this repo pins its own composite actions by date tag (e.g. `actions/project/action.yml` -> `actions/setup-dde@<DATE-TAG>`). `merge.yml` moves a `YYYY-MM-DD` tag on every push to main, and the pin has to track the current tag: `actions/project` resolves `actions/setup-dde` through it, so any lag here rides into consumers. The preset now batches this dep's rollout to a Monday window, which is right for consumers and wrong here - a tag cut on Tuesday would not reach this pin until the following Monday. An `at any time` schedule opts this repo out of that window; `minimumReleaseAge: null` restates the preset's own value so the intent survives a future change to it. An own branch is required alongside it, and `groupSlug` is what creates one: Renovate derives the branch from `slugify(groupSlug ?? groupName)` and evaluates `schedule` per branch, while packageRules merge last-wins per key - so the preset's `groupSlug: all-non-major` (a tag bump is a minor under the date-tag regex versioning) survives a bare `groupName` here and would keep the self-reference on `renovate/all-non-major` with that branch's window. Consumers get the preset's Monday window instead of this one; batching the rollout there is the point.",
       "matchDepNames": ["sbaerlocher/.github"],
       "minimumReleaseAge": null,
       "schedule": ["at any time"],
-      "groupName": "sbaerlocher-github-self-reference"
+      "groupName": "sbaerlocher-github-self-reference",
+      "groupSlug": "sbaerlocher-github-self-reference"
     }
   ]
 }
