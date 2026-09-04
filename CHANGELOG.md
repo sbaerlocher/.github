@@ -22,6 +22,34 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-09-04
+
+### Details
+
+- **Consumer tag bumps are now batched to Monday.** The `sbaerlocher/.github`
+  package rule in `renovate-base.json` gained
+  `schedule: ["before 6am on monday"]` plus its own `groupName` **and**
+  `groupSlug` (`sbaerlocher-github`). `merge.yml` still cuts a `YYYY-MM-DD` tag
+  on every push to `main`, but consumers now see one tag-bump PR per week
+  instead of one per push — 26 tags were cut in the 30 days to 2026-09-02, each
+  of which opened a PR and a CI run in every consumer repo.
+- **`groupSlug` is the load-bearing key, not `groupName`.** Renovate builds the
+  branch name from `slugify(groupSlug ?? groupName)` and evaluates `schedule`
+  per branch, and `packageRules` merge last-wins per key. The preset's non-major
+  rule sets `groupSlug: all-non-major` and matches these bumps (a date-tag bump
+  is a `minor` under the rule's own regex versioning), so setting only
+  `groupName` would have left the bump on `renovate/all-non-major` and the
+  window would either have done nothing or deferred every other non-major
+  update along with it.
+- **The age gate on this dep is waived** (`minimumReleaseAge: null`). The Monday
+  window is the soak; a 1-day gate would have pushed any tag cut over the
+  weekend past the window and on to the next Monday.
+- No consumer-side change is needed. To pull a fix in before the next Monday,
+  tick the `sbaerlocher/.github` entry in that repo's Dependency Dashboard
+  issue.
+
+---
+
 ## 2026-08-31
 
 ### Details

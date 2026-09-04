@@ -61,13 +61,16 @@
       "semanticCommitScope": "actions"
     },
     {
-      "description": "sbaerlocher/.github - date tags, no digest pinning, immediate merge",
+      "description": "sbaerlocher/.github - date tags, no digest pinning, weekly rollout. merge.yml cuts a YYYY-MM-DD tag on every push to main, so a daily schedule opens one PR per workflow change in every consumer repo (26 tags in the 30 days to 2026-09-02). Batching the rollout to Monday keeps the rolling-release model while cutting consumer PR churn to roughly 4 per month. `groupSlug` is what carries the schedule, not `groupName`: Renovate derives the branch from `slugify(groupSlug ?? groupName)` and evaluates `schedule` per branch, and packageRules merge last-wins per key - so the `groupSlug: all-non-major` from the non-major rule above survives a bare `groupName` override here (a tag bump like 2026-08-31 -> 2026-09-04 is a minor under this rule's own regex versioning, so that rule does match). Without an explicit groupSlug the bump lands on `renovate/all-non-major` and this window either does nothing or defers every other non-major update with it. `minimumReleaseAge` is deliberately waived: the Monday window is itself the soak, and a 1-day gate would push any tag cut over the weekend past the window and on to the next Monday, an 8-day lag. An urgent workflow fix is still reachable on demand via the Dependency Dashboard checkbox.",
       "matchDepNames": ["sbaerlocher/.github"],
       "pinDigests": false,
       "versioning": "regex:^(?<major>\\d{4})-(?<minor>\\d{2})-(?<patch>\\d{2})$",
       "allowedVersions": "/^\\d{4}-\\d{2}-\\d{2}$/",
-      "minimumReleaseAge": "1 day",
-      "automerge": true
+      "minimumReleaseAge": null,
+      "automerge": true,
+      "groupName": "sbaerlocher-github",
+      "groupSlug": "sbaerlocher-github",
+      "schedule": ["before 6am on monday"]
     },
     {
       "description": "Custom regex managers tracking Docker images via env-var markers (e.g. `# renovate: datasource=docker depName=foo` over `IMAGE_VERSION: '1.2.3'`) cannot accept a digest — the regex captures only the version. Disable digest pinning to avoid 'Digest is not updated' branch failures.",
