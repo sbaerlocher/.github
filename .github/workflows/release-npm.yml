@@ -444,7 +444,7 @@ jobs:
       # the same rolling date-tag model used by consumers.
       - name: Generate npm SBOM
         id: sbom
-        uses: sbaerlocher/.github/.github/actions/sbom-npm@2026-09-04
+        uses: sbaerlocher/.github/.github/actions/sbom-npm@2026-09-06
         with:
           package-manager: ${{ inputs.package-manager }}
           working-directory: ${{ inputs.working-directory }}

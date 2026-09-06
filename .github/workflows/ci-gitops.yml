@@ -279,7 +279,7 @@ jobs:
 
       - name: Install kubeconform
         if: inputs.enable-k8s-validation || inputs.enable-helm-template-validation
-        uses: sbaerlocher/.github/.github/actions/install-kubeconform@2026-09-04
+        uses: sbaerlocher/.github/.github/actions/install-kubeconform@2026-09-06
         with:
           version: ${{ inputs.kubeconform-version }}
 
