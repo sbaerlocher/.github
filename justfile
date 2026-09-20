@@ -65,7 +65,7 @@ actionlint_image := "rhysd/actionlint:1.7.12"
 # commit that nobody touched. There is no package.json here to pin it instead.
 # Renovate keeps this current via the custom manager in renovate.json.
 # Keep the assignment on one line; the manager regex expects it.
-prettier_version := "3.9.6"
+prettier_version := "3.9.7"
 
 # lint → static checks over YAML, Renovate presets and workflow definitions
 lint:
