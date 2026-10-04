@@ -9,14 +9,21 @@ permissions:
   contents: read
   security-events: write
   actions: read
+  # gitleaks job in security-secrets.yml declares pull-requests:read; a
+  # reusable cannot exceed the caller's grant, so omitting it fails at startup.
+  pull-requests: read
 
 jobs:
   config:
     name: Config Security
     uses: ./.github/workflows/security-config.yml
+    with:
+      concurrency-suffix: config
     secrets: inherit
 
   secrets:
     name: Secret Scanning
     uses: ./.github/workflows/security-secrets.yml
+    with:
+      concurrency-suffix: secrets
     secrets: inherit

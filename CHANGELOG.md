@@ -26,6 +26,16 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ### Details
 
+- **`weekly-security.yml` grants `pull-requests: read`.** The `gitleaks` job
+  in `security-secrets.yml` requests it, and a called workflow cannot exceed
+  the caller's permissions, so every scheduled run ended in `startup_failure`
+  before any job started. Both calls also get a distinct
+  `concurrency-suffix`: inside a reusable, `github.workflow` is the caller's
+  name, so the two scans shared one concurrency group and cancelled each
+  other. A new `.gitleaksignore` allowlists the one finding the now-running
+  full-history gitleaks scan reports: the fake `LEAKME` secret in
+  `scripts/tests/fixtures/plan-drift.json`. Internal workflow only; no
+  consumer-side change.
 - **`ci-go.yml` dependency review exempts `tailscale.com` and
   `gvisor.dev/gvisor` from the license check.** GitHub's license detection
   reports both multi-license repos as `LicenseRef-bad-*`, which is not on the
