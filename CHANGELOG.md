@@ -22,6 +22,21 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-10-04
+
+### Details
+
+- **`ci-go.yml` dependency review exempts `tailscale.com` and
+  `gvisor.dev/gvisor` from the license check.** GitHub's license detection
+  reports both multi-license repos as `LicenseRef-bad-*`, which is not on the
+  allowlist, so every bump of either module failed `Dependency Review` although
+  both are permissively licensed. They are now listed in
+  `allow-dependencies-licenses` by purl; the vulnerability check still runs on
+  them. `LicenseRef-bad-*` itself stays disallowed. No consumer-side change is
+  needed.
+
+---
+
 ## 2026-09-04
 
 ### Details
