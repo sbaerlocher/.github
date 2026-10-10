@@ -14,11 +14,11 @@ on:
       model:
         type: string
         required: false
-        default: claude-opus-5
+        default: claude-opus-5-5
         description: |
           Claude model id passed to `--model`. Defaults to Opus for the
           deepest review; consumers can override with a cheaper tier
-          (e.g. claude-sonnet-5, claude-haiku-4-5-20251001) to trade
+          (e.g. claude-sonnet-5-5, claude-haiku-4-5-20251001) to trade
           review depth for lower CI cost.
       max-turns-first:
         type: number
