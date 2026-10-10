@@ -14,11 +14,11 @@ on:
       model:
         type: string
         required: false
-        default: claude-opus-5
+        default: claude-opus-5-5
         description: |
           Claude model id passed to `--model`. Defaults to Opus for the
           deepest review; consumers can override with a cheaper tier
-          (e.g. claude-sonnet-5, claude-haiku-4-5-20251001) to trade
+          (e.g. claude-sonnet-5-5, claude-haiku-4-5-20251001) to trade
           review depth for lower CI cost.
       max-turns-first:
         type: number
@@ -155,7 +155,7 @@ jobs:
       # affect how the step is labelled — `name:` does that, and this step has
       # none, so it renders as its `uses:` line either way.
       - id: claude
-        uses: anthropics/claude-code-action@3f854a8fb5146b39d5cbf8b57f70d80810e1366f # v1
+        uses: anthropics/claude-code-action@7806b44efdf0782087085511dc7e5cdd6de05b9d # v1.0.248
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # claude-code-action@v1 blocks bot-initiated runs by default.

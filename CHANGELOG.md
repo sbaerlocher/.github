@@ -22,6 +22,27 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-10-10
+
+### ⚠ BREAKING
+
+- **`ai-claude-review.yml`**: default `model` bumped `claude-opus-5` →
+  `claude-opus-5-5` for both review passes. Callers that do not set `model`
+  pick this up automatically on the next tag bump — review behaviour and
+  per-PR token cost change accordingly. Migration: pin the previous
+  behaviour with `with: { model: claude-opus-5 }`, or set a cheaper tier.
+
+### Changed
+
+- **`ai-claude-review.yml`, `ai-claude.yml`**: `anthropics/claude-code-action`
+  bumped to v1.0.248, which installs Claude Code 2.1.296. The previous pin installed
+  2.1.238, which still sends `thinking.type.disabled`; Opus 5.5 rejects that
+  with an API 400 and the review job failed before its first turn.
+  `ai-claude.yml` passes no `--model`, so it would hit the same error once
+  the action's default moves to Opus 5.5.
+
+---
+
 ## 2026-10-04
 
 ### Details
