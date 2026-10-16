@@ -100,6 +100,32 @@ on:
           Empty default preserves the original group name; set to separate
           parallel invocations of this reusable from the same caller (e.g.
           per-matrix-leg or per-mode).
+      allowed-dependency-licenses:
+        type: string
+        required: false
+        default: >-
+          pkg:golang/tailscale.com,
+          pkg:golang/gvisor.dev/gvisor,
+          pkg:golang/go.opentelemetry.io/otel,
+          pkg:golang/go.opentelemetry.io/otel/metric,
+          pkg:golang/go.opentelemetry.io/otel/trace,
+          pkg:golang/go.opentelemetry.io/otel/log,
+          pkg:golang/go.opentelemetry.io/otel/sdk,
+          pkg:golang/go.opentelemetry.io/otel/sdk/metric,
+          pkg:golang/go.opentelemetry.io/otel/sdk/log,
+          pkg:golang/go.opentelemetry.io/otel/exporters/otlp/otlptrace,
+          pkg:golang/go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp,
+          pkg:golang/go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc,
+          pkg:golang/go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp,
+          pkg:golang/go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc
+        description: |
+          Comma-separated purls exempt from the dependency-review license
+          check. GitHub's license detection reports multi-license repos as
+          LicenseRef-bad-* (tailscale.com: BSD-3-Clause, gvisor: Apache-2.0
+          with MIT/BSD-3-Clause parts, opentelemetry-go: Apache-2.0 with an
+          appended BSD-3-Clause notice in every module). Exempting by purl
+          keeps LicenseRef-bad-* itself disallowed, so other misdetections
+          still fail. Override to extend; keep the default entries.
     outputs:
       coverage:
         description: 'Test coverage percentage'
@@ -552,8 +578,4 @@ jobs:
         with:
           fail-on-severity: moderate
           allow-licenses: Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MIT, 0BSD, MPL-2.0, CC-BY-4.0, CC0-1.0, OFL-1.1, LicenseRef-scancode-google-patent-license-golang, BSD-3-Clause AND LicenseRef-scancode-google-patent-license-golang
-          # GitHub's license detection reports multi-license repos as
-          # LicenseRef-bad-* (tailscale.com: BSD-3-Clause, gvisor: Apache-2.0
-          # with MIT/BSD-3-Clause parts). Exempt them by purl instead of
-          # allowing LicenseRef-bad-*, which would let any misdetection pass.
-          allow-dependencies-licenses: pkg:golang/tailscale.com, pkg:golang/gvisor.dev/gvisor
+          allow-dependencies-licenses: ${{ inputs.allowed-dependency-licenses }}
