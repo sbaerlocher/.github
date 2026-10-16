@@ -34,6 +34,32 @@ on:
         type: string
         default: 'Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,MIT,0BSD,CC0-1.0,OFL-1.1'
         description: 'Comma-separated list of allowed licenses'
+      allowed-dependency-licenses:
+        type: string
+        required: false
+        default: >-
+          pkg:golang/tailscale.com,
+          pkg:golang/gvisor.dev/gvisor,
+          pkg:golang/go.opentelemetry.io/otel,
+          pkg:golang/go.opentelemetry.io/otel/metric,
+          pkg:golang/go.opentelemetry.io/otel/trace,
+          pkg:golang/go.opentelemetry.io/otel/log,
+          pkg:golang/go.opentelemetry.io/otel/sdk,
+          pkg:golang/go.opentelemetry.io/otel/sdk/metric,
+          pkg:golang/go.opentelemetry.io/otel/sdk/log,
+          pkg:golang/go.opentelemetry.io/otel/exporters/otlp/otlptrace,
+          pkg:golang/go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp,
+          pkg:golang/go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc,
+          pkg:golang/go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp,
+          pkg:golang/go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc
+        description: |
+          Comma-separated purls exempt from the dependency-review license
+          check. GitHub's license detection reports multi-license repos as
+          LicenseRef-bad-* (tailscale.com: BSD-3-Clause, gvisor: Apache-2.0
+          with MIT/BSD-3-Clause parts, opentelemetry-go: Apache-2.0 with an
+          appended BSD-3-Clause notice in every module). Exempting by purl
+          keeps LicenseRef-bad-* itself disallowed, so other misdetections
+          still fail. Override to extend; keep the default entries.
       denied-licenses:
         type: string
         default: 'GPL-2.0,GPL-3.0,AGPL-3.0'
@@ -98,6 +124,7 @@ jobs:
           fail-on-severity: ${{ inputs.fail-on-severity }}
           allow-licenses: ${{ inputs.allowed-licenses }}
           license-check: ${{ inputs.enable-license-check }}
+          allow-dependencies-licenses: ${{ inputs.allowed-dependency-licenses }}
           vulnerability-check: true
           comment-summary-in-pr: true
 

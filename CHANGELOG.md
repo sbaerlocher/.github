@@ -22,6 +22,22 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-10-16
+
+### Added
+
+- **`ci-go.yml`, `ci-js.yml`, `security-deps.yml`**: new
+  `allowed-dependency-licenses` input, passed to dependency review's
+  `allow-dependencies-licenses`. The default exempts the misdetected Go
+  modules by purl: `tailscale.com` and `gvisor` (moved from the hardcoded
+  `ci-go.yml` list) plus the opentelemetry-go modules, whose LICENSE appends a
+  BSD-3-Clause notice to Apache-2.0 and is reported as
+  `LicenseRef-bad-apache-2.0-bsd-3-clause`. `ci-js.yml` and
+  `security-deps.yml` review `go.mod` too in mixed repos and previously had no
+  exemption at all. Override the input to add entries; keep the defaults.
+
+---
+
 ## 2026-10-10
 
 ### ⚠ BREAKING
