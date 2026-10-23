@@ -167,3 +167,27 @@ jobs:
             exit 1
           fi
           echo "project correctly failed on empty command"
+
+  # Runs `dde system:install` on an ephemeral hosted runner (as e2e-dde.yml
+  # does) to cover the Linux NSS preparation: Chromium must trust the dde CA.
+  setup-dde-system-install:
+    name: setup-dde trusts the dde CA in Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install dde with system:install
+        uses: ./.github/actions/setup-dde
+        with:
+          version: latest
+          install-mkcert: 'true'
+          system-install: 'true'
+
+      - name: Verify the mkcert CA is in Chromium's NSS database
+        shell: bash
+        run: |
+          set -euo pipefail
+          certutil -d "sql:$HOME/.pki/nssdb" -L | grep -i mkcert

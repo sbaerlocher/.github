@@ -198,6 +198,28 @@ runs:
         });
         EOF
 
+    # `mkcert -install` (run by `dde system:install`) only adds the CA to NSS
+    # databases that already exist. Chromium on Linux trusts ~/.pki/nssdb, which
+    # a fresh runner does not have, so the CA would land in the system store only
+    # and Chromium-based E2E browsers would see the dde certificate as untrusted.
+    # Create the database first so mkcert installs the CA there too. dde runs
+    # `mkcert -install` as the invoking user (mkcert elevates only for the system
+    # store), so the runner user's $HOME is the right place.
+    - name: Prepare Chromium NSS database (Linux)
+      if: runner.os == 'Linux' && inputs.system-install == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        if ! command -v certutil >/dev/null 2>&1; then
+          { sudo apt-get update -y && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libnss3-tools; } \
+            || { echo "::warning::certutil unavailable; Chromium will not trust the dde CA"; exit 0; }
+        fi
+        nssdb="$HOME/.pki/nssdb"
+        if ! certutil -d "sql:$nssdb" -L >/dev/null 2>&1; then
+          mkdir -p "$nssdb"
+          certutil -d "sql:$nssdb" -N --empty-password
+        fi
+
     - name: Run dde system:install
       if: inputs.system-install == 'true'
       shell: bash
@@ -212,3 +234,12 @@ runs:
         # state files (~/.dde/data/...) root-owned, breaking the
         # subsequent unprivileged `dde project:*` calls.
         "$BINARY" system:install
+
+    - name: Verify Chromium trusts the dde CA (Linux)
+      if: runner.os == 'Linux' && inputs.system-install == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        if ! certutil -d "sql:$HOME/.pki/nssdb" -L 2>/dev/null | grep -qi mkcert; then
+          echo "::warning::mkcert CA missing from ~/.pki/nssdb; Chromium will not trust dde certificates"
+        fi
