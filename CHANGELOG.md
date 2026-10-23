@@ -22,6 +22,17 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-10-23
+
+### Fixed
+
+- **`setup-dde`** (and `project`, `e2e-dde.yml` through it): with
+  `system-install: 'true'` on Linux, create the Chromium NSS database before
+  `dde system:install`, so `mkcert -install` adds the dde CA there. Chromium-based
+  E2E browsers previously saw the dde certificate as untrusted, and a service
+  worker never controlled the page. Installs `libnss3-tools` on demand and warns
+  if the CA is still missing afterwards.
+
 ## 2026-10-16
 
 ### Added
