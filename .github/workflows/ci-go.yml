@@ -215,7 +215,7 @@ jobs:
     services:
       postgres:
         # renovate-expression: datasource=docker depName=postgres versioning=docker
-        image: ${{ inputs.enable-postgres && 'postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873' || '' }}
+        image: ${{ inputs.enable-postgres && 'postgres:18-alpine@sha256:898c60cb390d1085bc97bdd6a1ae968757421df394b071848b52b1c09c89d6a5' || '' }}
         env:
           POSTGRES_DB: ${{ inputs.postgres-db }}
           POSTGRES_USER: ${{ inputs.postgres-user }}
@@ -408,7 +408,7 @@ jobs:
         if: matrix.scanner == 'gosec'
         env:
           # renovate: datasource=github-releases depName=securego/gosec
-          GOSEC_VERSION: 'v2.29.0'
+          GOSEC_VERSION: 'v2.30.0'
         run: |
           go install "github.com/securego/gosec/v2/cmd/gosec@${GOSEC_VERSION}"
           gosec -no-fail -fmt sarif -out gosec.sarif ./...
