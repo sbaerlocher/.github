@@ -211,7 +211,7 @@ runs:
       run: |
         set -euo pipefail
         if ! command -v certutil >/dev/null 2>&1; then
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libnss3-tools \
+          { sudo apt-get update -y && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libnss3-tools; } \
             || { echo "::warning::certutil unavailable; Chromium will not trust the dde CA"; exit 0; }
         fi
         nssdb="$HOME/.pki/nssdb"
