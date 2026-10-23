@@ -198,6 +198,22 @@ runs:
         });
         EOF
 
+    # `mkcert -install` (run by `dde system:install`) only adds the CA to NSS
+    # databases that already exist. Chromium on Linux trusts ~/.pki/nssdb, which
+    # a fresh runner does not have, so the CA would land in the system store only
+    # and Chromium-based E2E browsers would see the dde certificate as untrusted.
+    # Create the database first so mkcert installs the CA there too.
+    - name: Prepare Chromium NSS database (Linux)
+      if: runner.os == 'Linux' && inputs.install-mkcert == 'true' && inputs.system-install == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        nssdb="$HOME/.pki/nssdb"
+        if [ ! -f "$nssdb/cert9.db" ]; then
+          mkdir -p "$nssdb"
+          certutil -d "sql:$nssdb" -N --empty-password
+        fi
+
     - name: Run dde system:install
       if: inputs.system-install == 'true'
       shell: bash
