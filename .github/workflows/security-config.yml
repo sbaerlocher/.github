@@ -116,7 +116,7 @@ jobs:
         if: |
           inputs.enable-sarif && always() &&
           github.event.repository.visibility == 'public'
-        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           sarif_file: 'trivy-config-results.sarif'
           category: 'trivy-config'
@@ -143,7 +143,7 @@ jobs:
 
       - name: Upload Trivy artifacts
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: trivy-config-results
           path: |
@@ -182,7 +182,7 @@ jobs:
           inputs.scan-terraform && inputs.enable-sarif && always() &&
           steps.sarif_check.outputs.exists == 'true' &&
           github.event.repository.visibility == 'public'
-        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           sarif_file: 'trivy-results.sarif'
           category: 'trivy-terraform'
@@ -199,7 +199,7 @@ jobs:
 
       - name: Upload Trivy Terraform artifacts
         if: always() && inputs.scan-terraform && steps.sarif_check.outputs.exists == 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: trivy-terraform-results
           path: trivy-results.sarif
@@ -309,7 +309,7 @@ jobs:
 
       - name: Upload Kubernetes scan results
         if: always() && inputs.scan-kubernetes && steps.kubernetes-security.outputs.found == 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: kubernetes-security-results
           path: |
@@ -358,7 +358,7 @@ jobs:
 
       - name: Upload Ansible scan results
         if: always() && inputs.scan-ansible
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ansible-security-results
           path: |

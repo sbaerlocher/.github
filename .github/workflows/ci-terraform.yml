@@ -160,7 +160,7 @@ jobs:
         id: tflint-setup
         if: steps.validation.outcome != 'failure' && inputs.enable-tflint
         continue-on-error: true
-        uses: terraform-linters/setup-tflint@1cf010d3c7aef302051ccdb68c14c5dc2efa34ef # v6.3.1
+        uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
         with:
           # renovate: datasource=github-releases depName=terraform-linters/tflint
           tflint_version: 'v0.64.0'
@@ -225,7 +225,7 @@ jobs:
       # artifact upload should not fail a run whose scans all passed. Gated on
       # the scan that writes the file so it cannot fail on a missing path.
       - name: Upload Trivy Results (Artifact)
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always() && steps.trivy-json.outcome == 'success'
         continue-on-error: true
         with:
@@ -249,7 +249,7 @@ jobs:
       - name: Upload Trivy SARIF to GitHub Security
         id: sarif-upload
         if: ${{ inputs.enable-sarif-upload && steps.trivy-sarif.outcome == 'success' }}
-        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         continue-on-error: true
         with:
           sarif_file: 'trivy-results.sarif'
