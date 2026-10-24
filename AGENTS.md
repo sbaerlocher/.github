@@ -170,7 +170,7 @@ runs-on: ${{ inputs.runner }}
 
 `runs-on` sits in the called workflow and a caller cannot override it, so
 without this input no consumer can reach a self-hosted runner. The default
-keeps every existing caller on `ubuntu-latest`; a consumer opts in per repo
+keeps every existing caller on `ubuntu-24.04` (pinned, not `ubuntu-latest`, so an image migration is an explicit bump here rather than a silent switch); a consumer opts in per repo
 with `with: runner: <label>`.
 
 **Single label only.** The input is a `type: string` interpolated bare, so it

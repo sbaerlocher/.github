@@ -22,6 +22,18 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-10-24
+
+### Changed
+
+- **All reusable workflows with a `runner` input**: default `runner` from
+  `ubuntu-latest` to `ubuntu-24.04`, and this repo's own jobs pin
+  `runs-on: ubuntu-24.04`. `ubuntu-latest` migrates to Ubuntu 26 from
+  2026-10-19 ([actions/runner-images#14748](https://github.com/actions/runner-images/issues/14748))
+  and every run carried a notice about it; pinning keeps the current image and
+  makes the move to 26.04 an explicit bump here. Callers passing
+  `with: runner:` are unaffected.
+
 ## 2026-10-23
 
 ### Fixed

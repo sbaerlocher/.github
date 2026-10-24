@@ -17,7 +17,7 @@ jobs:
   # Runs the same `just` recipes contributors run locally (CONTRIBUTING.md),
   # so there is one lint definition rather than a CI copy that drifts from it.
   #
-  # ubuntu-latest ships jq, shellcheck and Docker, but not yamllint or just —
+  # ubuntu-24.04 ships jq, shellcheck and Docker, but not yamllint or just —
   # both are installed below. With shellcheck present, `just actionlint` takes
   # its local-binary path only when actionlint is too; it is not, so the recipe
   # falls through to the rhysd/actionlint container, which bundles both. Either
@@ -28,7 +28,7 @@ jobs:
   # major changes without notice; the formatting gate should not.
   local-checks:
     name: Local Checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Checkout

@@ -6,7 +6,7 @@ on:
       runner:
         type: string
         required: false
-        default: 'ubuntu-latest'
+        default: 'ubuntu-24.04'
         description: >-
           Single runner label for all jobs in this workflow (e.g.
           `ubuntu-latest`, `self-hosted`). Runner groups and multi-label
