@@ -22,6 +22,16 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-10-28
+
+### Added
+
+- **`release-go.yml`**: optional `upload-artifact-name` input uploads
+  `<working-directory>/dist/` as a workflow artifact after GoReleaser.
+- **`release-docker.yml`**: optional `download-artifact-name` and
+  `download-artifact-path` (default `dist`) inputs download that artifact into
+  `<context>/<path>` before the build. Empty defaults keep current behaviour.
+
 ## 2026-10-23
 
 ### Fixed

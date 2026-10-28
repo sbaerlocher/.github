@@ -32,6 +32,14 @@ on:
         required: false
         default: '.'
         description: 'Working directory'
+      upload-artifact-name:
+        type: string
+        required: false
+        default: ''
+        description: >-
+          If set, upload `<working-directory>/dist/` as a workflow artifact
+          with this name after GoReleaser, so a later job or workflow can
+          consume the binaries (e.g. from a private repo).
       extra-env:
         type: string
         required: false
@@ -177,3 +185,11 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
         continue-on-error: false
+
+      - name: Upload release artifacts
+        if: inputs.upload-artifact-name != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ inputs.upload-artifact-name }}
+          path: ${{ inputs.working-directory }}/dist/
+          if-no-files-found: error

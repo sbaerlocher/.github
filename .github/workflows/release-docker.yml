@@ -52,6 +52,16 @@ on:
         required: false
         default: '.'
         description: 'Build context directory'
+      download-artifact-name:
+        type: string
+        required: false
+        default: ''
+        description: 'If set, download this workflow artifact into the build context before building'
+      download-artifact-path:
+        type: string
+        required: false
+        default: 'dist'
+        description: 'Directory inside the build context to download the artifact to'
       dockerfile:
         type: string
         required: false
@@ -139,6 +149,13 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+
+      - name: Download release artifacts
+        if: inputs.download-artifact-name != ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ inputs.download-artifact-name }}
+          path: ${{ inputs.context }}/${{ inputs.download-artifact-path }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
