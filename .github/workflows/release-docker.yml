@@ -56,12 +56,18 @@ on:
         type: string
         required: false
         default: ''
-        description: 'If set, download this workflow artifact into the build context before building'
+        description: >-
+          If set, download this artifact (a tar from release-go.yml's
+          `upload-artifact-name`, same workflow run only) and unpack it into
+          `<context>/<download-artifact-path>` before building. The path must
+          not be excluded by the context's `.dockerignore`.
       download-artifact-path:
         type: string
         required: false
         default: 'dist'
-        description: 'Directory inside the build context to download the artifact to'
+        description: >-
+          Directory inside the build context to unpack the artifact into;
+          relative, without `..`.
       dockerfile:
         type: string
         required: false
@@ -150,12 +156,31 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
+      - name: Validate artifact path
+        if: inputs.download-artifact-name != ''
+        env:
+          DEST: ${{ inputs.download-artifact-path }}
+        run: |
+          case "/$DEST/" in
+            //*|*/../*) echo "::error::download-artifact-path must be relative and inside the build context: $DEST"; exit 1 ;;
+          esac
+
       - name: Download release artifacts
         if: inputs.download-artifact-name != ''
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ inputs.download-artifact-name }}
-          path: ${{ inputs.context }}/${{ inputs.download-artifact-path }}
+          path: ${{ runner.temp }}/release-artifacts
+
+      # Unpacked from the tar so the binaries keep their executable bit.
+      - name: Unpack release artifacts
+        if: inputs.download-artifact-name != ''
+        env:
+          CONTEXT: ${{ inputs.context }}
+          DEST: ${{ inputs.download-artifact-path }}
+        run: |
+          mkdir -p "$CONTEXT/$DEST"
+          tar -xf "$RUNNER_TEMP/release-artifacts/release-artifacts.tar" -C "$CONTEXT/$DEST"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0

@@ -37,9 +37,20 @@ on:
         required: false
         default: ''
         description: >-
-          If set, upload `<working-directory>/dist/` as a workflow artifact
-          with this name after GoReleaser, so a later job or workflow can
-          consume the binaries (e.g. from a private repo).
+          If set, pack `<working-directory>/<upload-artifact-path>` into a tar
+          (keeps the executable bit, which plain artifact zips drop) and upload
+          it as a workflow artifact with this name. Consumable only by a later
+          job in the same workflow run, e.g. release-docker.yml with
+          `download-artifact-name`. Kept for 1 day. Use a distinct name per
+          call when chaining several calls in one run, and set
+          `concurrency-suffix` on each chained call.
+      upload-artifact-path:
+        type: string
+        required: false
+        default: 'dist'
+        description: >-
+          GoReleaser output directory relative to `working-directory`; set it
+          when `.goreleaser.yaml` overrides `dist:`.
       extra-env:
         type: string
         required: false
@@ -186,10 +197,26 @@ jobs:
           GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
         continue-on-error: false
 
+      # Tar first: upload-artifact zips without POSIX modes, so binaries would
+      # arrive as 0644 and a Dockerfile COPY would ship a non-executable file.
+      - name: Pack release artifacts
+        if: inputs.upload-artifact-name != ''
+        env:
+          WORKDIR: ${{ inputs.working-directory }}
+          DIST: ${{ inputs.upload-artifact-path }}
+        run: |
+          src="$WORKDIR/$DIST"
+          if [ ! -d "$src" ] || [ -z "$(ls -A "$src")" ]; then
+            echo "::error::GoReleaser output $src is missing or empty; set upload-artifact-path to the dist: of .goreleaser.yaml"
+            exit 1
+          fi
+          tar -cf "$RUNNER_TEMP/release-artifacts.tar" -C "$src" .
+
       - name: Upload release artifacts
         if: inputs.upload-artifact-name != ''
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ inputs.upload-artifact-name }}
-          path: ${{ inputs.working-directory }}/dist/
+          path: ${{ runner.temp }}/release-artifacts.tar
           if-no-files-found: error
+          retention-days: 1
