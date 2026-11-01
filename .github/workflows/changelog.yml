@@ -1,0 +1,46 @@
+name: Changelog Check
+
+# Own file rather than a job in pull-request.yml: the `edited` trigger (so a
+# retitled PR is re-checked) would otherwise restart Claude review and code
+# scanning on every title or body edit.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: changelog-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # Rules live in scripts/check-changelog.sh (tested by
+  # scripts/tests/test-check-changelog.sh); this job only feeds it the PR
+  # title and the changed paths.
+  changelog:
+    name: Changelog
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The checkout is the PR's merge commit; depth 2 adds its first
+          # parent, the base it merges into. HEAD^1..HEAD is then exactly
+          # what the PR changes.
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Require CHANGELOG.md entry
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+          # Run the base's copy of the script so a PR cannot relax the gate it
+          # is checked by. The PR's copy is used only while the base has none.
+          CHECK="$RUNNER_TEMP/check-changelog.sh"
+          git show HEAD^1:scripts/check-changelog.sh >"$CHECK" 2>/dev/null ||
+            cp scripts/check-changelog.sh "$CHECK"
+          git diff --name-only HEAD^1 HEAD | bash "$CHECK" "$PR_TITLE"

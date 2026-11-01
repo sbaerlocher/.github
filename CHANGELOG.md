@@ -35,6 +35,15 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   `# renovate: datasource=helm depName=<chart> registryUrl=<repo>` on the line
   above their `version:`.
 
+### Added
+
+- **`changelog.yml`** (internal): PR check that fails when a PR titled
+  `feat`, `fix`, `perf`, `refactor` or with `!` changes `.github/workflows/`,
+  `.github/actions/` or a `renovate-*.json` preset without touching
+  `CHANGELOG.md`. Other Conventional Commits types, including Renovate's
+  `chore(deps)`, are exempt; a title outside the schema fails. No consumer
+  impact.
+
 ### Fixed
 
 - **`renovate-kubernetes.json`**: the Fleet Helm chart manager now matches
