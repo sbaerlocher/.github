@@ -117,6 +117,7 @@ test:
     scripts/tests/test-ci-gitops-fleet-key-matching.sh
     scripts/tests/test-workflow-timeouts.sh
     scripts/tests/test-continue-on-error-enforced.sh
+    scripts/tests/test-renovate-fleet-regex.sh
 
 # fmt → format Markdown and JSON in place
 fmt:
