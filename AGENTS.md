@@ -24,9 +24,10 @@ directly impacting the CI/CD pipelines of multiple projects.
 
 **Current Statistics**:
 
-- **Total Workflows**: 28 files in [.github/workflows/](./.github/workflows/) — 24 reusable
-  (`workflow_call`) plus 4 internal workflows that run only in this repo
-  (`merge.yml`, `pull-request.yml`, `test-actions-dde.yml`, `weekly-security.yml`)
+- **Total Workflows**: 29 files in [.github/workflows/](./.github/workflows/) — 24 reusable
+  (`workflow_call`) plus 5 internal workflows that run only in this repo
+  (`changelog.yml`, `merge.yml`, `pull-request.yml`, `test-actions-dde.yml`,
+  `weekly-security.yml`)
 - **Reusable Categories**: CI (5), Security (6), Deploy (2), Release (4), Operations (3),
   AI (2), E2E (2)
 - **Consumers**: applications, infrastructure, authentication, observability, functions,
@@ -375,7 +376,7 @@ swaps `compose-file` / `compose-profile` for `project-directory` /
 `wait-url`. Linux-only (`dde system:install` requires Docker, which hosted
 macOS runners don't ship).
 
-### Internal Workflows (4)
+### Internal Workflows (5)
 
 **Purpose**: This repository's own CI and release plumbing. None of these
 carry a `workflow_call` trigger — they are not reusable from consumer repos.
@@ -386,6 +387,7 @@ carry a `workflow_call` trigger — they are not reusable from consumer repos.
 | Pull Request     | `pull-request.yml`     | `just lint` + `just test` on PRs to `main` |
 | Merge to Main    | `merge.yml`            | Moves the `YYYY-MM-DD` date tag on push    |
 | Weekly Security  | `weekly-security.yml`  | Scheduled config + secret self-scan (Mon)  |
+| Changelog Check  | `changelog.yml`        | `CHANGELOG.md` gate for feat/fix/perf PRs  |
 
 ---
 
@@ -638,7 +640,7 @@ Ensure lock files are committed:
 ```text
 .github/
 ├── .github/
-│   ├── workflows/           # 28 files: 24 reusable + 4 internal
+│   ├── workflows/           # 29 files: 24 reusable + 5 internal
 │   │   ├── ai-*.yml        # AI workflows
 │   │   ├── ci-*.yml        # CI workflows
 │   │   ├── deploy-*.yml    # Deploy workflows
@@ -647,6 +649,7 @@ Ensure lock files are committed:
 │   │   ├── release-*.yml   # Release workflows
 │   │   ├── security-*.yml  # Security workflows
 │   │   ├── test-*.yml      # Internal self-tests (NOT reusable)
+│   │   ├── changelog.yml   # Internal: CHANGELOG.md gate on this repo's PRs
 │   │   ├── merge.yml       # Internal: moves the date tag on push to main
 │   │   ├── pull-request.yml # Internal: lint + test on this repo's PRs
 │   │   └── weekly-security.yml # Internal: scheduled self-scan

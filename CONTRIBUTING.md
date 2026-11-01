@@ -34,6 +34,10 @@ Before opening a PR:
 
 - run the relevant local checks where practical
 - update `README.md`, `AGENTS.md`, and `CHANGELOG.md` when behavior changes
+- a PR titled `feat`, `fix`, `perf`, `refactor` or with `!` that touches
+  `.github/workflows/`, `.github/actions/` or a `renovate-*.json` preset must
+  also change `CHANGELOG.md` (the `Changelog` check enforces it); `chore`,
+  `ci`, `docs`, `test`, `build`, `style` and `revert` are exempt
 - pin GitHub Actions to full commit SHA with a version comment
 - use date tags for reusable workflows and internal composite actions
 - document breaking changes and consumer migration notes
