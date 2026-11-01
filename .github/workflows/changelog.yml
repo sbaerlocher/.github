@@ -27,15 +27,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Full history so the base...head diff resolves.
-          fetch-depth: 0
+          # The checkout is the PR's merge commit; depth 2 adds its first
+          # parent, the base it merges into. HEAD^1..HEAD is then exactly
+          # what the PR changes.
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Require CHANGELOG.md entry
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          git diff --name-only "$BASE_SHA...$HEAD_SHA" | scripts/check-changelog.sh "$PR_TITLE"
+          # Run the base's copy of the script so a PR cannot relax the gate it
+          # is checked by. The PR's copy is used only while the base has none.
+          CHECK="$RUNNER_TEMP/check-changelog.sh"
+          git show HEAD^1:scripts/check-changelog.sh >"$CHECK" 2>/dev/null ||
+            cp scripts/check-changelog.sh "$CHECK"
+          git diff --name-only HEAD^1 HEAD | bash "$CHECK" "$PR_TITLE"

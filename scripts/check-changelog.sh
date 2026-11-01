@@ -56,7 +56,7 @@ done
 [ "${#TRIGGERS[@]}" -eq 0 ] && exit 0
 [ "$HAS_CHANGELOG" -eq 1 ] && exit 0
 
-echo "PR type '$TYPE$BANG' changes consumer-facing files but not CHANGELOG.md:" >&2
+echo "PR type '$TYPE$BANG' changes workflows, actions or presets but not CHANGELOG.md:" >&2
 printf '  %s\n' "${TRIGGERS[@]}" >&2
 echo 'Add an entry under the merge date, or use an exempt type (chore, ci, docs, test, build, style, revert).' >&2
 exit 1
