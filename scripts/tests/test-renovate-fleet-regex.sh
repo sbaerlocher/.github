@@ -8,7 +8,8 @@
 # Each key is anchored on a newline plus exactly two spaces, so a `version:`
 # nested under `values:` or under `targetCustomizations` cannot stand in for the
 # chart's own version, and the gap between keys stops at the first line that
-# starts in column 0, so a match cannot reach into the next top-level block.
+# starts in column 0 — `#` comments and blank lines excepted — so a match cannot
+# reach into the next top-level block.
 #
 # The assertions run the regexes from renovate-kubernetes.json itself rather
 # than a copy, with the `g` flag Renovate compiles them with. A copy here would
