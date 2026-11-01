@@ -94,10 +94,15 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Fleet Helm Charts in fleet.yaml (standard HTTP repos)",
+      "description": "Fleet Helm Charts in fleet.yaml (standard HTTP repos, any key order)",
       "managerFilePatterns": ["/(^|/)fleet\\.ya?ml$/"],
       "matchStrings": [
-        "repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?(?:[^r]|r[^e]|re[^p]|rep[^o]|repo[^:])*?chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?(?:[^r]|r[^e]|re[^p]|rep[^o]|repo[^:])*?version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?"
+        "\\n {2}repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?",
+        "\\n {2}repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?",
+        "\\n {2}chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?",
+        "\\n {2}chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?",
+        "\\n {2}version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?",
+        "\\n {2}version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?"
       ],
       "datasourceTemplate": "helm"
     },

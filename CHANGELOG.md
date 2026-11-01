@@ -22,6 +22,27 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-11-01
+
+### ⚠ BREAKING
+
+- **`renovate-kubernetes.json`**: the Fleet Helm chart manager (standard HTTP
+  repos) now only matches `repo`, `chart` and `version` at two-space
+  indentation. Charts with these keys at any other indentation — a 4-space
+  `helm:` block, or a full chart pin under `targetCustomizations[].helm` — no
+  longer get updates. Migration: indent the top-level `helm:` keys of
+  `fleet.yaml` by two spaces; for per-target pins, put
+  `# renovate: datasource=helm depName=<chart> registryUrl=<repo>` on the line
+  above their `version:`.
+
+### Fixed
+
+- **`renovate-kubernetes.json`**: the Fleet Helm chart manager now matches
+  `repo`, `chart` and `version` in any order in `fleet.yaml`. Before, only
+  `repo` → `chart` → `version` matched, and charts written in another order got
+  no updates without a warning. A nested `values.version` is no longer read as
+  the chart version.
+
 ## 2026-10-28
 
 ### Added
