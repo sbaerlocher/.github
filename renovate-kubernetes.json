@@ -97,12 +97,12 @@
       "description": "Fleet Helm Charts in fleet.yaml (standard HTTP repos, any key order)",
       "managerFilePatterns": ["/(^|/)fleet\\.ya?ml$/"],
       "matchStrings": [
-        "\\n {2}repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*)?)*?\\n {2}chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*)?)*?\\n {2}version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?",
-        "\\n {2}repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*)?)*?\\n {2}version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*)?)*?\\n {2}chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?",
-        "\\n {2}chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*)?)*?\\n {2}repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*)?)*?\\n {2}version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?",
-        "\\n {2}chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*)?)*?\\n {2}version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*)?)*?\\n {2}repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?",
-        "\\n {2}version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*)?)*?\\n {2}repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*)?)*?\\n {2}chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?",
-        "\\n {2}version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*)?)*?\\n {2}chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*)?)*?\\n {2}repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?"
+        "\\n {2}repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?",
+        "\\n {2}repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?",
+        "\\n {2}chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?",
+        "\\n {2}chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?",
+        "\\n {2}version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?",
+        "\\n {2}version:\\s+['\"]?(?<currentValue>[^'\"\\s]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}chart:\\s+['\"]?(?<depName>[^\\s'\"]+)['\"]?[^\\n]*(?:\\n(?:[ \\t][^\\n]*|#[^\\n]*|\\r)?)*?\\n {2}repo:\\s+['\"]?(?<registryUrl>https?://[^\\s'\"]+)['\"]?"
       ],
       "datasourceTemplate": "helm"
     },

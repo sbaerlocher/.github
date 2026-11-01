@@ -76,8 +76,18 @@ assert_matches "single quotes and http" 'http://charts.example.com|nginx|1.0.0' 
   'helm:' "  chart: 'nginx'" "  repo: 'http://charts.example.com'" "  version: '1.0.0'"
 assert_matches "comment and blank line between keys" "$WANT" \
   'helm:' "$C" '  # pinned until the next upgrade window' '' "$R" "$V"
+assert_matches "column-0 comment between keys" "$WANT" \
+  'helm:' "$C" '#  values: {}' "$R" "$V"
+assert_matches "CRLF line endings with a blank line" "$WANT" \
+  'helm:'$'\r' "$C"$'\r' $'\r' "$R"$'\r' "$V"$'\r'
 
 # --- 3. what must not match ---------------------------------------------------
+
+# The two-space anchor is a documented boundary (CHANGELOG ⚠ BREAKING): keys at
+# any other indentation are not matched. Pinned so widening it is a deliberate
+# change rather than a side effect.
+assert_matches "four-space helm keys" '' \
+  'helm:' "  $R" "  $C" "  $V"
 
 # OCI charts belong to the sibling manager.
 assert_matches "OCI chart without repo" '' \
