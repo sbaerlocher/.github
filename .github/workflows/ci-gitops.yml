@@ -34,6 +34,19 @@ on:
         required: false
         # renovate: datasource=github-releases depName=yannh/kubeconform extractVersion=^v(?<version>.+)$
         default: '0.8.0'
+      kube-version:
+        description: |
+          Kubernetes version of the target cluster (e.g. `1.33.3`). When set,
+          every Fleet bundle under `fleet-paths` has its chart's `kubeVersion`
+          checked against it — local charts from their Chart.yaml, remote
+          charts (OCI or `repo:` + `chart:`) via `helm show chart`. A chart
+          that requires a newer cluster fails the job. A remote chart whose
+          metadata cannot be fetched only warns and is counted as unchecked.
+
+          Empty default disables the check.
+        type: string
+        required: false
+        default: ''
       enable-yaml-lint:
         description: 'Run YAML syntax validation'
         type: boolean
@@ -263,7 +276,9 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Set up Helm
-        if: inputs.enable-helm-lint || inputs.enable-helm-template-validation
+        if: >-
+          inputs.enable-helm-lint || inputs.enable-helm-template-validation
+          || inputs.kube-version != ''
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
           version: v${{ inputs.helm-version }}
@@ -609,6 +624,106 @@ jobs:
             echo "::warning::$ERRORS chart(s) had invalid rendered manifests (non-strict mode)"
           fi
 
+      # A chart's `kubeVersion` is only enforced at install time, so a bump that
+      # requires a newer cluster passes every render and schema check above and
+      # fails in Fleet instead. This compares it with `kube-version` up front.
+      #
+      # Recursive `find` rather than the `$base/*` glob of the render step:
+      # bundles may sit more than one level below a fleet path. Helm judges the
+      # constraint itself — the found `kubeVersion` goes into an empty probe
+      # chart rendered with `--kube-version` — so no semver parsing lives here.
+      # A failing probe is always red, independent of `k8s-validation-strict`:
+      # the chart will not install, which is not a schema-strictness question.
+      #
+      # Remote metadata needs registry access, and private registry auth is not
+      # set up in this job, so a failed fetch warns and counts as unchecked
+      # instead of failing: the count keeps the summary line from claiming full
+      # coverage. `targetCustomizations` version overrides are not followed;
+      # the first indented `version:` key is the one checked.
+      - name: Check chart kubeVersion
+        id: kube-version
+        if: steps.yaml.outcome != 'failure' && inputs.kube-version != ''
+        continue-on-error: true
+        env:
+          FLEET_PATHS: ${{ inputs.fleet-paths }}
+          KUBE_VERSION: ${{ inputs.kube-version }}
+        run: |
+          set -euo pipefail
+          # Values reaching `::` sinks are cut at the first newline so they
+          # cannot smuggle a second workflow command, as elsewhere in this file.
+          if ! [[ "$KUBE_VERSION" =~ ^v?[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "::error::kube-version '${KUBE_VERSION%%$'\n'*}' is not a Kubernetes version (expected e.g. 1.33.3)"
+            exit 1
+          fi
+
+          CHECKED=0
+          WITHOUT=0
+          UNCHECKED=0
+          ERRORS=0
+          PROBE="$(mktemp -d)"
+          trap 'rm -rf "$PROBE"' EXIT
+
+          # First value of an indented key, comment and quotes stripped. Same
+          # anchoring as the fleet validation step: keys inside `helm:` only.
+          key() {
+            { grep -E "^[[:space:]]+$1:" "$2" || true; } | head -1 \
+              | sed -E "s/^[[:space:]]+$1:[[:space:]]*//; s/[[:space:]]+#.*$//; s/^['\"]//; s/['\"]$//"
+          }
+
+          while IFS= read -r -d '' fleet; do
+            dir="$(dirname "$fleet")"
+            safe_dir="${dir%%$'\n'*}"
+            if [ -f "$dir/Chart.yaml" ]; then
+              meta="$(cat "$dir/Chart.yaml")"
+            else
+              chart="$(key chart "$fleet")"
+              [ -n "$chart" ] || continue
+              version="$(key version "$fleet")"
+              repo="$(key repo "$fleet")"
+              if [ -z "$version" ]; then
+                echo "::warning::$safe_dir has a remote chart without version:; kubeVersion unchecked"
+                UNCHECKED=$((UNCHECKED + 1))
+                continue
+              fi
+              args=(show chart "$chart" --version "$version")
+              [ -z "$repo" ] || args+=(--repo "$repo")
+              if ! meta="$(helm "${args[@]}" 2>"$PROBE/err")"; then
+                echo "::warning::$safe_dir: could not fetch chart metadata; kubeVersion unchecked"
+                sed 's/^/  /' "$PROBE/err"
+                UNCHECKED=$((UNCHECKED + 1))
+                continue
+              fi
+            fi
+            CHECKED=$((CHECKED + 1))
+
+            constraint="$(sed -nE "s/^kubeVersion:[[:space:]]*//p" <<<"$meta" | head -1 \
+              | sed -E "s/[[:space:]]+#.*$//; s/^['\"]//; s/['\"]$//")"
+            if [ -z "$constraint" ]; then
+              WITHOUT=$((WITHOUT + 1))
+              continue
+            fi
+
+            printf 'apiVersion: v2\nname: probe\nversion: 0.0.0\nkubeVersion: "%s"\n' \
+              "$constraint" >"$PROBE/Chart.yaml"
+            if helm template probe "$PROBE" --kube-version "$KUBE_VERSION" >/dev/null 2>"$PROBE/err"; then
+              echo "✓ $dir (kubeVersion $constraint)"
+            else
+              echo "::error::$safe_dir requires kubeVersion '${constraint%%$'\n'*}', incompatible with ${KUBE_VERSION}"
+              sed 's/^/  /' "$PROBE/err"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done < <(
+            # shellcheck disable=SC2086  # fleet-paths is a space-separated list
+            # and must split into several find arguments.
+            find ${FLEET_PATHS} -name fleet.yaml -print0 2>/dev/null | sort -z
+          )
+
+          echo "Checked $CHECKED chart(s), $WITHOUT without kubeVersion, $UNCHECKED unchecked."
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "Found $ERRORS chart(s) incompatible with Kubernetes ${KUBE_VERSION}"
+            exit 1
+          fi
+
       - name: Validate Kubernetes manifests
         id: kubernetes
         if: steps.yaml.outcome != 'failure' && inputs.enable-k8s-validation
@@ -772,6 +887,7 @@ jobs:
                 || steps.gitrepo.outcome || 'skipped' }}
           HELM_RESULT: ${{ steps.helm.outcome || 'skipped' }}
           HELM_TEMPLATE_RESULT: ${{ steps.helm-template.outcome || 'skipped' }}
+          KUBE_VERSION_RESULT: ${{ steps.kube-version.outcome || 'skipped' }}
           KUBERNETES_RESULT: ${{ steps.kubernetes.outcome || 'skipped' }}
           DOCUMENTATION_RESULT: ${{ steps.documentation.outcome || 'skipped' }}
           PYTHON_RESULT: ${{ steps.python.outcome || 'skipped' }}
@@ -793,6 +909,7 @@ jobs:
             printf '| Validate GitRepo Configuration | %s |\n' "$GITREPO_RESULT"
             printf '| Validate Helm Charts | %s |\n' "$HELM_RESULT"
             printf '| Validate Rendered Helm Output | %s |\n' "$HELM_TEMPLATE_RESULT"
+            printf '| Check Chart kubeVersion | %s |\n' "$KUBE_VERSION_RESULT"
             printf '| Validate Kubernetes Manifests | %s |\n' "$KUBERNETES_RESULT"
             printf '| Check Documentation | %s |\n' "$DOCUMENTATION_RESULT"
             printf '| Validate Python Tests | %s |\n' "$PYTHON_RESULT"
@@ -810,6 +927,7 @@ jobs:
           GITREPO_RESULT: ${{ steps.gitrepo.outcome || 'skipped' }}
           HELM_RESULT: ${{ steps.helm.outcome || 'skipped' }}
           HELM_TEMPLATE_RESULT: ${{ steps.helm-template.outcome || 'skipped' }}
+          KUBE_VERSION_RESULT: ${{ steps.kube-version.outcome || 'skipped' }}
           KUBERNETES_RESULT: ${{ steps.kubernetes.outcome || 'skipped' }}
           DOCUMENTATION_RESULT: ${{ steps.documentation.outcome || 'skipped' }}
           PYTHON_REQUIREMENTS_RESULT: ${{ steps.python-requirements.outcome || 'skipped' }}
@@ -824,6 +942,7 @@ jobs:
             "Validate GitRepo Configuration:${GITREPO_RESULT}" \
             "Validate Helm Charts:${HELM_RESULT}" \
             "Validate Rendered Helm Output:${HELM_TEMPLATE_RESULT}" \
+            "Check Chart kubeVersion:${KUBE_VERSION_RESULT}" \
             "Validate Kubernetes Manifests:${KUBERNETES_RESULT}" \
             "Check Documentation:${DOCUMENTATION_RESULT}" \
             "Install test requirements:${PYTHON_REQUIREMENTS_RESULT}" \

@@ -41,6 +41,17 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   `.terraform-version` is removed; the built-in `terraform-version` manager
   already covers that file.
 
+### Added
+
+- **`ci-gitops.yml`**: optional input `kube-version` (e.g. `1.33.3`). When
+  set, a new `Check chart kubeVersion` step checks the `kubeVersion` constraint
+  of every Fleet bundle's chart, searched recursively under `fleet-paths`:
+  local charts from their `Chart.yaml`, remote charts (OCI or `repo:` +
+  `chart:`) via `helm show chart`. A chart that requires a newer cluster fails
+  the job, independent of `k8s-validation-strict`. A remote chart whose
+  metadata cannot be fetched only warns and is reported as unchecked. The
+  empty default leaves the check off.
+
 ## 2026-11-01
 
 ### ⚠ BREAKING
