@@ -51,6 +51,14 @@ jobs:
       - name: Run lint
         run: just lint
 
+      # test-ci-gitops-kube-version-gate.sh lets real Helm judge the probe
+      # chart and fails without it. Pinned to ci-gitops.yml's `helm-version`
+      # default so the test exercises the Helm consumers get, not the latest.
+      - name: Set up Helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.1.3
+
       - name: Run tests
         run: just test
 
