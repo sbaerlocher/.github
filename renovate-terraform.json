@@ -25,8 +25,7 @@
       "enabled": false
     },
     {
-      "description": "Terraform Core version updates - higher stability. Grouping, release age and priority apply to every update type; the automerge decision is split out below.",
-      "matchManagers": ["terraform-version"],
+      "description": "Terraform Core version updates - higher stability. Grouping, release age and priority apply to every update type; the automerge decision is split out below. Matched by package name only, not by manager: hashicorp/terraform is extracted by the terraform-version manager (.terraform-version pin), the terraform manager (required_version) and custom.regex (workflow terraform-version inputs, Makefiles). A matchManagers filter left the latter two in the base non-major automerge rule, so the version CI applies with got minor bumps unattended while the local pin waited 14 days.",
       "matchPackageNames": ["hashicorp/terraform"],
       "groupName": "Terraform Core",
       "semanticCommitScope": "terraform",
@@ -36,7 +35,6 @@
     },
     {
       "description": "Terraform Core major/minor - manual merge. Terraform has been on major 1 since 2021, so every feature release is a 1.x minor and gating on major alone would never match. A minor (1.15 -> 1.16) can bump the state format version, which is a one-way change that reverting the PR does not undo once apply has run. Patch (1.15.7 -> 1.15.8) falls through to the base non-major automerge rule and never needs an approval.",
-      "matchManagers": ["terraform-version"],
       "matchPackageNames": ["hashicorp/terraform"],
       "matchUpdateTypes": ["major", "minor"],
       "automerge": false
