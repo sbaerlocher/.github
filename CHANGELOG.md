@@ -24,16 +24,20 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ## 2026-11-03
 
-### Fixed
+### ⚠ BREAKING
 
 - **`renovate-terraform.json`**: the Terraform Core rules (14-day release age,
-  manual merge for `major` + `minor`) now match `hashicorp/terraform` by
-  package name only. Before, a `matchManagers: ["terraform-version"]` filter
-  limited them to the `.terraform-version` pin, so `required_version` and the
-  workflow `terraform-version` inputs fell into the base non-major rule and
-  automerged Terraform minor bumps after 3 days. All three now share the
-  `Terraform Core` PR, release age and manual-merge gate; patch bumps still
-  automerge.
+  manual merge for `major` + `minor`) now match `hashicorp/terraform` from
+  `github-releases` regardless of manager. Before, a
+  `matchManagers: ["terraform-version"]` filter limited them to the
+  `.terraform-version` pin, so `required_version` and the workflow
+  `terraform-version` inputs fell into the base non-major rule. For those two,
+  Terraform minor bumps now need a manual merge instead of automerging, and
+  patch bumps wait 14 days instead of 3 before they automerge. All three land
+  in one `renovate/terraform-core` PR. Migration: none needed; to automerge
+  Terraform minors again in one repo, add a rule matching
+  `hashicorp/terraform` with `matchUpdateTypes: ["minor"]` and
+  `automerge: true`.
 
 ## 2026-11-01
 
