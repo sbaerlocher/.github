@@ -25,7 +25,7 @@
       "enabled": false
     },
     {
-      "description": "Terraform Core version updates - higher stability. Grouping, release age and priority apply to every update type; the automerge decision is split out below. Matched by package name and datasource, not by manager: hashicorp/terraform is extracted by the terraform-version manager (.terraform-version pin), the terraform manager (required_version) and custom.regex (workflow terraform-version inputs), all via github-releases. A matchManagers filter used to leave required_version and the workflow inputs in the base non-major automerge rule, so the version CI applies with got minor bumps unattended. matchDatasources keeps the hashicorp/terraform Docker image out; groupSlug is set explicitly because the base non-major rule sets one",
+      "description": "Terraform Core version updates - higher stability. Grouping, release age and priority apply to every update type; the automerge decision is split out below. Matched by package name and datasource, not by manager: hashicorp/terraform is extracted by the terraform-version manager (.terraform-version pin), the terraform manager (required_version) and custom.regex (workflow terraform-version inputs, TERRAFORM_VERSION in Makefiles), all via github-releases. The built-in terraform-version manager is the only extractor for .terraform-version. A matchManagers filter used to leave required_version and the workflow inputs in the base non-major automerge rule, so the version CI applies with got minor bumps unattended. matchDatasources keeps the hashicorp/terraform Docker image out; groupSlug is set explicitly because the base non-major rule sets one",
       "matchDatasources": ["github-releases"],
       "matchPackageNames": ["hashicorp/terraform"],
       "groupName": "Terraform Core",
@@ -120,15 +120,6 @@
     }
   ],
   "customManagers": [
-    {
-      "customType": "regex",
-      "description": "Terraform version in .terraform-version files",
-      "managerFilePatterns": ["/(^|/)\\.terraform-version$/"],
-      "matchStrings": ["^(?<currentValue>\\S+)$"],
-      "datasourceTemplate": "github-releases",
-      "depNameTemplate": "hashicorp/terraform",
-      "versioningTemplate": "hashicorp"
-    },
     {
       "customType": "regex",
       "description": "Terraform version in Makefiles",

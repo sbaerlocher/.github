@@ -37,7 +37,9 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   in one `renovate/terraform-core` PR. Migration: none needed; to automerge
   Terraform minors again in one repo, add a rule matching
   `hashicorp/terraform` with `matchUpdateTypes: ["minor"]` and
-  `automerge: true`.
+  `automerge: true`. The redundant `custom.regex` manager for
+  `.terraform-version` is removed; the built-in `terraform-version` manager
+  already covers that file.
 
 ## 2026-11-01
 
