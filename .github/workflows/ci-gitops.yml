@@ -510,22 +510,45 @@ jobs:
           echo "Linting Helm charts in: ${FLEET_PATHS}"
           ERRORS=0
 
-          # `read -a` + quoted nested glob instead of `$(… | tr | while read)`:
-          # the old form pushed the glob result back through unquoted command
-          # substitution, so a chart directory whose name contains a space was
-          # split into bogus entries and silently skipped. fleet-paths itself
-          # stays space-separated, hence `read -a` rather than a quoted expansion.
+          # Charts that belong to another bundle or chart below the fleet path
+          # are not checked on their own: a subchart (`<chart>/charts/x`), a
+          # local chart a fleet.yaml points at (`helm.chart: ./chart`, its
+          # values live in that fleet.yaml) or a test fixture. They would only
+          # render from defaults and fail on `required` guards. A directory
+          # with its own fleet.yaml is a bundle and always in scope. The
+          # fleet path itself is not an owner, so every chart one level below
+          # it stays in scope, as before. Keep in sync with the copy in the
+          # other helm step; scripts/tests/test-ci-gitops-nested-bundles.sh
+          # runs both against the same tree.
+          owned() { # $1 = chart dir, $2 = fleet path
+            local d="${1%/*}"
+            [ -f "$1/fleet.yaml" ] && return 1
+            while [ "${#d}" -gt "${#2}" ]; do
+              if [ -f "$d/fleet.yaml" ] || [ -f "$d/Chart.yaml" ]; then
+                return 0
+              fi
+              d="${d%/*}"
+            done
+            return 1
+          }
+
+          # Recursive `find -print0` per fleet path, like the Fleet step above:
+          # a one-level glob skipped every chart nested deeper. `-L` follows
+          # symlinked directories, as the old glob did. `read -a` splits
+          # fleet-paths without glob expansion; NUL separation keeps a name
+          # containing a space one entry. Process substitution keeps the
+          # ERRORS increments in this shell.
           read -r -a FLEET_DIRS <<<"${FLEET_PATHS}"
           for base in "${FLEET_DIRS[@]}"; do
-            for dir in "$base"/*; do
-              if [ -f "$dir/Chart.yaml" ]; then
-                echo "Linting $dir..."
-                if ! helm lint "$dir"; then
-                  echo "ERROR: Helm lint failed for $dir"
-                  ERRORS=$((ERRORS + 1))
-                fi
+            while IFS= read -r -d '' chart; do
+              dir="${chart%/*}"
+              owned "$dir" "$base" && continue
+              echo "Linting $dir..."
+              if ! helm lint "$dir"; then
+                echo "ERROR: Helm lint failed for $dir"
+                ERRORS=$((ERRORS + 1))
               fi
-            done
+            done < <(find -L "$base" -name Chart.yaml -print0 2>/dev/null | sort -z)
           done
 
           if [ $ERRORS -gt 0 ]; then
@@ -549,11 +572,41 @@ jobs:
           RENDERED=0
           SKIPPED_REMOTE=0
 
-          # Same shape as the helm lint loop above: `read -a` + nested glob so a
-          # chart directory containing a space is not split into bogus entries.
+          # Charts that belong to another bundle or chart below the fleet path
+          # are not checked on their own: a subchart (`<chart>/charts/x`), a
+          # local chart a fleet.yaml points at (`helm.chart: ./chart`, its
+          # values live in that fleet.yaml) or a test fixture. They would only
+          # render from defaults and fail on `required` guards. A directory
+          # with its own fleet.yaml is a bundle and always in scope. The
+          # fleet path itself is not an owner, so every chart one level below
+          # it stays in scope, as before. Keep in sync with the copy in the
+          # other helm step; scripts/tests/test-ci-gitops-nested-bundles.sh
+          # runs both against the same tree.
+          owned() { # $1 = chart dir, $2 = fleet path
+            local d="${1%/*}"
+            [ -f "$1/fleet.yaml" ] && return 1
+            while [ "${#d}" -gt "${#2}" ]; do
+              if [ -f "$d/fleet.yaml" ] || [ -f "$d/Chart.yaml" ]; then
+                return 0
+              fi
+              d="${d%/*}"
+            done
+            return 1
+          }
+
+          # Same shape as the helm lint loop above. A bundle is a directory
+          # holding a Chart.yaml or a fleet.yaml; a directory holding both is
+          # handled once, through its Chart.yaml.
           read -r -a FLEET_DIRS <<<"${FLEET_PATHS}"
           for base in "${FLEET_DIRS[@]}"; do
-            for dir in "$base"/*; do
+            while IFS= read -r -d '' file; do
+              dir="${file%/*}"
+              if [ "${file##*/}" = "fleet.yaml" ] && [ -f "$dir/Chart.yaml" ]; then
+                continue
+              fi
+              if [ "${file##*/}" = "Chart.yaml" ] && owned "$dir" "$base"; then
+                continue
+              fi
               # A Fleet bundle that pulls its chart from a registry — `chart:
               # oci://…`, or `repo:` + `chart:` against a classic HTTP Helm
               # repo — has no local Chart.yaml, so the skip below drops it
@@ -612,7 +665,7 @@ jobs:
                 echo "ERROR: rendered manifests from $dir failed kubeconform"
                 ERRORS=$((ERRORS + 1))
               fi
-            done
+            done < <(find -L "$base" \( -name Chart.yaml -o -name fleet.yaml \) -print0 2>/dev/null | sort -z)
           done
 
           echo "Rendered $RENDERED chart(s), skipped $SKIPPED_REMOTE bundle(s) with a remote chart reference."
@@ -628,8 +681,8 @@ jobs:
       # requires a newer cluster passes every render and schema check above and
       # fails in Fleet instead. This compares it with `kube-version` up front.
       #
-      # Recursive `find` rather than the `$base/*` glob of the render step:
-      # bundles may sit more than one level below a fleet path. Helm judges the
+      # Recursive `find`, like the lint and render steps: bundles may sit
+      # more than one level below a fleet path. Helm judges the
       # constraint itself — the found `kubeVersion` goes into an empty probe
       # chart rendered with `--kube-version` — so no semver parsing lives here.
       # A failing probe is always red, independent of `k8s-validation-strict`:
