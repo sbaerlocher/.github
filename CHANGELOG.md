@@ -22,6 +22,20 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-11-04
+
+### ⚠ BREAKING
+
+- **`ci-gitops.yml`**: the Helm lint and Helm render steps now find bundles
+  recursively under `fleet-paths`, like the Fleet validation step already did.
+  Before, they only looked one directory level deep, so nested charts (e.g.
+  `platform/<group>/<bundle>/`) were never linted or rendered, and nested
+  remote-chart bundles were missing from the `skipped N` count in the render
+  summary. Subcharts under `<chart>/charts/` are still checked only through
+  their parent. Migration: charts that were never checked before can now fail
+  the job; fix them, or add a `values-ci.yaml` next to a chart that needs
+  placeholder values to render.
+
 ## 2026-11-03
 
 ### ⚠ BREAKING

@@ -123,7 +123,7 @@ grep -q 'echo "Rendered \$RENDERED chart(s), skipped \$SKIPPED_REMOTE' <<<"$BODY
 grep -q 'if \[ ! -f "\$dir/Chart.yaml" \]; then' <<<"$BODY" ||
   fail "the loop no longer guards on a missing local Chart.yaml"
 
-grep -q '^                continue$' <<<"$BODY" ||
+grep -q '^              continue$' <<<"$BODY" ||
   fail "no 'continue' at the guard's indentation; a directory without a local Chart.yaml would fall through to helm template"
 
 echo "PASS: ci-gitops.yml announces skipped remote-chart bundles"
