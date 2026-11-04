@@ -11,8 +11,13 @@
 #   - local charts at any depth are linted and rendered,
 #   - nested remote-chart bundles are counted as skipped,
 #   - a directory holding both fleet.yaml and Chart.yaml is handled once,
-#   - a subchart under `<chart>/charts/` is not linted or rendered on its own
-#     (it needs its parent's values and is covered through the parent),
+#   - a chart that belongs to another bundle or chart below the fleet path is
+#     not linted or rendered on its own: a subchart under `<chart>/charts/`, a
+#     local chart a fleet.yaml points at, a test fixture inside a chart,
+#   - a nested directory with its own fleet.yaml is a bundle and in scope,
+#   - a fleet.yaml at the fleet path itself does not take the charts below it
+#     out of scope,
+#   - a symlinked chart directory is followed, as the old glob did,
 #   - a directory name containing a space survives.
 #
 # Run: scripts/tests/test-ci-gitops-nested-bundles.sh
@@ -64,6 +69,23 @@ printf 'helm:\n  chart: "oci://registry.example/x"\n  version: 1.0.0\n' >"$F/app
 printf 'helm:\n  repo: https://charts.example\n  chart: x\n  version: 1.0.0\n' >"$F/apps/flatremote/fleet.yaml"
 printf 'defaultNamespace: x\n' >"$F/apps/plain/fleet.yaml"
 
+# Owned charts: not checked on their own.
+mkchart apps/flat/tests/fixtures
+mkdir -p "$F/apps/localref"
+printf 'helm:\n  chart: ./chart\n' >"$F/apps/localref/fleet.yaml"
+mkchart apps/localref/chart
+
+# A nested bundle inside a plain bundle is its own bundle.
+mkchart apps/plain/sub
+printf 'defaultNamespace: x\n' >"$F/apps/plain/sub/fleet.yaml"
+
+# A fleet.yaml at the fleet path itself owns nothing.
+printf 'defaultNamespace: x\n' >"$F/apps/fleet.yaml"
+
+# Symlinked chart directory.
+mkchart shared/linked
+ln -s ../shared/linked "$F/apps/link"
+
 # --- stub tools -------------------------------------------------------------
 
 BIN="$TMP/bin"
@@ -88,7 +110,8 @@ run_step() {
     }
 }
 
-EXPECTED_CHARTS="$(printf '%s\n' apps/bundle apps/flat apps/group/nested 'apps/grp two/my chart' apps/withsub)"
+EXPECTED_CHARTS="$(printf '%s\n' apps/bundle apps/flat apps/group/nested 'apps/grp two/my chart' \
+  apps/link apps/plain/sub apps/withsub | sort)"
 
 # --- 1. lint step -----------------------------------------------------------
 
@@ -110,7 +133,7 @@ $RENDERED_DIRS
 expected:
 $EXPECTED_CHARTS"
 
-grep -qx 'Rendered 5 chart(s), skipped 2 bundle(s) with a remote chart reference.' "$TMP/out.log" ||
+grep -qx 'Rendered 7 chart(s), skipped 2 bundle(s) with a remote chart reference.' "$TMP/out.log" ||
   fail "render summary does not count nested bundles: $(grep '^Rendered' "$TMP/out.log" || echo '<none>')"
 
 grep -q '^::notice::apps/group/remote references a remote chart' "$TMP/out.log" ||

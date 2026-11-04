@@ -115,15 +115,21 @@ grep -q 'echo "Rendered \$RENDERED chart(s), skipped \$SKIPPED_REMOTE' <<<"$BODY
 # The notice must not turn into a render attempt: `helm template` on a directory
 # without a Chart.yaml hard-fails, which would take every remote bundle red.
 #
-# Anchored on the guard *and* on the `continue` at the guard's own indentation.
-# An unanchored match would also pass on a `continue` moved inside the notice
-# branch, which is exactly the regression this pins: every directory that is not
-# a chart would then fall through to `helm template`.
+# Anchored on the guard and on the two lines after the increment: the notice
+# branch must close (`fi`) and the `continue` must follow at that same
+# indentation, i.e. inside the guard but outside the notice branch. A plain
+# indentation grep is not enough, because the loop has other `continue`s at the
+# guard's level that would satisfy it. Moving the `continue` into the notice
+# branch, which is exactly the regression this pins, would let every directory
+# that is not a chart fall through to `helm template`.
 # shellcheck disable=SC2016 # the $dir text is matched literally in the YAML
-grep -q 'if \[ ! -f "\$dir/Chart.yaml" \]; then' <<<"$BODY" ||
-  fail "the loop no longer guards on a missing local Chart.yaml"
+GUARD="$(grep -m1 'if \[ ! -f "\$dir/Chart.yaml" \]; then' <<<"$BODY" || true)"
+[ -n "$GUARD" ] || fail "the loop no longer guards on a missing local Chart.yaml"
+GUARD_INDENT="${GUARD%%[! ]*}"
 
-grep -q '^              continue$' <<<"$BODY" ||
-  fail "no 'continue' at the guard's indentation; a directory without a local Chart.yaml would fall through to helm template"
+# shellcheck disable=SC2016 # the $((…)) text is matched literally in the YAML
+AFTER="$(grep -A2 'SKIPPED_REMOTE=\$((SKIPPED_REMOTE + 1))' <<<"$BODY" | tail -n 2)"
+[ "$AFTER" = "${GUARD_INDENT}  fi"$'\n'"${GUARD_INDENT}  continue" ] ||
+  fail "the 'continue' does not follow the notice branch at the guard's body level; a directory without a local Chart.yaml would fall through to helm template"
 
 echo "PASS: ci-gitops.yml announces skipped remote-chart bundles"

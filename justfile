@@ -32,9 +32,9 @@ default:
 #
 # SC2044 and SC2162 are fixed in ci-gitops.yml, including the word-splitting
 # they pointed at: fleet validation and both helm loops iterate over
-# `find -print0`, so a directory name containing a space is no longer dropped. SC2016 is silenced locally in
-# ops-drift-issue.yml via `# shellcheck disable`, so all three classes catch
-# new occurrences again.
+# `find -print0`, so a directory name containing a space is no longer dropped.
+# SC2016 is silenced locally in ops-drift-issue.yml via `# shellcheck disable`,
+# so all three classes catch new occurrences again.
 #
 # SC2002 and SC2015 only appear once shellcheck is actually present — they were
 # invisible while every local run silently skipped the shell checks, which is
