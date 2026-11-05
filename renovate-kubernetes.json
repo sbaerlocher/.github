@@ -91,7 +91,7 @@
       "automerge": false
     },
     {
-      "description": "Repeat of the renovate-base waiver for docker registries without release timestamps. Must stay after the helmv3 OCI rule above, whose `minimumReleaseAge: 5 days` would otherwise win (packageRules merge last-wins per key) and bring back the missing-timestamp warning for OCI charts on these registries.",
+      "description": "Repeat of the renovate-base waiver for docker registries without release timestamps. Must stay after the helmv3 OCI rule above, whose `minimumReleaseAge: 5 days` would otherwise win (packageRules merge last-wins per key) and bring back the missing-timestamp warning for OCI charts on these registries. This also lifts the 7-day gate on majors and on critical platform charts for these registries; that gate could never work here, because without a timestamp there is no age to wait for. Keep the registry list identical in all four waiver rules (two here, two in renovate-kubernetes.json) and in AGENTS.md.",
       "matchDatasources": ["docker"],
       "matchPackageNames": [
         "ghcr.io/**",
@@ -102,7 +102,7 @@
       "minimumReleaseAge": null
     },
     {
-      "description": "Repeat of the renovate-base waiver for docker registries without release timestamps. Must stay after the helmv3 OCI rule above, whose `minimumReleaseAge: 5 days` would otherwise win (packageRules merge last-wins per key) and bring back the missing-timestamp warning for OCI charts on these registries.",
+      "description": "Repeat of the renovate-base waiver for docker registries without release timestamps. Must stay after the helmv3 OCI rule above, whose `minimumReleaseAge: 5 days` would otherwise win (packageRules merge last-wins per key) and bring back the missing-timestamp warning for OCI charts on these registries. This also lifts the 7-day gate on majors and on critical platform charts for these registries; that gate could never work here, because without a timestamp there is no age to wait for. Keep the registry list identical in all four waiver rules (two here, two in renovate-kubernetes.json) and in AGENTS.md.",
       "matchDatasources": ["docker"],
       "matchRegistryUrls": [
         "/^https://(ghcr\\.io|cr\\.agentgateway\\.dev|oci\\.element\\.io|oci\\.trueforge\\.org)(/|$)/"

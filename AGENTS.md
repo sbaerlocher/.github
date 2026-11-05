@@ -765,7 +765,13 @@ Ensure lock files are committed:
   gate in two package rules, so their updates do not raise the
   "did not have a releaseTimestamp" warning. Extend that list only after
   checking that the registry really has no timestamp; a remaining warning is a
-  finding, not noise.
+  finding, not noise. The same list sits in four rules: two in
+  `renovate-base.json`, two in `renovate-kubernetes.json` (after its helmv3 OCI
+  and critical-chart rules, whose 5- and 7-day gates would otherwise win).
+  Change all four together. The waiver also lifts the 7-day major gate for
+  these registries, which could never apply there anyway: without a timestamp
+  there is no age to wait for, and majors stay manual through
+  `automerge: false`.
 - **Lock file maintenance is monthly.** `lockFileMaintenance` runs on the whole
   first Wednesday of the month (`* * 1-7 * 3`; Renovate requires day of month
   and day of week to both match), away from the Monday batch. A vulnerable
