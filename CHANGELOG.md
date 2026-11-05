@@ -66,6 +66,10 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   cooldown. A warning that still shows up names a dependency outside this list.
   `renovate-kubernetes.json` repeats both rules after its helmv3 OCI rule, whose
   5-day gate would otherwise win for OCI charts on these registries.
+- **`renovate-base.json`**: the same waiver for the `git-refs` datasource, which
+  never reports a release timestamp. Digest updates of SHA-pinned git
+  dependencies (the caddy-tailscale plugin in infrastructure) were the last
+  source of the "did not have a releaseTimestamp" warning in the Mend log.
 
 ## 2026-11-04
 
