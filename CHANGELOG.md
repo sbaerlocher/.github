@@ -44,6 +44,16 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   five weeks instead of one. Migration: none required; a consumer that needs
   faster transitive refreshes overrides `lockFileMaintenance.schedule`.
 
+### Fixed
+
+- **`renovate-base.json`**: lock file maintenance PRs merge again. They have no
+  release timestamp, so `renovate/stability-days` stayed pending forever and
+  Renovate, which now merges its own PRs, never merged them. Before 2026-11-05
+  GitHub auto-merge merged them past that non-required check.
+  `lockFileMaintenance` now sets `minimumReleaseAge: null`; the release-age
+  cooldown for lock file refreshes is up to the package manager (pnpm
+  `minimumReleaseAge` in `pnpm-workspace.yaml`).
+
 ## 2026-11-04
 
 ### ⚠ BREAKING

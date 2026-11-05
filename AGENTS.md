@@ -753,7 +753,12 @@ Ensure lock files are committed:
   first Wednesday of the month (`* * 1-7 * 3`; Renovate requires day of month
   and day of week to both match), away from the Monday batch. A vulnerable
   transitive dependency can therefore wait up to about five weeks, because
-  `vulnerabilityAlerts` only cover declared dependencies.
+  `vulnerabilityAlerts` only cover declared dependencies. It sets
+  `minimumReleaseAge: null`: a lock file refresh has no release timestamp, so
+  under the default `minimumReleaseAgeBehaviour: timestamp-required` the
+  `renovate/stability-days` check stays pending forever and Renovate never
+  merges it. The release-age cooldown for these refreshes is the package
+  manager's job (pnpm `minimumReleaseAge` in `pnpm-workspace.yaml`).
 - Repo-level Renovate config for this repo lives in the root `renovate.json`
   and nowhere else. Renovate reads the **first** config file it finds, and
   `renovate.json` / `renovate.json5` is checked before their `.github/`
