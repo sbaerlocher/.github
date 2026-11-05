@@ -20,6 +20,7 @@
   "separateMultipleMajor": true,
   "rangeStrategy": "bump",
   "minimumReleaseAge": "3 days",
+  "minimumReleaseAgeBehaviour": "timestamp-optional",
   "configMigration": true,
   "postUpdateOptions": ["gomodTidy", "npmDedupe", "pnpmDedupe"],
   "commitMessageAction": "Update",
