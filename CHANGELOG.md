@@ -76,6 +76,10 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   403, so Renovate falls back to the registry tag list without timestamps. It
   was the only source of the warning in the tsmetrics Mend log of 2026-11-05
   20:14.
+- **`renovate-base.json`**: `lockFileMaintenance` sets `minimumReleaseAge: null`.
+  A lock file refresh has no release timestamp, so the global three-day age
+  raised the warning on the `renovate/lock-file-maintenance` branch on every run
+  (console.sbaerlo.ch Mend log of 2026-11-05 19:22).
 
 ## 2026-11-04
 

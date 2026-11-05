@@ -112,9 +112,10 @@
     }
   ],
   "lockFileMaintenance": {
-    "description": "Monthly, the whole first Wednesday (day of month AND day of week must both match in Renovate cron), away from the Monday batch that bumps the preset tag and GitHub Actions. Trade-off: vulnerabilityAlerts only cover dependencies declared in a package file, so a vulnerable transitive dependency can now wait up to about five weeks for this refresh instead of one.",
+    "description": "Monthly, the whole first Wednesday (day of month AND day of week must both match in Renovate cron), away from the Monday batch that bumps the preset tag and GitHub Actions. Trade-off: vulnerabilityAlerts only cover dependencies declared in a package file, so a vulnerable transitive dependency can now wait up to about five weeks for this refresh instead of one. minimumReleaseAge is null because a lock file refresh has no release timestamp: with the global 3-day age it raised 'upgrade(s) did not have a releaseTimestamp' on the lock-file-maintenance branch every run (console.sbaerlo.ch Mend log, 2026-11-05 19:22).",
     "enabled": true,
     "automerge": true,
+    "minimumReleaseAge": null,
     "schedule": ["* * 1-7 * 3"]
   },
   "vulnerabilityAlerts": {

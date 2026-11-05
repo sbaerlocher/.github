@@ -780,6 +780,8 @@ Ensure lock files are committed:
   all timestamps too: Docker Hub answers page 11 of the tag list with 403 and
   Renovate then falls back to the registry tag list. They get their own
   named rule.
+  `lockFileMaintenance` sets `minimumReleaseAge: null` for the same reason: a
+  lock file refresh has no release timestamp.
 - **Lock file maintenance is monthly.** `lockFileMaintenance` runs on the whole
   first Wednesday of the month (`* * 1-7 * 3`; Renovate requires day of month
   and day of week to both match), away from the Monday batch. A vulnerable
