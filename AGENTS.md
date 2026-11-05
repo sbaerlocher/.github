@@ -776,10 +776,10 @@ Ensure lock files are committed:
   more base rule: it never reports a release timestamp (SHA-pinned git
   dependencies). Waive other timestamp-less sources only once a Renovate log
   names them.
-  Docker Hub images with more than 1000 tags (today `grafana/grafana`) lose
-  all timestamps too: Docker Hub answers page 11 of the tag list with 403 and
-  Renovate then falls back to the registry tag list. They get their own
-  named rule.
+  Digest updates of `grafana/grafana` are waived on observation only: Mend
+  reports no timestamp for them while other Docker Hub images keep theirs, and
+  the cause is not established. Treat that rule as temporary and remove it once
+  a Renovate log shows the timestamp again.
   `lockFileMaintenance` sets `minimumReleaseAge: null` for the same reason: a
   lock file refresh has no release timestamp.
 - **Lock file maintenance is monthly.** `lockFileMaintenance` runs on the whole
