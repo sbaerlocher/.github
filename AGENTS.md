@@ -736,13 +736,19 @@ Ensure lock files are committed:
 
 - **Renovate merges its own PRs; GitHub auto-merge is off.** `renovate-base.json`
   sets `platformAutomerge: false`, so Renovate merges a green automerge PR
-  through the API on its next run, past the ruleset's approval rule via its
-  bypass entry (`2740`, `always`). GitHub's native auto-merge does not honour
-  that bypass and waited for an approval instead. `rebaseWhen: conflicted`
-  relies on `strict_required_status_checks_policy: false` in every consumer's
-  `main-branch-protection` ruleset: with strict checks on, a PR that falls
-  behind `main` is unmergeable and never rebased. Keep the two settings
-  together.
+  through the API on its next run, via its ruleset bypass entry (`2740`,
+  `always`). GitHub's native auto-merge does not use that bypass and waited for
+  an approval instead. Consequences to keep in mind:
+  - The bypass skips the whole ruleset, required status checks and the
+    up-to-date rule included. Renovate's own branch status (all checks it sees
+    are green) is the only CI gate for its merges.
+  - A green PR waits for the next Renovate run, and Renovate may merge only one
+    branch per run, so a batch of Monday PRs can land over several runs.
+  - `rebaseWhen: conflicted` means a PR is tested against the `main` it was
+    branched from, not against the `main` it lands on. Two PRs that are green
+    on their own can still break `main` together. Accepted for dependency
+    bumps to avoid a full CI re-run on every open PR after each merge; a lockfile
+    clash shows up as a conflict and does trigger a rebase.
 - Repo-level Renovate config for this repo lives in the root `renovate.json`
   and nowhere else. Renovate reads the **first** config file it finds, and
   `renovate.json` / `renovate.json5` is checked before their `.github/`

@@ -32,10 +32,10 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   waited for the approval required by the `main-branch-protection` ruleset and
   ignored the Renovate bypass, so PRs stayed open until someone approved them;
   rebasing every PR that fell behind `main` re-ran the full CI after each merge.
-  Migration: set `strict_required_status_checks_policy: false` in the
-  `main-branch-protection` ruleset and keep the Renovate app (`2740`) as a
-  bypass actor. With strict checks on, a PR that falls behind `main` can no
-  longer be merged and is not rebased until it conflicts.
+  Migration: keep the Renovate app (`2740`, `always`) as a bypass actor in the
+  `main-branch-protection` ruleset; without it Renovate cannot merge past the
+  approval rule. Trade-offs (merge waits for a Renovate run, PRs are no longer
+  re-tested against the latest `main`) are described in `AGENTS.md`.
 
 ## 2026-11-04
 
