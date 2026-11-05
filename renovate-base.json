@@ -99,6 +99,12 @@
       "matchUpdateTypes": ["digest"]
     },
     {
+      "description": "Docker Hub images with more than 1000 tags. Docker Hub serves at most 100 tags per page and answers page 11 with 403; Renovate's docker datasource then discards everything it fetched from Docker Hub and falls back to the registry tag list, which has no timestamps. grafana/grafana (2045 tags) therefore lost every release timestamp and raised the 'did not have a releaseTimestamp' warning for its digest updates (tsmetrics Mend log, 2026-11-05 20:14), while smaller Docker Hub images in the same run kept theirs. Add an image here only after a log names it.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["grafana/grafana"],
+      "minimumReleaseAge": null
+    },
+    {
       "description": "Custom regex managers tracking Docker images via env-var markers (e.g. `# renovate: datasource=docker depName=foo` over `IMAGE_VERSION: '1.2.3'`) cannot accept a digest — the regex captures only the version. Disable digest pinning to avoid 'Digest is not updated' branch failures.",
       "matchManagers": ["custom.regex"],
       "matchDatasources": ["docker"],

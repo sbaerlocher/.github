@@ -776,6 +776,10 @@ Ensure lock files are committed:
   more base rule: it never reports a release timestamp (SHA-pinned git
   dependencies). Waive other timestamp-less sources only once a Renovate log
   names them.
+  Docker Hub images with more than 1000 tags (today `grafana/grafana`) lose
+  all timestamps too: Docker Hub answers page 11 of the tag list with 403 and
+  Renovate then falls back to the registry tag list. They get their own
+  named rule.
 - **Lock file maintenance is monthly.** `lockFileMaintenance` runs on the whole
   first Wednesday of the month (`* * 1-7 * 3`; Renovate requires day of month
   and day of week to both match), away from the Monday batch. A vulnerable
