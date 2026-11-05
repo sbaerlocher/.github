@@ -71,6 +71,16 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   update of the SHA-pinned caddy-tailscale plugin was the only source of the
   "did not have a releaseTimestamp" warning in the infrastructure Mend log of
   2026-11-05 20:01; other repos may still show it for other dependencies.
+- **`renovate-base.json`**: digest updates of `grafana/grafana` (also with a
+  `docker.io/` or `index.docker.io/` prefix) waive the release-age gate. They
+  had no timestamp in the tsmetrics, savvy and velometrics Mend runs of
+  2026-11-05, while other Docker Hub images kept theirs; the cause is not
+  established. Only digest updates are covered, so other update types keep
+  their cooldown.
+- **`renovate-base.json`**: `lockFileMaintenance` sets `minimumReleaseAge: null`.
+  A lock file refresh has no release timestamp, so the global three-day age
+  raised the warning on the `renovate/lock-file-maintenance` branch on every run
+  (console.sbaerlo.ch Mend log of 2026-11-05 19:22).
 
 ## 2026-11-04
 

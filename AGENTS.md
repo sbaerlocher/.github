@@ -776,6 +776,12 @@ Ensure lock files are committed:
   more base rule: it never reports a release timestamp (SHA-pinned git
   dependencies). Waive other timestamp-less sources only once a Renovate log
   names them.
+  Digest updates of `grafana/grafana` are waived on observation only: Mend
+  reports no timestamp for them while other Docker Hub images keep theirs, and
+  the cause is not established. Treat that rule as temporary and remove it once
+  a Renovate log shows the timestamp again.
+  `lockFileMaintenance` sets `minimumReleaseAge: null` for the same reason: a
+  lock file refresh has no release timestamp.
 - **Lock file maintenance is monthly.** `lockFileMaintenance` runs on the whole
   first Wednesday of the month (`* * 1-7 * 3`; Renovate requires day of month
   and day of week to both match), away from the Monday batch. A vulnerable

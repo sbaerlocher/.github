@@ -99,6 +99,17 @@
       "matchUpdateTypes": ["digest"]
     },
     {
+      "description": "Digest updates of grafana/grafana have no release timestamp in the Mend runs of tsmetrics, savvy and velometrics (2026-11-05), while other Docker Hub images in the same runs (prom/prometheus, golang, alpine) keep theirs. The cause is not established: grafana/grafana has 2045 tags and Docker Hub answers page 11 of the tag list with 403, but golang (5113 tags, same 403) keeps its timestamps, so tag count alone does not explain it. Limited to digest updates, the only case the logs show, so minor/patch/major updates keep their cooldown if timestamps come back. Remove once Renovate reports timestamps for this image again; add other images only after a log names them.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": [
+        "grafana/grafana",
+        "docker.io/grafana/grafana",
+        "index.docker.io/grafana/grafana"
+      ],
+      "matchUpdateTypes": ["digest"],
+      "minimumReleaseAge": null
+    },
+    {
       "description": "Custom regex managers tracking Docker images via env-var markers (e.g. `# renovate: datasource=docker depName=foo` over `IMAGE_VERSION: '1.2.3'`) cannot accept a digest — the regex captures only the version. Disable digest pinning to avoid 'Digest is not updated' branch failures.",
       "matchManagers": ["custom.regex"],
       "matchDatasources": ["docker"],
@@ -106,9 +117,10 @@
     }
   ],
   "lockFileMaintenance": {
-    "description": "Monthly, the whole first Wednesday (day of month AND day of week must both match in Renovate cron), away from the Monday batch that bumps the preset tag and GitHub Actions. Trade-off: vulnerabilityAlerts only cover dependencies declared in a package file, so a vulnerable transitive dependency can now wait up to about five weeks for this refresh instead of one.",
+    "description": "Monthly, the whole first Wednesday (day of month AND day of week must both match in Renovate cron), away from the Monday batch that bumps the preset tag and GitHub Actions. Trade-off: vulnerabilityAlerts only cover dependencies declared in a package file, so a vulnerable transitive dependency can now wait up to about five weeks for this refresh instead of one. minimumReleaseAge is null because a lock file refresh has no release timestamp: with the global 3-day age it raised 'upgrade(s) did not have a releaseTimestamp' on the lock-file-maintenance branch every run (console.sbaerlo.ch Mend log, 2026-11-05 19:22).",
     "enabled": true,
     "automerge": true,
+    "minimumReleaseAge": null,
     "schedule": ["* * 1-7 * 3"]
   },
   "vulnerabilityAlerts": {
