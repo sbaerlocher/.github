@@ -772,8 +772,10 @@ Ensure lock files are committed:
   these registries, which could never apply there anyway: without a timestamp
   there is no age to wait for, and majors stay manual through
   `automerge: false`.
-  The `git-refs` datasource is waived the same way in one more base rule: it
-  never reports a release timestamp (SHA-pinned git dependencies).
+  Digest updates from the `git-refs` datasource are waived the same way in one
+  more base rule: it never reports a release timestamp (SHA-pinned git
+  dependencies). Waive other timestamp-less sources only once a Renovate log
+  names them.
 - **Lock file maintenance is monthly.** `lockFileMaintenance` runs on the whole
   first Wednesday of the month (`* * 1-7 * 3`; Renovate requires day of month
   and day of week to both match), away from the Monday batch. A vulnerable

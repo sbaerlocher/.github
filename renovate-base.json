@@ -93,9 +93,10 @@
       "minimumReleaseAge": null
     },
     {
-      "description": "git-refs never reports a release timestamp: Renovate's git-refs datasource exposes ref names and commit SHAs only (no releaseTimestamp anywhere in lib/modules/datasource/git-refs). Digest updates of SHA-pinned git dependencies, such as the caddy-tailscale plugin in infrastructure, therefore have no age to check and raised the 'did not have a releaseTimestamp' warning on every run. Waived explicitly like the docker registries above.",
+      "description": "git-refs never reports a release timestamp: Renovate's git-refs datasource exposes ref names and commit SHAs only (no releaseTimestamp anywhere in lib/modules/datasource/git-refs). Digest updates of SHA-pinned git dependencies, such as the caddy-tailscale plugin in infrastructure, therefore have no age to check and raised the 'did not have a releaseTimestamp' warning on every run. Waived explicitly like the docker registries above, and only for digest updates (the case seen in the Mend log, datasource git-refs): if git-refs ever starts reporting commit dates, branch or tag updates keep their cooldown. Other timestamp-less sources (for example git-tags) are waived only once a log shows them, not ahead of time.",
       "matchDatasources": ["git-refs"],
-      "minimumReleaseAge": null
+      "minimumReleaseAge": null,
+      "matchUpdateTypes": ["digest"]
     },
     {
       "description": "Custom regex managers tracking Docker images via env-var markers (e.g. `# renovate: datasource=docker depName=foo` over `IMAGE_VERSION: '1.2.3'`) cannot accept a digest — the regex captures only the version. Disable digest pinning to avoid 'Digest is not updated' branch failures.",
