@@ -74,6 +74,28 @@
       "schedule": ["before 6am on monday"]
     },
     {
+      "description": "Docker registries that never report a release timestamp. Renovate's docker datasource reads timestamps only from Docker Hub (`tag_last_pushed`), so images on these hosts have no age to check and the global `minimumReleaseAgeBehaviour: timestamp-optional` would log a 'did not have a releaseTimestamp' warning on every run. Waiving the age gate here records that deliberately per registry; a warning that still appears points at a dependency not listed here and needs a look, not a blanket waiver.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": [
+        "ghcr.io/**",
+        "cr.agentgateway.dev/**",
+        "oci.element.io/**",
+        "oci.trueforge.org/**"
+      ],
+      "minimumReleaseAge": null
+    },
+    {
+      "description": "Same registries when the host sits in registryUrls instead of the package name (Helm charts pulled from OCI registries).",
+      "matchDatasources": ["docker"],
+      "matchRegistryUrls": [
+        "https://ghcr.io/**",
+        "https://cr.agentgateway.dev/**",
+        "https://oci.element.io/**",
+        "https://oci.trueforge.org/**"
+      ],
+      "minimumReleaseAge": null
+    },
+    {
       "description": "Custom regex managers tracking Docker images via env-var markers (e.g. `# renovate: datasource=docker depName=foo` over `IMAGE_VERSION: '1.2.3'`) cannot accept a digest — the regex captures only the version. Disable digest pinning to avoid 'Digest is not updated' branch failures.",
       "matchManagers": ["custom.regex"],
       "matchDatasources": ["docker"],

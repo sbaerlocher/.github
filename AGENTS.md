@@ -760,6 +760,12 @@ Ensure lock files are committed:
   those updates: lock file refreshes for npm, yarn, Terraform, Go and Poetry can
   pull in releases published minutes earlier. pnpm consumers can add a cooldown
   at resolution time with `minimumReleaseAge` in `pnpm-workspace.yaml`.
+  Docker registries that never report a timestamp (`ghcr.io`,
+  `cr.agentgateway.dev`, `oci.element.io`, `oci.trueforge.org`) waive the age
+  gate in two package rules, so their updates do not raise the
+  "did not have a releaseTimestamp" warning. Extend that list only after
+  checking that the registry really has no timestamp; a remaining warning is a
+  finding, not noise.
 - **Lock file maintenance is monthly.** `lockFileMaintenance` runs on the whole
   first Wednesday of the month (`* * 1-7 * 3`; Renovate requires day of month
   and day of week to both match), away from the Monday batch. A vulnerable
