@@ -81,6 +81,12 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   A lock file refresh has no release timestamp, so the global three-day age
   raised the warning on the `renovate/lock-file-maintenance` branch on every run
   (console.sbaerlo.ch Mend log of 2026-11-05 19:22).
+- **`renovate-base.json`, `renovate-go.json`**: the `# renovate: datasource=…`
+  marker managers only accept datasource names made of lowercase letters,
+  digits, `.` and `-`. A consumer whose own `renovate.json` contains the marker
+  as a regex (velometrics) was picked up by the base manager as a marker,
+  which reported `Unknown datasource "(?<datasource>\S+)"` as a package lookup
+  failure (velometrics Mend log, 2026-11-05 20:24).
 
 ## 2026-11-04
 
