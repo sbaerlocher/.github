@@ -80,10 +80,10 @@
     }
   ],
   "lockFileMaintenance": {
-    "description": "Monthly on the first Wednesday (day of month AND day of week must both match in Renovate cron), away from the Monday batch that bumps the preset tag and GitHub Actions. Transitive security fixes do not wait for this window: vulnerabilityAlerts run at any time.",
+    "description": "Monthly, the whole first Wednesday (day of month AND day of week must both match in Renovate cron), away from the Monday batch that bumps the preset tag and GitHub Actions. Trade-off: vulnerabilityAlerts only cover dependencies declared in a package file, so a vulnerable transitive dependency can now wait up to about five weeks for this refresh instead of one.",
     "enabled": true,
     "automerge": true,
-    "schedule": ["* 0-5 1-7 * 3"]
+    "schedule": ["* * 1-7 * 3"]
   },
   "vulnerabilityAlerts": {
     "enabled": true,
