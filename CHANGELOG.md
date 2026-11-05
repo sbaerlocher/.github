@@ -55,6 +55,18 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   consumers can set `minimumReleaseAge` in `pnpm-workspace.yaml`; consumers
   that need a gate elsewhere override `lockFileMaintenance.automerge: false`.
 
+### Fixed
+
+- **`renovate-base.json`**: no more "did not have a releaseTimestamp" warning
+  for images and OCI Helm charts on `ghcr.io`, `cr.agentgateway.dev`,
+  `oci.element.io` and `oci.trueforge.org`. Renovate's docker datasource only
+  reads release timestamps from Docker Hub, so these registries never have one;
+  two package rules now waive `minimumReleaseAge` for them explicitly. Nothing
+  changes in practice: without a timestamp they already merged without a
+  cooldown. A warning that still shows up names a dependency outside this list.
+  `renovate-kubernetes.json` repeats both rules after its helmv3 OCI rule, whose
+  5-day gate would otherwise win for OCI charts on these registries.
+
 ## 2026-11-04
 
 ### ⚠ BREAKING
