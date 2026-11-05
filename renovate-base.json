@@ -85,13 +85,10 @@
       "minimumReleaseAge": null
     },
     {
-      "description": "Same registries when the host sits in registryUrls instead of the package name (Helm charts pulled from OCI registries).",
+      "description": "Same registries when the host sits in registryUrls instead of the package name (OCI Helm charts, Fleet OCI custom manager). Regex instead of a glob so the bare host form `https://ghcr.io` from `registryUrlTemplate` matches as well. renovate-kubernetes.json repeats both rules after its helmv3 OCI rule, which would otherwise put the 5-day gate back.",
       "matchDatasources": ["docker"],
       "matchRegistryUrls": [
-        "https://ghcr.io/**",
-        "https://cr.agentgateway.dev/**",
-        "https://oci.element.io/**",
-        "https://oci.trueforge.org/**"
+        "/^https://(ghcr\\.io|cr\\.agentgateway\\.dev|oci\\.element\\.io|oci\\.trueforge\\.org)(/|$)/"
       ],
       "minimumReleaseAge": null
     },

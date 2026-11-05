@@ -64,6 +64,8 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   two package rules now waive `minimumReleaseAge` for them explicitly. Nothing
   changes in practice: without a timestamp they already merged without a
   cooldown. A warning that still shows up names a dependency outside this list.
+  `renovate-kubernetes.json` repeats both rules after its helmv3 OCI rule, whose
+  5-day gate would otherwise win for OCI charts on these registries.
 
 ## 2026-11-04
 
