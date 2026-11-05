@@ -734,6 +734,15 @@ Ensure lock files are committed:
 
 **Gotchas when editing the Renovate presets**:
 
+- **Renovate merges its own PRs; GitHub auto-merge is off.** `renovate-base.json`
+  sets `platformAutomerge: false`, so Renovate merges a green automerge PR
+  through the API on its next run, past the ruleset's approval rule via its
+  bypass entry (`2740`, `always`). GitHub's native auto-merge does not honour
+  that bypass and waited for an approval instead. `rebaseWhen: conflicted`
+  relies on `strict_required_status_checks_policy: false` in every consumer's
+  `main-branch-protection` ruleset: with strict checks on, a PR that falls
+  behind `main` is unmergeable and never rebased. Keep the two settings
+  together.
 - Repo-level Renovate config for this repo lives in the root `renovate.json`
   and nowhere else. Renovate reads the **first** config file it finds, and
   `renovate.json` / `renovate.json5` is checked before their `.github/`

@@ -22,6 +22,21 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-11-05
+
+### ⚠ BREAKING
+
+- **`renovate-base.json`**: Renovate now merges automerge PRs itself instead of
+  enabling GitHub auto-merge (`platformAutomerge: false`), and only rebases a
+  PR when it has a merge conflict (`rebaseWhen: conflicted`). GitHub auto-merge
+  waited for the approval required by the `main-branch-protection` ruleset and
+  ignored the Renovate bypass, so PRs stayed open until someone approved them;
+  rebasing every PR that fell behind `main` re-ran the full CI after each merge.
+  Migration: set `strict_required_status_checks_policy: false` in the
+  `main-branch-protection` ruleset and keep the Renovate app (`2740`) as a
+  bypass actor. With strict checks on, a PR that falls behind `main` can no
+  longer be merged and is not rebased until it conflicts.
+
 ## 2026-11-04
 
 ### ⚠ BREAKING
