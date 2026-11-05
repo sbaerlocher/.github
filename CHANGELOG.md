@@ -37,6 +37,14 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   approval rule. Trade-offs (merge waits for a Renovate run, PRs are no longer
   re-tested against the latest `main`) are described in `AGENTS.md`.
 
+### Changed
+
+- **`renovate-base.json`**: lock file maintenance runs once a month on the
+  first Wednesday (before 06:00) instead of every Monday. The weekly PR in every
+  consumer collided with the Monday batch (preset tag, GitHub Actions) on the
+  same lockfile and re-ran CI after each rebase. Vulnerability alerts still run
+  at any time.
+
 ## 2026-11-04
 
 ### ⚠ BREAKING
