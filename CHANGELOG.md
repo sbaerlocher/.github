@@ -43,16 +43,17 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   in a package file, so a vulnerable transitive dependency can wait up to about
   five weeks instead of one. Migration: none required; a consumer that needs
   faster transitive refreshes overrides `lockFileMaintenance.schedule`.
-
-### Fixed
-
-- **`renovate-base.json`**: lock file maintenance PRs merge again. They have no
-  release timestamp, so `renovate/stability-days` stayed pending forever and
-  Renovate, which now merges its own PRs, never merged them. Before 2026-11-05
-  GitHub auto-merge merged them past that non-required check.
-  `lockFileMaintenance` now sets `minimumReleaseAge: null`; the release-age
-  cooldown for lock file refreshes is up to the package manager (pnpm
-  `minimumReleaseAge` in `pnpm-workspace.yaml`).
+- **`renovate-base.json`**: `minimumReleaseAgeBehaviour: "timestamp-optional"`.
+  Updates without a release timestamp (lock file maintenance, Docker digests
+  without timestamps, `custom.regex` deps, git refs) are treated as stable and
+  automerge on green CI; updates with a timestamp still wait three days. Under
+  the default `timestamp-required` their `renovate/stability-days` check stayed
+  pending forever, and since Renovate merges its own PRs they never merged.
+  Until 2026-11-05 GitHub auto-merge merged them past that non-required check,
+  so they never had a cooldown either. Lock file refreshes for npm, yarn,
+  Terraform, Go and Poetry have no release-age cooldown. Migration: pnpm
+  consumers can set `minimumReleaseAge` in `pnpm-workspace.yaml`; consumers
+  that need a gate elsewhere override `lockFileMaintenance.automerge: false`.
 
 ## 2026-11-04
 

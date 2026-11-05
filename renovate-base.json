@@ -20,6 +20,7 @@
   "separateMultipleMajor": true,
   "rangeStrategy": "bump",
   "minimumReleaseAge": "3 days",
+  "minimumReleaseAgeBehaviour": "timestamp-optional",
   "configMigration": true,
   "postUpdateOptions": ["gomodTidy", "npmDedupe", "pnpmDedupe"],
   "commitMessageAction": "Update",
@@ -80,10 +81,9 @@
     }
   ],
   "lockFileMaintenance": {
-    "description": "Monthly, the whole first Wednesday (day of month AND day of week must both match in Renovate cron), away from the Monday batch that bumps the preset tag and GitHub Actions. Trade-off: vulnerabilityAlerts only cover dependencies declared in a package file, so a vulnerable transitive dependency can now wait up to about five weeks for this refresh instead of one. minimumReleaseAge is null because a lock file refresh has no single release timestamp: with the default minimumReleaseAgeBehaviour (timestamp-required) renovate/stability-days stays pending forever and Renovate never merges the PR. The release-age cooldown for lock file refreshes belongs to the package manager (pnpm minimumReleaseAge in pnpm-workspace.yaml).",
+    "description": "Monthly, the whole first Wednesday (day of month AND day of week must both match in Renovate cron), away from the Monday batch that bumps the preset tag and GitHub Actions. Trade-off: vulnerabilityAlerts only cover dependencies declared in a package file, so a vulnerable transitive dependency can now wait up to about five weeks for this refresh instead of one.",
     "enabled": true,
     "automerge": true,
-    "minimumReleaseAge": null,
     "schedule": ["* * 1-7 * 3"]
   },
   "vulnerabilityAlerts": {

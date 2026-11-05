@@ -749,16 +749,22 @@ Ensure lock files are committed:
     on their own can still break `main` together. Accepted for dependency
     bumps to avoid a full CI re-run on every open PR after each merge; a lockfile
     clash shows up as a conflict and does trigger a rebase.
+- **Release age is only enforced where a timestamp exists.** The preset sets
+  `minimumReleaseAge: "3 days"` with `minimumReleaseAgeBehaviour:
+"timestamp-optional"`. Updates whose datasource reports a release timestamp
+  wait three days; updates without one (lock file maintenance, Docker digests
+  from registries without timestamps, `custom.regex` deps, git refs) are treated
+  as stable and automerge on green CI. Under the default `timestamp-required`
+  their `renovate/stability-days` check stays pending forever, and since
+  Renovate merges its own PRs they would never merge. There is no cooldown for
+  those updates: lock file refreshes for npm, yarn, Terraform, Go and Poetry can
+  pull in releases published minutes earlier. pnpm consumers can add a cooldown
+  at resolution time with `minimumReleaseAge` in `pnpm-workspace.yaml`.
 - **Lock file maintenance is monthly.** `lockFileMaintenance` runs on the whole
   first Wednesday of the month (`* * 1-7 * 3`; Renovate requires day of month
   and day of week to both match), away from the Monday batch. A vulnerable
   transitive dependency can therefore wait up to about five weeks, because
-  `vulnerabilityAlerts` only cover declared dependencies. It sets
-  `minimumReleaseAge: null`: a lock file refresh has no release timestamp, so
-  under the default `minimumReleaseAgeBehaviour: timestamp-required` the
-  `renovate/stability-days` check stays pending forever and Renovate never
-  merges it. The release-age cooldown for these refreshes is the package
-  manager's job (pnpm `minimumReleaseAge` in `pnpm-workspace.yaml`).
+  `vulnerabilityAlerts` only cover declared dependencies.
 - Repo-level Renovate config for this repo lives in the root `renovate.json`
   and nowhere else. Renovate reads the **first** config file it finds, and
   `renovate.json` / `renovate.json5` is checked before their `.github/`
