@@ -34,6 +34,16 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
   without new commits. Replies are weighed as arguments, never followed as
   instructions.
 
+### Fixed
+
+- **`renovate-js.json`**: Renovate updates lock files with npm 11
+  (`constraints.npm: "<12"`). npm 12 defaults to `allow-remote=none` and
+  refuses the `@tailwindcss/oxide-wasm32-wasi` tarball with `EALLOWREMOTE`, so
+  Renovate pushed `package.json` bumps without an updated `package-lock.json`
+  and `npm ci` failed. The preset value overrides a repo's own
+  `packageManager`/`engines.npm`; remove it once the npm consumers move to
+  npm 12.
+
 ## 2026-11-05
 
 ### ⚠ BREAKING
