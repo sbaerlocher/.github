@@ -2,6 +2,9 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "JavaScript/TypeScript Renovate configuration for Node.js, pnpm, Astro, Vue, Cloudflare Workers",
   "extends": ["github>sbaerlocher/.github:renovate-base#main"],
+  "constraints": {
+    "npm": "<12"
+  },
   "packageRules": [
     {
       "description": "Node.js version updates - higher stability. Grouping, release age and priority apply to every update type; only the automerge decision is split out below.",
