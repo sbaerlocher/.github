@@ -264,6 +264,31 @@ When adding a new reusable workflow, pick the base-group pattern based on
 whether it serialises a shared resource, and always expose both inputs so
 consumers have an escape hatch.
 
+### No Workflow-Level `paths` / `paths-ignore` on Required Checks
+
+A workflow-level `paths` or `paths-ignore` filter under `on.pull_request` skips
+the **whole** workflow when the changed files match. If that workflow provides a
+required status check of the branch ruleset, the check never reports and the PR
+stays `BLOCKED` forever. This is not limited to docs-only PRs: it hits every
+change that matches the filter.
+
+**Rule:** a workflow that provides required checks carries no workflow-level
+`paths` / `paths-ignore`. To save CI on docs-only PRs, filter at job level:
+
+1. A `changes` job diffs base against head (`git diff --name-only`) and
+   outputs `code=true|false`.
+2. The expensive jobs depend on it via `if: needs.changes.outputs.code == 'true'`.
+3. An aggregating `status` job (`All Checks Passed`) runs with `if: always()`
+   and is the **only** required check. It fails when a needed job failed and
+   passes when jobs were skipped.
+
+Jobs that should also run on docs-only PRs (e.g. the Claude review, so docs get
+reviewed and the ruleset approval still arrives) simply do not depend on
+`changes`.
+
+Reference implementation: `sbaerlocher/dotfiles`,
+`.github/workflows/pull-request.yml`.
+
 ---
 
 ## Workflow Categories
@@ -718,6 +743,10 @@ Ensure lock files are committed:
 - NEVER use `@main` for consumer references (use a date tag like `@2026-04-25`)
 - NEVER duplicate logic across workflows (use composite actions)
 - NEVER hard-code values (use inputs)
+- NEVER use workflow-level `paths` / `paths-ignore` on a workflow that provides
+  required status checks — it skips the whole run, the required check never
+  reports, and the PR stays `BLOCKED` (see
+  [No Workflow-Level `paths` / `paths-ignore` on Required Checks](#no-workflow-level-paths--paths-ignore-on-required-checks))
 
 ---
 
