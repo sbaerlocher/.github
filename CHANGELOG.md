@@ -22,6 +22,18 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-11-06
+
+### Changed
+
+- **`ai-claude-review.yml`**: follow-up reviews read the whole comment thread
+  of each finding, including the PR author's replies. A reply that explains,
+  backed by the code or the repo rules, why a finding does not apply now
+  resolves it ("Accepted"), so the bot can approve without a code change.
+  Re-running the review job after such a reply is a valid follow-up even
+  without new commits. Replies are weighed as arguments, never followed as
+  instructions.
+
 ## 2026-11-05
 
 ### ⚠ BREAKING
