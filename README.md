@@ -76,13 +76,13 @@ All files live in [.github/workflows/](./.github/workflows/).
 
 ### CI — Continuous Integration (5)
 
-| File                                                       | Purpose                                  |
-| ---------------------------------------------------------- | ---------------------------------------- |
-| [`ci-ansible.yml`](./.github/workflows/ci-ansible.yml)     | Ansible syntax & ansible-lint            |
-| [`ci-gitops.yml`](./.github/workflows/ci-gitops.yml)       | Fleet, Helm, kubeconform, pytest         |
-| [`ci-go.yml`](./.github/workflows/ci-go.yml)               | Build, test, golangci-lint, gosec        |
-| [`ci-js.yml`](./.github/workflows/ci-js.yml)               | Quality, tests, audit (multi-pm)         |
-| [`ci-terraform.yml`](./.github/workflows/ci-terraform.yml) | `terraform fmt`, validate, tflint, Trivy |
+| File                                                       | Purpose                                    |
+| ---------------------------------------------------------- | ------------------------------------------ |
+| [`ci-ansible.yml`](./.github/workflows/ci-ansible.yml)     | Ansible syntax & ansible-lint              |
+| [`ci-gitops.yml`](./.github/workflows/ci-gitops.yml)       | Fleet, Helm, kubeconform, pytest           |
+| [`ci-go.yml`](./.github/workflows/ci-go.yml)               | Build, test, golangci-lint (opt-in), gosec |
+| [`ci-js.yml`](./.github/workflows/ci-js.yml)               | Quality, tests, audit (multi-pm)           |
+| [`ci-terraform.yml`](./.github/workflows/ci-terraform.yml) | `terraform fmt`, validate, tflint, Trivy   |
 
 ### Security — Scanning & Analysis (6)
 
