@@ -188,7 +188,7 @@ jobs:
 
       - name: Bring dde project up
         id: dde
-        uses: sbaerlocher/.github/.github/actions/project@2026-11-06
+        uses: sbaerlocher/.github/.github/actions/project@2026-11-07
         with:
           command: up
           version: ${{ inputs.dde-version }}
