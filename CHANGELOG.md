@@ -22,6 +22,22 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-11-07
+
+### Added
+
+- **`ci-go.yml`**: opt-in golangci-lint in the `test-and-lint` job. New inputs
+  `enable-golangci-lint` (default `false`) and `golangci-lint-version`
+  (default `v2.15.0`, bumped by Renovate). Callers that don't set the input
+  are unchanged; a repo without `.golangci.yml` runs on golangci-lint's
+  default config. Until now the workflow ran only `go vet`, `gofmt -s` and
+  staticcheck, so lint findings skipped by a local hook passed CI.
+
+### Changed
+
+- **`README.md`, `AGENTS.md`**: the `ci-go.yml` rows list golangci-lint as
+  opt-in instead of implying it always runs.
+
 ## 2026-11-06
 
 ### Changed

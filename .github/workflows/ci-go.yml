@@ -42,6 +42,19 @@ on:
         required: false
         default: true
         description: 'Run security scans (gosec, govulncheck, trivy)'
+      enable-golangci-lint:
+        type: boolean
+        required: false
+        default: false
+        description: >-
+          Run golangci-lint in the Test & Lint job. Opt-in: a repo without a
+          `.golangci.yml` is linted with golangci-lint's default config.
+      golangci-lint-version:
+        type: string
+        required: false
+        # renovate: datasource=github-releases depName=golangci/golangci-lint
+        default: 'v2.15.0'
+        description: 'golangci-lint version, used only when enable-golangci-lint is true'
       enable-sarif-upload:
         type: boolean
         required: false
@@ -260,6 +273,13 @@ jobs:
           # renovate: datasource=github-releases depName=dominikh/go-tools
           version: '2026.2.2'
           install-go: false
+
+      - name: Run golangci-lint
+        if: inputs.enable-golangci-lint
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: ${{ inputs.golangci-lint-version }}
+          args: run
 
       - name: Set test environment variables
         env:
