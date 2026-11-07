@@ -264,6 +264,40 @@ When adding a new reusable workflow, pick the base-group pattern based on
 whether it serialises a shared resource, and always expose both inputs so
 consumers have an escape hatch.
 
+### No Workflow-Level `paths` / `paths-ignore` on Required Checks
+
+A workflow-level `paths` or `paths-ignore` filter under `on.pull_request` skips
+the **whole** workflow when the changed files match. If that workflow provides a
+required status check of the branch ruleset, the check never reports and the PR
+stays `BLOCKED` forever. This is not limited to docs-only PRs: it hits every
+change that matches the filter.
+
+**Rule:** a workflow that provides required checks carries no workflow-level
+`paths` / `paths-ignore`. To save CI on docs-only PRs, filter at job level:
+
+1. A `changes` job diffs base against head (`git diff --name-only`) and
+   outputs `code=true|false`. It needs the base commit: `actions/checkout`
+   defaults to `fetch-depth: 1`, so use `fetch-depth: 0` or fetch the base SHA
+   explicitly. Fail open: any diff error yields `code=true`, never `false`.
+2. The expensive jobs depend on it via `if: needs.changes.outputs.code == 'true'`.
+3. An aggregating `status` job (`All Checks Passed`) is the **only** required
+   check. It lists `changes` and every gated job in `needs`, runs with
+   `if: ${{ !cancelled() }}`, and passes only if `changes` is `success` and no
+   other needed job is `failure` or `cancelled`. `skipped` counts as a pass for
+   the gated jobs, but not for `changes`: if `changes` dies, the gated jobs skip
+   as a consequence and the run would otherwise go green with nothing tested.
+
+Jobs that should also run on docs-only PRs (e.g. the Claude review, so docs get
+reviewed and the ruleset approval still arrives) simply do not depend on
+`changes`.
+
+`test-*.yml` self-tests keep their workflow-level `paths:` (see Workflow Naming
+Convention) and must never be listed as required checks.
+
+Reference implementation: `sbaerlocher/dotfiles`,
+`.github/workflows/pull-request.yml` (uses `if: always()` where this rule
+prefers `!cancelled()`).
+
 ---
 
 ## Workflow Categories
@@ -718,6 +752,10 @@ Ensure lock files are committed:
 - NEVER use `@main` for consumer references (use a date tag like `@2026-04-25`)
 - NEVER duplicate logic across workflows (use composite actions)
 - NEVER hard-code values (use inputs)
+- NEVER use workflow-level `paths` / `paths-ignore` on a workflow that provides
+  required status checks — it skips the whole run, the required check never
+  reports, and the PR stays `BLOCKED` (see
+  [No Workflow-Level `paths` / `paths-ignore` on Required Checks](#no-workflow-level-paths--paths-ignore-on-required-checks))
 
 ---
 
