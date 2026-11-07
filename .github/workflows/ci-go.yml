@@ -54,7 +54,9 @@ on:
         required: false
         # renovate: datasource=github-releases depName=golangci/golangci-lint
         default: 'v2.15.0'
-        description: 'golangci-lint version, used only when enable-golangci-lint is true'
+        description: >-
+          golangci-lint version, used only when enable-golangci-lint is true.
+          Must be v2.x: the pinned golangci-lint-action no longer installs v1.
       enable-sarif-upload:
         type: boolean
         required: false
@@ -279,7 +281,6 @@ jobs:
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           version: ${{ inputs.golangci-lint-version }}
-          args: run
 
       - name: Set test environment variables
         env:
