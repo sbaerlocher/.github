@@ -780,13 +780,17 @@ Ensure lock files are committed:
   - The bypass skips the whole ruleset, required status checks and the
     up-to-date rule included. Renovate's own branch status (all checks it sees
     are green) is the only CI gate for its merges.
-  - A green PR waits for the next Renovate run, and Renovate may merge only one
-    branch per run, so a batch of Monday PRs can land over several runs.
-  - `rebaseWhen: conflicted` means a PR is tested against the `main` it was
-    branched from, not against the `main` it lands on. Two PRs that are green
-    on their own can still break `main` together. Accepted for dependency
-    bumps to avoid a full CI re-run on every open PR after each merge; a lockfile
-    clash shows up as a conflict and does trigger a rebase.
+  - A green PR waits for the next Renovate run, and Renovate automerges at most
+    one branch per target branch per run ([docs](https://docs.renovatebot.com/known-limitations/)),
+    so a batch of Monday PRs targeting one branch can land over several runs.
+  - Renovate automerges only a branch that is up to date with its target branch
+    (same page), and `rebaseWhen: conflicted` rebases only on a conflict. After
+    each merge the other green PRs therefore fall behind `main` and stay open
+    until something rebases them: a conflict, the rebase checkbox in the
+    Dependency Dashboard, or a manual rebase. The ruleset bypass does not
+    change this, because the up-to-date check is Renovate's own. Whether to
+    trade this for `behind-base-branch` (a CI re-run on every open PR after
+    each merge) is an open decision, not an accepted one.
 - **Release age is only enforced where a timestamp exists.** The preset sets
   `minimumReleaseAge: "3 days"` with `minimumReleaseAgeBehaviour:
 "timestamp-optional"`. Updates whose datasource reports a release timestamp
