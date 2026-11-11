@@ -780,8 +780,9 @@ Ensure lock files are committed:
   - The bypass skips the whole ruleset, required status checks and the
     up-to-date rule included. Renovate's own branch status (all checks it sees
     are green) is the only CI gate for its merges.
-  - A green PR waits for the next Renovate run, and Renovate may merge only one
-    branch per run, so a batch of Monday PRs can land over several runs.
+  - A green PR waits for the next Renovate run, and Renovate automerges at most
+    one branch per target branch per run ([docs](https://docs.renovatebot.com/known-limitations/)),
+    so a batch of Monday PRs in one repo can land over several runs.
   - `rebaseWhen: conflicted` means a PR is tested against the `main` it was
     branched from, not against the `main` it lands on. Two PRs that are green
     on their own can still break `main` together. Accepted for dependency
