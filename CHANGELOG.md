@@ -27,9 +27,19 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 ### Fixed
 
 - **`renovate-base.json`**: apply the four-year abandonment threshold to Go
-  modules after `config:best-practices` is extended. The Go rule in
-  `renovate-go.json` came before later re-extensions of the base preset, so
-  `abandonments:recommended` restored its one-year threshold for consumers.
+  modules after `config:best-practices` is extended. `abandonments:recommended`
+  sets its 1-year threshold as a `packageRules` entry matching every package
+  (`matchPackageNames: ["*"]`), not as a top-level option, so the later of the
+  two rules wins. The Go rule in `renovate-go.json` came before later
+  re-extensions of the base preset and lost to that entry for consumers.
+- **`renovate-go.json`**: the gomod `abandonmentThreshold` rule is removed; it
+  now lives in `renovate-base.json`.
+- **Scope widened**: every preset that extends `renovate-base` now applies the
+  4-year threshold to `gomod` dependencies, not only `renovate-go`. A repo with
+  a `go.mod` on another preset stops listing Go modules inactive for 1 to 4
+  years under "Abandoned Dependencies". This replaces the 2026-08-30 decision
+  to keep the rule out of `renovate-base`, which assumed a top-level threshold
+  that rule order could not override. Other ecosystems keep the 1-year default.
 
 ## 2026-11-07
 
