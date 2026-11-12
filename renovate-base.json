@@ -39,6 +39,11 @@
       "automerge": true
     },
     {
+      "description": "Abandonment detection is release-inactivity only, and Go's standard library plus a stable module API let a small, finished library sit for years without being unmaintained. The 1-year threshold from abandonments:recommended (via config:best-practices) flagged google/uuid, gorilla/sessions, pquerna/otp and SherClockHolmes/webpush-go in consumer dashboards with no migration to make. Scoped to gomod: npm release cadence does track maintenance, so the default stays meaningful there. Lives in this preset, after its extends, because abandonments:recommended sets its threshold as a packageRule matching every package: rules apply in order, so this one must come after it, and a rule in renovate-go lost to a later re-extension of this preset.",
+      "matchManagers": ["gomod"],
+      "abandonmentThreshold": "4 years"
+    },
+    {
       "description": "Major updates require manual review",
       "matchUpdateTypes": ["major"],
       "automerge": false,
