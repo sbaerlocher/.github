@@ -22,6 +22,15 @@ Consumers pin a date tag and bump it via Renovate. Two rules make that safe:
 
 ---
 
+## 2026-11-12
+
+### Fixed
+
+- **`renovate-base.json`**: apply the four-year abandonment threshold to Go
+  modules after `config:best-practices` is extended. The Go rule in
+  `renovate-go.json` came before later re-extensions of the base preset, so
+  `abandonments:recommended` restored its one-year threshold for consumers.
+
 ## 2026-11-07
 
 ### Added
