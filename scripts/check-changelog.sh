@@ -24,6 +24,12 @@ set -uo pipefail
 }
 TITLE="$1"
 
+# Read stdin once, before any exit: the caller pipes `git diff` in under
+# `pipefail`, and a writer still running when the script exits dies of SIGPIPE
+# (141), failing the pipeline although the check passed. `$(cat)` rather than
+# `mapfile`, which bash 3.2 (macOS) lacks.
+PATHS="$(cat)"
+
 RE='^([a-z]+)(\([^()]*\))?(!)?: .+'
 if ! [[ "$TITLE" =~ $RE ]]; then
   echo "PR title is not a Conventional Commits subject: $TITLE" >&2
@@ -41,13 +47,7 @@ chore | ci | docs | test | build | style | revert) REQUIRED=0 ;;
   ;;
 esac
 [ -n "$BANG" ] && REQUIRED=1
-# Drain stdin before the early exit: the caller pipes `git diff` in under
-# `pipefail`, and a writer still running when the script exits dies of SIGPIPE
-# (141), which fails the pipeline although the check passed.
-[ "$REQUIRED" -eq 1 ] || {
-  cat >/dev/null
-  exit 0
-}
+[ "$REQUIRED" -eq 1 ] || exit 0
 
 TRIGGERS=()
 HAS_CHANGELOG=0
@@ -57,7 +57,7 @@ while IFS= read -r path; do
   .github/workflows/* | .github/actions/*) TRIGGERS+=("$path") ;;
   renovate-*.json) [[ "$path" == */* ]] || TRIGGERS+=("$path") ;;
   esac
-done
+done <<<"$PATHS"
 
 [ "${#TRIGGERS[@]}" -eq 0 ] && exit 0
 [ "$HAS_CHANGELOG" -eq 1 ] && exit 0
