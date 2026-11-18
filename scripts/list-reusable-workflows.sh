@@ -9,8 +9,8 @@
 # injection guard iterates.
 #
 # Single-sourced because two tests derive different things from the same
-# classification: test-workflow-counts.sh checks the counts stated in AGENTS.md
-# and README.md, test-workflow-input-injection.sh derives the set it scans for
+# classification: test-workflow-counts.sh checks the counts stated in README.md,
+# test-workflow-input-injection.sh derives the set it scans for
 # injection sinks. Two copies could drift apart while both stayed green, and
 # then the guard's coverage line would stop meaning what the docs claim.
 #
