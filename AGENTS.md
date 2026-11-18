@@ -75,14 +75,15 @@ day's tag moves to the newest commit until the day ends, then stays fixed.
 There are no semver tags. Consumers pin a date tag; `@main` is only for
 testing a change from a consumer repo before merge.
 
-A breaking change (required input changed, input or output removed, default
-behaviour changed) gets a `### ⚠ BREAKING` heading in that day's
+A breaking change (input or output removed, input made required, input type or
+default value changed, default behaviour changed) gets a `### ⚠ BREAKING` heading in that day's
 `CHANGELOG.md` entry, naming the workflow and a one-line migration step. That
 entry is the deprecation notice consumers scan before bumping.
 
 `changelog.yml` fails a PR titled `feat`, `fix`, `perf`, `refactor` or with
 `!` that touches `.github/workflows/`, `.github/actions/` or a
-`renovate-*.json` preset without a `CHANGELOG.md` change.
+`renovate-*.json` preset without a `CHANGELOG.md` change. It also fails any PR
+whose title is not a Conventional Commits subject with a known type.
 
 ## Required checks
 

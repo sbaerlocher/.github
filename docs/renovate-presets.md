@@ -26,9 +26,9 @@ an approval.
 - The bypass skips the whole ruleset, required checks and the up-to-date rule
   included. Renovate's own branch status is the only CI gate for its merges.
 - A green PR waits for the next Renovate run, and Renovate automerges at most
-  one branch per target branch per run
+  one branch per run
   ([docs](https://docs.renovatebot.com/known-limitations/)), so a Monday batch
-  targeting one branch can land over several runs.
+  can land over several runs.
 - Renovate automerges only a branch that is up to date with its target branch
   (same page), and `rebaseWhen: conflicted` rebases only on a conflict. After
   each merge the other green PRs fall behind `main` and stay open until
