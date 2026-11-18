@@ -18,8 +18,8 @@ unless they violate an explicit rule below.
 
 ### Workflow naming
 
-- File names must follow the organization convention: `ci-*.yml`, `security-*.yml`, `deploy-*.yml`,
-  `release-*.yml`, `ops-*.yml`, `ai-*.yml`, `docs-*.yml`.
+- Reusable workflow file names use one of the prefixes `ci-`, `security-`, `deploy-`, `release-`,
+  `ops-`, `ai-`, `e2e-`. `test-*.yml` is an internal self-test and must not declare `workflow_call`.
 - The `name:` field must spell out the full intent — no abbreviations.
 
 ### Permissions
@@ -38,8 +38,11 @@ unless they violate an explicit rule below.
 
 - Reusable workflows must declare `on: workflow_call`.
 - All inputs and secrets must be explicitly typed and documented with `description:`.
-- Removing an input, changing its type, or changing a default value is a breaking change and requires
-  a major version increment on the caller-facing tag.
+- Every reusable workflow exposes the `runner`, `cancel-in-progress` and `concurrency-suffix` inputs
+  (see `docs/workflow-conventions.md`).
+- Removing an input or output, making an input required, changing its type, or changing a default value
+  is a breaking change. It requires a `### ⚠ BREAKING` heading in the `CHANGELOG.md` entry, naming the
+  workflow and a one-line migration step. Versions are date tags; there is no major version to bump.
 - Adding an optional input with a sensible default is non-breaking.
 
 ### Supply chain
