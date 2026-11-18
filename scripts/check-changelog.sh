@@ -41,7 +41,13 @@ chore | ci | docs | test | build | style | revert) REQUIRED=0 ;;
   ;;
 esac
 [ -n "$BANG" ] && REQUIRED=1
-[ "$REQUIRED" -eq 1 ] || exit 0
+# Drain stdin before the early exit: the caller pipes `git diff` in under
+# `pipefail`, and a writer still running when the script exits dies of SIGPIPE
+# (141), which fails the pipeline although the check passed.
+[ "$REQUIRED" -eq 1 ] || {
+  cat >/dev/null
+  exit 0
+}
 
 TRIGGERS=()
 HAS_CHANGELOG=0
