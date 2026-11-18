@@ -1,18 +1,20 @@
 # Reusable GitHub Actions Workflows
 
+[![Pull Request](https://github.com/sbaerlocher/.github/actions/workflows/pull-request.yml/badge.svg)](https://github.com/sbaerlocher/.github/actions/workflows/pull-request.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+
+## Overview
+
 Centralized CI/CD building blocks for all repositories under
 [`sbaerlocher`](https://github.com/sbaerlocher). Consumer repositories pin
 each workflow by date tag and let Renovate keep them current.
 
 - **Model:** rolling release with date tags (`YYYY-MM-DD`)
 - **Reusable workflows:** 24 (plus 5 internal to this repo)
-- **Last updated:** 2026-07-18
-
-See [AGENTS.md](./AGENTS.md) for AI-agent context.
 
 ---
 
-## Quick Start
+## Quickstart
 
 Pick the most recent date tag from
 <https://github.com/sbaerlocher/.github/tags> (used as `<TAG>` below) and
@@ -151,6 +153,7 @@ In addition to reusable workflows, this repo ships composite actions under
 | [`setup-dde`](./.github/actions/setup-dde/)                                           | Install the [whatwedo dde](https://github.com/whatwedo/dde) CLI          |
 | [`project`](./.github/actions/project/)                                               | Install dde + run any `dde project:<command>` (default `up`) for E2E     |
 | [`sbom-npm`](./.github/actions/sbom-npm/)                                             | CycloneDX SBOM for npm/pnpm/yarn/bun projects (internal)                 |
+| [`install-kubeconform`](./.github/actions/install-kubeconform/)                       | Install kubeconform with checksum verification (used by `ci-gitops.yml`) |
 | [`validate-observability-configs`](./.github/actions/validate-observability-configs/) | Validate Grafana Alloy and JSON configs in observability Terraform repos |
 
 For a complete Playwright + dde E2E job, use the
@@ -221,7 +224,10 @@ Rules:
 
 ---
 
-## Required Secrets in Consumer Repos
+## Configuration
+
+Each workflow documents its inputs in its `workflow_call` block. Secrets
+consumer repositories pass in:
 
 | Secret                    | Purpose                   | Required for                   |
 | ------------------------- | ------------------------- | ------------------------------ |
@@ -267,34 +273,14 @@ its default `false` and rely on artifact uploads instead.
 
 ---
 
-## Working on This Repository
+## Contributing
 
-Local tasks run through [`just`](https://just.systems), the org-wide command
-runner. Run it without arguments to list the recipes:
-
-| Recipe            | What it does                                              |
-| ----------------- | --------------------------------------------------------- |
-| `just`            | List all recipes                                          |
-| `just lint`       | yamllint, Renovate JSON validity, actionlint, `fmt-check` |
-| `just actionlint` | actionlint alone — local binary or container, by coverage |
-| `just test`       | Script self-checks under `scripts/tests/`                 |
-| `just fmt`        | prettier over Markdown and JSON                           |
-| `just fmt-check`  | prettier `--check` — the formatting gate inside `lint`    |
-
-There is no `build` or `dev` recipe — this repository ships no build artifact
-and has no dev loop. `templates/justfile` is the reference template consumer
-repositories copy, and carries the full standard verb set.
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full contribution workflow.
-
----
-
-## Related Documentation
-
-- [REVIEW.md](./REVIEW.md) — code review guidelines for this repo
-- [CHANGELOG.md](./CHANGELOG.md) — release history
-- [AGENTS.md](./AGENTS.md) — AI agent context
-- [SECURITY.md](./SECURITY.md) — vulnerability reporting
+Changes go through a pull request; `just lint` and `just test` must pass.
+Setup and the PR checklist: [CONTRIBUTING.md](./CONTRIBUTING.md). Conventions
+for changing workflows and presets: [AGENTS.md](./AGENTS.md) and
+[docs/](./docs/). Review rules: [REVIEW.md](./REVIEW.md). Release history:
+[CHANGELOG.md](./CHANGELOG.md). Vulnerability reports:
+[SECURITY.md](./SECURITY.md).
 
 ---
 
