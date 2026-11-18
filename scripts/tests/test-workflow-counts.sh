@@ -7,9 +7,10 @@
 # workflow added. README.md is now the only place that states one; AGENTS.md
 # carries none, so it cannot seed a wrong count.
 #
-# Counts are derived, never hardcoded here: total is the file count, reusable is
-# the number declaring a `workflow_call` trigger, internal is the remainder. The
-# docs are then checked against those derived values.
+# Counts are derived, never hardcoded here: reusable is the number declaring a
+# `workflow_call` trigger, internal is the remainder; total only feeds the PASS
+# line. Internal workflows are not checked by name: no doc lists them any more,
+# so a rename that keeps the counts passes by design.
 #
 # Run: scripts/tests/test-workflow-counts.sh
 set -euo pipefail

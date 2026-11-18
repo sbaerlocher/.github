@@ -56,10 +56,11 @@ concurrency:
   cancel-in-progress: ${{ inputs.cancel-in-progress }}
 ```
 
-| Category             | Default `cancel-in-progress` | Override when                                                       |
-| -------------------- | ---------------------------- | ------------------------------------------------------------------- |
-| CI, Security, E2E    | `true`                       | every matrix leg must finish (e.g. compliance reports)              |
-| Deploy, Release, Ops | `false`                      | drift or scan runs where the latest invocation supersedes the older |
+| Category             | Default `cancel-in-progress` | Override when                                                                                          |
+| -------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------ |
+| CI, Security, E2E    | `true`                       | every matrix leg must finish (e.g. compliance reports)                                                 |
+| Deploy, Release, Ops | `false`                      | drift or scan runs where the latest invocation supersedes the older                                    |
+| AI                   | per workflow                 | `ai-claude-review.yml` defaults to `true`, `ai-claude.yml` to `false`; a new `ai-*.yml` states its own |
 
 `concurrency-suffix` is for a caller that invokes the same reusable from
 several modes or matrix legs that must run in parallel, e.g.

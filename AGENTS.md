@@ -32,7 +32,7 @@ Every workflow with a `workflow_call` trigger exposes:
 
 - `runner` (default `ubuntu-latest`), used by every `runs-on:`.
 - `cancel-in-progress` (CI/Security/E2E default `true`, Deploy/Release/Ops
-  default `false`) and `concurrency-suffix` (default empty).
+  default `false`, AI per workflow) and `concurrency-suffix` (default empty).
 
 The reusable owns `concurrency:`. Consumer workflows calling it set none for the
 same group. Before adding or changing either input, read
@@ -64,9 +64,15 @@ Sibling actions of this repo are referenced by full path and date tag
 reusables and other actions. `uses: ./...` resolves against the caller's
 workspace, not this repo
 ([actions/runner#2185](https://github.com/actions/runner/issues/2185)).
-`test-actions-dde.yml` is the one exception: it checks this repo out first.
-Consequence: the `smoke-project-*` jobs exercise the tagged `setup-dde`, not
-the copy in the PR.
+Two `./` forms are intended, both in internal workflows that run on this
+repo's own checkout:
+
+- `pull-request.yml` and `weekly-security.yml` call this repo's reusables via
+  `uses: ./.github/workflows/<file>`, so PR checks run the copy in the PR.
+  Keep them local; a date tag or SHA would test the released version.
+- `test-actions-dde.yml` checks this repo out first and uses
+  `./.github/actions/...`. Its `smoke-project-*` jobs still run the tagged
+  `setup-dde`, because `project/action.yml` pins `setup-dde` by date tag.
 
 ## Versioning and breaking changes
 

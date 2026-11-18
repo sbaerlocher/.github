@@ -40,8 +40,8 @@ unless they violate an explicit rule below.
 - All inputs and secrets must be explicitly typed and documented with `description:`.
 - Every reusable workflow exposes the `runner`, `cancel-in-progress` and `concurrency-suffix` inputs
   (see `docs/workflow-conventions.md`).
-- Removing an input or output, making an input required, changing its type, or changing a default value
-  is a breaking change. It requires a `### ⚠ BREAKING` heading in the `CHANGELOG.md` entry, naming the
+- Removing an input or output, making an input required, changing its type, changing a default value, or
+  changing default behaviour is a breaking change. It requires a `### ⚠ BREAKING` heading in the `CHANGELOG.md` entry, naming the
   workflow and a one-line migration step. Versions are date tags; there is no major version to bump.
 - Adding an optional input with a sensible default is non-breaking.
 
