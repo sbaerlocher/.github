@@ -63,4 +63,14 @@ set -e
 grep -qF 'fix' <<<"$ERR" || fail "stderr must name the type"
 grep -qF "$WF" <<<"$ERR" || fail "stderr must name the triggering path"
 
+# 7 — an exempt title still drains stdin. changelog.yml pipes `git diff` into
+# the script under `pipefail`; an early `exit 0` left the writer to die of
+# SIGPIPE (exit 141) and turned docs/chore PRs red. 200k lines exceed any pipe
+# buffer, so the writer is still running when the script decides.
+set +e
+seq 1 200000 | "$SCRIPT" 'docs: update readme' >/dev/null 2>&1
+RC=$?
+set -e
+[ "$RC" -eq 0 ] || fail "exempt title with long stdin must exit 0 (got $RC, 141 = SIGPIPE)"
+
 echo "PASS: check-changelog.sh"
